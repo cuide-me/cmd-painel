@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import KpiCard from '@/components/admin/torre/KpiCard';
 import ModuleCard from '@/components/admin/torre/ModuleCard';
 import AlertCard from '@/components/admin/torre/AlertCard';
@@ -133,17 +132,11 @@ export default function AdminTorreControle() {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header com Logo */}
+        {/* Header */}
         <div className="flex justify-between items-center mb-12">
           <div className="flex items-center gap-4">
-            <div className="relative w-20 h-20">
-              <Image
-                src="/logo-cuide-me.png"
-                alt="Cuide-me"
-                fill
-                className="object-contain"
-                priority
-              />
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
+              <span className="text-4xl">🏥</span>
             </div>
             <div>
               <h1 className="text-4xl font-bold text-black">Torre de Controle</h1>
