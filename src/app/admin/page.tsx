@@ -3,16 +3,27 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import KpiCard from '@/components/admin/torre/KpiCard';
+import ModuleCard from '@/components/admin/torre/ModuleCard';
+import AlertCard from '@/components/admin/torre/AlertCard';
 
 export default function AdminTorreControle() {
   const router = useRouter();
-  const [stats, setStats] = useState({
-    familias: 0,
-    profissionais: 0,
-    receita: 0,
-    tickets: 0,
-  });
+  const [torreData, setTorreData] = useState<{
+    kpis: Array<{
+      id: string;
+      label: string;
+      value: number | string;
+      status: 'green' | 'yellow' | 'red';
+      trend: 'up' | 'down' | 'flat';
+      tooltip: string;
+      suffix?: string;
+    }>;
+    trends: Array<{ id: string; label: string; value: number; trend: 'up' | 'down' | 'flat'; tooltip: string }>;
+    alerts: Array<{ id: string; label: string; count: number; severity: 'low' | 'medium' | 'high'; action: string }>;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('admin_logged') === 'true';
@@ -21,23 +32,31 @@ export default function AdminTorreControle() {
       return;
     }
 
-    // Buscar stats reais do Firebase
-    const fetchStats = async () => {
-      try {
-        const response = await fetch('/api/admin/torre-stats');
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data);
-        }
-      } catch (error) {
-        console.error('Erro ao buscar stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
+    fetchTorreData();
+    
+    // Refresh a cada 2 minutos
+    const interval = setInterval(fetchTorreData, 120000);
+    return () => clearInterval(interval);
   }, [router]);
+
+  const fetchTorreData = async () => {
+    try {
+      setError(null);
+      const response = await fetch('/api/admin/torre/overview');
+      
+      if (!response.ok) {
+        throw new Error('Erro ao carregar dados');
+      }
+      
+      const data = await response.json();
+      setTorreData(data);
+    } catch (err: any) {
+      console.error('Erro ao buscar dados da Torre:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('admin_logged');
@@ -139,40 +158,31 @@ export default function AdminTorreControle() {
           </button>
         </div>
 
-        {/* Cards de Visão Geral */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
-            <div className="text-3xl mb-2">👨‍👩‍👧</div>
-            <div className="text-4xl font-bold text-black mb-1">
-              {loading ? '...' : stats.familias}
-            </div>
-            <div className="text-sm text-black">Clientes (Famílias)</div>
-          </div>
-          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
-            <div className="text-3xl mb-2">👩‍⚕️</div>
-            <div className="text-4xl font-bold text-black mb-1">
-              {loading ? '...' : stats.profissionais}
-            </div>
-            <div className="text-sm text-black">Profissionais</div>
-          </div>
-          <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
-            <div className="text-3xl mb-2">💵</div>
-            <div className="text-4xl font-bold text-black mb-1">
-              {loading
-                ? '...'
-                : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    stats.receita
-                  )}
-            </div>
-            <div className="text-sm text-black">Receita Mês</div>
-          </div>
-          <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-6">
-            <div className="text-3xl mb-2">🎫</div>
-            <div className="text-4xl font-bold text-black mb-1">
-              {loading ? '...' : stats.tickets}
-            </div>
-            <div className="text-sm text-black">Tickets Abertos</div>
-          </div>
+        {/* KPIs Essenciais */}
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-6 mb-12">
+          {(torreData?.kpis ?? []).map((item) => {
+            const mapStatus = (s: 'green' | 'yellow' | 'red'): 'healthy' | 'warning' | 'critical' => (
+              s === 'green' ? 'healthy' : s === 'yellow' ? 'warning' : 'critical'
+            );
+            const mapTrend = (t: 'up' | 'down' | 'flat'): 'up' | 'down' | 'stable' => (
+              t === 'flat' ? 'stable' : t
+            );
+            const unit = item.suffix === '%' ? '%' : item.suffix === 'h' ? 'h' : undefined;
+            return (
+              <KpiCard
+                key={item.id}
+                kpi={{
+                  label: item.label,
+                  value: typeof item.value === 'string' ? Number(String(item.value).replace(/[^0-9.-]/g, '')) : item.value,
+                  unit,
+                  status: mapStatus(item.status),
+                  trend: mapTrend(item.trend),
+                  tooltip: item.tooltip,
+                  actionable: item.tooltip,
+                }}
+              />
+            );
+          })}
         </div>
 
         {/* Grid de Acesso Rápido */}
@@ -195,19 +205,25 @@ export default function AdminTorreControle() {
           </div>
         </div>
 
-        {/* Alertas */}
+        {/* Alertas & Riscos */}
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-black mb-6">⚠️ Alertas & Notificações</h2>
-          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6">
-            <p className="text-black text-sm">
-              Nenhum alerta no momento. Sistema operando normalmente.
-            </p>
+          <h2 className="text-2xl font-bold text-black mb-6">⚠️ Alertas & Riscos</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {(torreData?.alerts ?? []).map((alert) => (
+              <AlertCard
+                key={alert.id}
+                title={alert.label}
+                count={alert.count}
+                severity={alert.severity}
+                action={alert.action}
+              />
+            ))}
           </div>
         </div>
 
         {/* Atividade Recente */}
         <div>
-          <h2 className="text-2xl font-bold text-black mb-6">� Atividade Recente (24h)</h2>
+          <h2 className="text-2xl font-bold text-black mb-6">🕑 Atividade Recente (24h)</h2>
           <div className="bg-white border-2 border-black rounded-lg p-6">
             <ul className="space-y-3 text-black">
               <li className="flex items-center gap-3">
