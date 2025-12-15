@@ -33,8 +33,10 @@ export async function GET() {
   // Check Firebase
   try {
     const { getFirebaseAdmin } = await import('@/lib/server/firebaseAdmin');
-    const admin = getFirebaseAdmin();
-    await admin.firestore().collection('_health_check').limit(1).get();
+    const admin = require('firebase-admin');
+    getFirebaseAdmin(); // Ensure initialization
+    const db = admin.firestore();
+    await db.collection('users').limit(1).get();
     checks.services.firebase = { status: 'healthy', message: 'Connected' };
   } catch (error) {
     checks.services.firebase = {
