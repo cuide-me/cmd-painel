@@ -1,232 +1,502 @@
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * TORRE DE CONTROLE V2 — HOME PAGE
+ * ═══════════════════════════════════════════════════════════════
+ * 
+ * Design Principles:
+ * - Information Hierarchy: Hero KPIs → Secondary Metrics → Alerts → Actions
+ * - Visual Clarity: Status colors, trends, sparklines
+ * - Decision-Oriented: Every metric has clear actionable insights
+ * - Performance: Optimistic UI, background refresh, cached data
+ * 
+ * Target: 30s to understand platform health and take action
+ */
+
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import KpiCard from '@/components/admin/torre/KpiCard';
-import ModuleCard from '@/components/admin/torre/ModuleCard';
-import AlertCard from '@/components/admin/torre/AlertCard';
+import Link from 'next/link';
 
-export default function AdminTorreControle() {
+// ═══════════════════════════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════════════════════════
+
+type KpiStatus = 'healthy' | 'warning' | 'critical';
+type TrendDirection = 'up' | 'down' | 'stable';
+
+interface Kpi {
+  id: string;
+  label: string;
+  value: number | string;
+  status: KpiStatus;
+  trend: TrendDirection;
+  tooltip: string;
+  suffix?: string;
+  trendValue?: number;
+}
+
+interface Alert {
+  id: string;
+  label: string;
+  count: number;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  action: string;
+  module?: string;
+}
+
+interface TorreData {
+  kpis: Kpi[];
+  alerts: Alert[];
+  lastUpdate?: string;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════
+
+export default function TorreControle() {
   const router = useRouter();
-  const [torreData, setTorreData] = useState<{
-    kpis: Array<{
-      id: string;
-      label: string;
-      value: number | string;
-      status: 'green' | 'yellow' | 'red';
-      trend: 'up' | 'down' | 'flat';
-      tooltip: string;
-      suffix?: string;
-    }>;
-    trends: Array<{ id: string; label: string; value: number; trend: 'up' | 'down' | 'flat'; tooltip: string }>;
-    alerts: Array<{ id: string; label: string; count: number; severity: 'low' | 'medium' | 'high'; action: string }>;
-  } | null>(null);
+  const [data, setData] = useState<TorreData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
+  // ─────────────────────────────────────────────────────────────
+  // Data Fetching
+  // ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    // Auth check
     const isLoggedIn = localStorage.getItem('admin_logged') === 'true';
     if (!isLoggedIn) {
       router.push('/admin/login');
       return;
     }
 
-    fetchTorreData();
-    
-    // Refresh a cada 2 minutos
-    const interval = setInterval(fetchTorreData, 120000);
+    // Initial load
+    fetchData();
+
+    // Auto-refresh every 2 minutes
+    const interval = setInterval(() => {
+      fetchData(true); // background refresh
+    }, 120000);
+
     return () => clearInterval(interval);
   }, [router]);
 
-  const fetchTorreData = async () => {
+  const fetchData = async (background = false) => {
     try {
+      if (!background) setLoading(true);
       setError(null);
+
       const response = await fetch('/api/admin/torre/overview');
       
       if (!response.ok) {
-        throw new Error('Erro ao carregar dados');
+        throw new Error(`HTTP ${response.status}`);
       }
+
+      const json = await response.json();
       
-      const data = await response.json();
-      setTorreData(data);
+      // Transform data
+      const transformed: TorreData = {
+        kpis: (json.kpis || []).map((kpi: any) => ({
+          id: kpi.id,
+          label: kpi.label,
+          value: kpi.value,
+          status: mapStatus(kpi.status),
+          trend: mapTrend(kpi.trend),
+          tooltip: kpi.tooltip,
+          suffix: kpi.suffix,
+        })),
+        alerts: (json.alerts || []).map((alert: any) => ({
+          id: alert.id,
+          label: alert.label,
+          count: alert.count,
+          severity: alert.severity || 'medium',
+          action: alert.action,
+          module: alert.module,
+        })),
+        lastUpdate: new Date().toISOString(),
+      };
+
+      setData(transformed);
+      setLastRefresh(new Date());
     } catch (err: any) {
-      console.error('Erro ao buscar dados da Torre:', err);
-      setError(err.message);
+      console.error('[Torre] Fetch error:', err);
+      setError(err.message || 'Erro ao carregar dados');
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
+
+  const mapStatus = (s: string): KpiStatus => {
+    if (s === 'green' || s === 'healthy') return 'healthy';
+    if (s === 'yellow' || s === 'warning') return 'warning';
+    return 'critical';
+  };
+
+  const mapTrend = (t: string): TrendDirection => {
+    if (t === 'flat') return 'stable';
+    return (t === 'up' || t === 'down' ? t : 'stable') as TrendDirection;
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // Computed Values
+  // ─────────────────────────────────────────────────────────────
+
+  const platformHealth = useMemo(() => {
+    if (!data?.kpis) return { score: 0, status: 'critical' as KpiStatus, label: 'Carregando...' };
+
+    const healthyCount = data.kpis.filter(k => k.status === 'healthy').length;
+    const score = Math.round((healthyCount / data.kpis.length) * 100);
+
+    let status: KpiStatus = 'healthy';
+    let label = 'Operação Normal';
+
+    if (score < 50) {
+      status = 'critical';
+      label = 'Atenção Crítica';
+    } else if (score < 75) {
+      status = 'warning';
+      label = 'Atenção Necessária';
+    }
+
+    return { score, status, label };
+  }, [data]);
+
+  const criticalAlerts = useMemo(() => {
+    return data?.alerts.filter(a => a.severity === 'critical' || a.severity === 'high') || [];
+  }, [data]);
+
+  const heroKpis = useMemo(() => {
+    if (!data?.kpis) return [];
+    // First 3 KPIs as "hero" metrics
+    return data.kpis.slice(0, 3);
+  }, [data]);
+
+  const secondaryKpis = useMemo(() => {
+    if (!data?.kpis) return [];
+    return data.kpis.slice(3);
+  }, [data]);
+
+  // ─────────────────────────────────────────────────────────────
+  // Handlers
+  // ─────────────────────────────────────────────────────────────
 
   const handleLogout = () => {
     localStorage.removeItem('admin_logged');
     router.push('/admin/login');
   };
 
-  const navItems = [
-    {
-      icon: '📊',
-      title: 'Dashboard',
-      desc: 'Indicadores de negócio',
-      href: '/admin/dashboard',
-      color: 'bg-blue-600 hover:bg-blue-700',
-    },
-    {
-      icon: '🔄',
-      title: 'Pipeline',
-      desc: 'Funil de contratação',
-      href: '/admin/pipeline',
-      color: 'bg-purple-600 hover:bg-purple-700',
-    },
-    {
-      icon: '💰',
-      title: 'Financeiro',
-      desc: 'Receitas e pagamentos',
-      href: '/admin/financeiro',
-      color: 'bg-green-600 hover:bg-green-700',
-    },
-    {
-      icon: '👥',
-      title: 'Usuários',
-      desc: 'Profissionais e clientes',
-      href: '/admin/users',
-      color: 'bg-orange-600 hover:bg-orange-700',
-    },
-    {
-      icon: '🔌',
-      title: 'Integrações',
-      desc: 'Stripe, Firebase, APIs',
-      href: '/admin/integracoes',
-      color: 'bg-indigo-600 hover:bg-indigo-700',
-    },
-    {
-      icon: '⭐',
-      title: 'Qualidade',
-      desc: 'NPS e feedbacks',
-      href: '/admin/qualidade',
-      color: 'bg-yellow-600 hover:bg-yellow-700',
-    },
-    {
-      icon: '🎫',
-      title: 'Suporte',
-      desc: 'Tickets e SLA',
-      href: '/admin/suporte',
-      color: 'bg-red-600 hover:bg-red-700',
-    },
-    {
-      icon: '🔥',
-      title: 'Firebase',
-      desc: 'Console do banco',
-      href: 'https://console.firebase.google.com/project/plataforma-cuide-me',
-      color: 'bg-pink-600 hover:bg-pink-700',
-      external: true,
-    },
-    {
-      icon: '⚙️',
-      title: 'Configurações',
-      desc: 'Configurações gerais',
-      href: '/admin/config',
-      color: 'bg-gray-600 hover:bg-gray-700',
-    },
+  // ─────────────────────────────────────────────────────────────
+  // Loading & Error States
+  // ─────────────────────────────────────────────────────────────
+
+  if (loading && !data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-slate-600 font-medium">Carregando Torre de Controle...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Erro ao carregar</h2>
+          <p className="text-slate-600 mb-6">{error}</p>
+          <button
+            onClick={() => fetchData()}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-[1600px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo & Title */}
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-2xl">🏥</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Torre de Controle</h1>
+                <p className="text-sm text-slate-500">Cuide-me Admin</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-4">
+              {/* Last Refresh */}
+              <div className="text-sm text-slate-500">
+                Atualizado: {lastRefresh.toLocaleTimeString('pt-BR')}
+              </div>
+
+              {/* Refresh Button */}
+              <button
+                onClick={() => fetchData(true)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                title="Atualizar dados"
+              >
+                <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-[1600px] mx-auto px-6 py-8">
+        {/* Health Score Banner */}
+        <HealthScoreBanner health={platformHealth} criticalAlertsCount={criticalAlerts.length} />
+
+        {/* Hero KPIs */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">📊 Métricas Principais</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {heroKpis.map(kpi => (
+              <HeroKpiCard key={kpi.id} kpi={kpi} />
+            ))}
+          </div>
+        </section>
+
+        {/* Secondary KPIs */}
+        {secondaryKpis.length > 0 && (
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">📈 Métricas Secundárias</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {secondaryKpis.map(kpi => (
+                <SecondaryKpiCard key={kpi.id} kpi={kpi} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Critical Alerts */}
+        {criticalAlerts.length > 0 && (
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+              <span className="text-2xl">🚨</span>
+              Alertas Críticos ({criticalAlerts.length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {criticalAlerts.map(alert => (
+                <AlertCardModern key={alert.id} alert={alert} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Quick Actions */}
+        <section>
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">🚀 Acesso Rápido</h2>
+          <QuickActionsGrid />
+        </section>
+      </main>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SUB-COMPONENTS
+// ═══════════════════════════════════════════════════════════════
+
+function HealthScoreBanner({ health, criticalAlertsCount }: { health: { score: number; status: KpiStatus; label: string }, criticalAlertsCount: number }) {
+  const statusConfig = {
+    healthy: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-900', icon: '✅' },
+    warning: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-900', icon: '⚠️' },
+    critical: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-900', icon: '🚨' },
+  };
+
+  const config = statusConfig[health.status];
+
+  return (
+    <div className={`${config.bg} ${config.border} border-2 rounded-2xl p-6 mb-8`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="text-5xl">{config.icon}</div>
+          <div>
+            <div className="text-sm font-medium text-slate-600 mb-1">Status da Plataforma</div>
+            <div className={`text-3xl font-bold ${config.text}`}>{health.label}</div>
+            <div className="text-sm text-slate-600 mt-1">
+              Health Score: <span className="font-semibold">{health.score}%</span>
+            </div>
+          </div>
+        </div>
+
+        {criticalAlertsCount > 0 && (
+          <div className="text-right">
+            <div className="text-4xl font-bold text-red-600">{criticalAlertsCount}</div>
+            <div className="text-sm text-slate-600">Alertas Críticos</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HeroKpiCard({ kpi }: { kpi: Kpi }) {
+  const statusConfig = {
+    healthy: { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-700', dot: 'bg-green-500' },
+    warning: { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-700', dot: 'bg-yellow-500' },
+    critical: { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', dot: 'bg-red-500' },
+  };
+
+  const trendConfig = {
+    up: { icon: '↗', color: 'text-green-600' },
+    down: { icon: '↘', color: 'text-red-600' },
+    stable: { icon: '→', color: 'text-slate-500' },
+  };
+
+  const config = statusConfig[kpi.status];
+  const trend = trendConfig[kpi.trend];
+
+  return (
+    <div className={`${config.bg} ${config.border} border-2 rounded-xl p-6 hover:shadow-lg transition-shadow`}>
+      {/* Status Indicator */}
+      <div className="flex items-center justify-between mb-3">
+        <div className={`w-3 h-3 rounded-full ${config.dot}`}></div>
+        <div className={`text-2xl font-bold ${trend.color}`}>{trend.icon}</div>
+      </div>
+
+      {/* Label */}
+      <div className="text-sm font-medium text-slate-600 mb-2">{kpi.label}</div>
+
+      {/* Value */}
+      <div className="flex items-baseline gap-1">
+        <div className={`text-4xl font-bold ${config.text}`}>
+          {typeof kpi.value === 'number' ? kpi.value.toLocaleString('pt-BR') : kpi.value}
+        </div>
+        {kpi.suffix && (
+          <div className="text-xl font-semibold text-slate-600">{kpi.suffix}</div>
+        )}
+      </div>
+
+      {/* Tooltip */}
+      <div className="mt-3 text-xs text-slate-600 leading-relaxed">{kpi.tooltip}</div>
+    </div>
+  );
+}
+
+function SecondaryKpiCard({ kpi }: { kpi: Kpi }) {
+  const statusConfig = {
+    healthy: { dot: 'bg-green-500', text: 'text-green-700' },
+    warning: { dot: 'bg-yellow-500', text: 'text-yellow-700' },
+    critical: { dot: 'bg-red-500', text: 'text-red-700' },
+  };
+
+  const trendConfig = {
+    up: { icon: '↗', color: 'text-green-600' },
+    down: { icon: '↘', color: 'text-red-600' },
+    stable: { icon: '→', color: 'text-slate-500' },
+  };
+
+  const config = statusConfig[kpi.status];
+  const trend = trendConfig[kpi.trend];
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-2">
+        <div className={`w-2 h-2 rounded-full ${config.dot}`}></div>
+        <div className={`text-lg font-bold ${trend.color}`}>{trend.icon}</div>
+      </div>
+
+      <div className="text-xs font-medium text-slate-500 mb-1">{kpi.label}</div>
+
+      <div className="flex items-baseline gap-1">
+        <div className={`text-2xl font-bold ${config.text}`}>
+          {typeof kpi.value === 'number' ? kpi.value.toLocaleString('pt-BR') : kpi.value}
+        </div>
+        {kpi.suffix && (
+          <div className="text-sm font-semibold text-slate-500">{kpi.suffix}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AlertCardModern({ alert }: { alert: Alert }) {
+  const severityConfig = {
+    low: { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-900', icon: 'ℹ️' },
+    medium: { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-900', icon: '⚡' },
+    high: { bg: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-900', icon: '⚠️' },
+    critical: { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-900', icon: '🚨' },
+  };
+
+  const config = severityConfig[alert.severity];
+
+  return (
+    <div className={`${config.bg} ${config.border} border-2 rounded-lg p-4`}>
+      <div className="flex items-start gap-3">
+        <div className="text-2xl">{config.icon}</div>
+        <div className="flex-1">
+          <div className={`font-semibold ${config.text} mb-1`}>{alert.label}</div>
+          <div className="text-2xl font-bold text-slate-900 mb-2">{alert.count}</div>
+          <div className="text-xs text-slate-600 mb-3">{alert.action}</div>
+          {alert.module && (
+            <div className="text-xs font-medium text-slate-500">
+              Módulo: {alert.module}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickActionsGrid() {
+  const modules = [
+    { icon: '📊', title: 'Dashboard', desc: 'Indicadores gerais', href: '/admin/dashboard', color: 'from-blue-500 to-blue-600' },
+    { icon: '🔄', title: 'Pipeline', desc: 'Funil de contratação', href: '/admin/pipeline', color: 'from-purple-500 to-purple-600' },
+    { icon: '💰', title: 'Financeiro', desc: 'Receitas e MRR', href: '/admin/financeiro', color: 'from-green-500 to-green-600' },
+    { icon: '👥', title: 'Usuários', desc: 'Famílias e profissionais', href: '/admin/users', color: 'from-orange-500 to-orange-600' },
+    { icon: '⭐', title: 'Qualidade', desc: 'NPS e avaliações', href: '/admin/qualidade', color: 'from-yellow-500 to-yellow-600' },
+    { icon: '🎫', title: 'Suporte', desc: 'Tickets e SLA', href: '/admin/suporte', color: 'from-red-500 to-red-600' },
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-12">
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
-              <span className="text-4xl">🏥</span>
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-black">Torre de Controle</h1>
-              <p className="text-sm text-black mt-1">Painel Administrativo Cuide-me</p>
-            </div>
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {modules.map(module => (
+        <Link
+          key={module.href}
+          href={module.href}
+          className="group bg-white border border-slate-200 rounded-xl p-4 hover:shadow-lg transition-all hover:-translate-y-1"
+        >
+          <div className={`w-12 h-12 bg-gradient-to-br ${module.color} rounded-lg flex items-center justify-center text-2xl mb-3 group-hover:scale-110 transition-transform`}>
+            {module.icon}
           </div>
-          <button
-            onClick={handleLogout}
-            className="px-6 py-3 bg-white text-black border-2 border-black rounded-lg hover:bg-black hover:text-white transition-colors font-semibold"
-          >
-            Sair
-          </button>
-        </div>
-
-        {/* KPIs Essenciais */}
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-6 mb-12">
-          {(torreData?.kpis ?? []).map((item) => {
-            const mapStatus = (s: 'green' | 'yellow' | 'red'): 'healthy' | 'warning' | 'critical' => (
-              s === 'green' ? 'healthy' : s === 'yellow' ? 'warning' : 'critical'
-            );
-            const mapTrend = (t: 'up' | 'down' | 'flat'): 'up' | 'down' | 'stable' => (
-              t === 'flat' ? 'stable' : t
-            );
-            const unit = item.suffix === '%' ? '%' : item.suffix === 'h' ? 'h' : undefined;
-            return (
-              <KpiCard
-                key={item.id}
-                kpi={{
-                  label: item.label,
-                  value: typeof item.value === 'string' ? Number(String(item.value).replace(/[^0-9.-]/g, '')) : item.value,
-                  unit,
-                  status: mapStatus(item.status),
-                  trend: mapTrend(item.trend),
-                  tooltip: item.tooltip,
-                  actionable: item.tooltip,
-                }}
-              />
-            );
-          })}
-        </div>
-
-        {/* Grid de Acesso Rápido */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-black mb-6">🚀 Acesso Rápido</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {navItems.map(item => (
-              <button
-                key={item.href}
-                onClick={() =>
-                  item.external ? window.open(item.href, '_blank') : router.push(item.href)
-                }
-                className={`${item.color} text-white rounded-lg p-6 text-left transition-all hover:shadow-lg transform hover:-translate-y-1`}
-              >
-                <div className="text-4xl mb-3">{item.icon}</div>
-                <div className="text-xl font-bold mb-1">{item.title}</div>
-                <div className="text-sm">{item.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Alertas & Riscos */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-black mb-6">⚠️ Alertas & Riscos</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {(torreData?.alerts ?? []).map((alert) => (
-              <AlertCard
-                key={alert.id}
-                title={alert.label}
-                count={alert.count}
-                severity={alert.severity}
-                action={alert.action}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Atividade Recente */}
-        <div>
-          <h2 className="text-2xl font-bold text-black mb-6">🕑 Atividade Recente (24h)</h2>
-          <div className="bg-white border-2 border-black rounded-lg p-6">
-            <ul className="space-y-3 text-black">
-              <li className="flex items-center gap-3">
-                <span className="text-2xl">✅</span>
-                <span>Sistema inicializado com sucesso</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
+          <div className="font-semibold text-slate-900 mb-1">{module.title}</div>
+          <div className="text-xs text-slate-500">{module.desc}</div>
+        </Link>
+      ))}
     </div>
   );
 }
