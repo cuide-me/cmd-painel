@@ -207,11 +207,14 @@ export default function AdminTorreControle() {
                 key={alert.id}
                 alert={{
                   id: alert.id,
-                  label: alert.label,
-                  count: alert.count,
+                  category: 'operational' as const,
                   severity: alert.severity as 'low' | 'medium' | 'high' | 'critical',
-                  action: alert.action,
+                  title: alert.label,
+                  description: alert.action,
+                  metric: alert.count,
+                  threshold: 0,
                   module: 'overview',
+                  createdAt: new Date(),
                 }}
               />
             ))}
