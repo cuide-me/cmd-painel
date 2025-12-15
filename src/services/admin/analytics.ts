@@ -19,14 +19,17 @@ function getAnalyticsClient(): BetaAnalyticsDataClient {
   }
 
   // Credenciais podem vir de:
-  // 1. GOOGLE_ANALYTICS_CREDENTIALS (base64 JSON)
-  // 2. GOOGLE_APPLICATION_CREDENTIALS (path to JSON file)
-  // 3. Default application credentials (quando rodando no GCP)
+  // 1. GOOGLE_APPLICATION_CREDENTIALS_JSON (base64 JSON) - Vercel
+  // 2. GOOGLE_ANALYTICS_CREDENTIALS (base64 JSON) - Legacy
+  // 3. GOOGLE_APPLICATION_CREDENTIALS (path to JSON file)
+  // 4. Default application credentials (quando rodando no GCP)
 
-  if (process.env.GOOGLE_ANALYTICS_CREDENTIALS) {
+  const credentialsBase64 = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_ANALYTICS_CREDENTIALS;
+
+  if (credentialsBase64) {
     try {
       const credentials = JSON.parse(
-        Buffer.from(process.env.GOOGLE_ANALYTICS_CREDENTIALS, 'base64').toString('utf-8')
+        Buffer.from(credentialsBase64, 'base64').toString('utf-8')
       );
       
       analyticsClient = new BetaAnalyticsDataClient({
@@ -36,7 +39,7 @@ function getAnalyticsClient(): BetaAnalyticsDataClient {
       return analyticsClient;
     } catch (error) {
       console.error('[Google Analytics] Error parsing credentials:', error);
-      throw new Error('Invalid GOOGLE_ANALYTICS_CREDENTIALS format');
+      throw new Error('Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON format');
     }
   }
 
