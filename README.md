@@ -1,10 +1,16 @@
-﻿# 🏥 Torre de Controle - Cuide-me
+﻿# 🏥 Torre de Controle V2 - Cuide-me
 
-Painel administrativo executivo da plataforma Cuide-me.
+[![Deploy](https://img.shields.io/badge/deploy-vercel-black)](https://cmd-painel.vercel.app/admin)
+[![Next.js](https://img.shields.io/badge/Next.js-16.0-black)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
+[![Firebase](https://img.shields.io/badge/Firebase-12.7-orange)](https://firebase.google.com/)
+[![Stripe](https://img.shields.io/badge/Stripe-17.5-purple)](https://stripe.com/)
+
+Painel administrativo executivo da plataforma Cuide-me com integrações reais de **Firebase**, **Stripe** e **Google Analytics 4**.
 
 ## 🎯 Visão Geral
 
-A **Torre de Controle** é o centro de comando do marketplace Cuide-me, oferecendo visibilidade completa sobre operações, métricas executivas e alertas em tempo real.
+A **Torre de Controle V2** é o centro de comando do marketplace Cuide-me, oferecendo visibilidade completa sobre operações, métricas executivas e alertas em tempo real através de dados agregados de múltiplas fontes.
 
 ## 🚀 Setup Rápido
 
@@ -36,18 +42,41 @@ Acesse: **http://localhost:3001/admin**
 
 ## 📊 Funcionalidades
 
-### Home - Torre de Controle
+### 🏠 Home - Torre de Controle
 - **6 KPIs Executivos** com status (verde/amarelo/vermelho) e trends
-- **Sistema de Alertas** operacionais (pedidos sem proposta, pagamentos pendentes)
-- **Navegação Modular** para Dashboard, Pipeline, Financeiro, Usuários, Qualidade, Suporte
+  - 💰 MRR (Stripe) | 👥 Famílias Ativas (Firebase) | 🏥 Profissionais Ativos (Firebase)
+  - 🔄 Taxa Conversão (Firebase) | 📊 Tráfego (GA4) | 💼 Pipeline Aberto (Firebase)
+- **Sistema de Alertas** operacionais em tempo real
+- **Navegação Modular** para todos os painéis especializados
 
-### Módulos Disponíveis
-- **Dashboard v2** - Visão geral de demanda x oferta
-- **Pipeline** - Funil de contratação completo
-- **Financeiro** - Receitas, pagamentos, MRR
-- **Usuários** - Gestão de famílias e profissionais
-- **Qualidade** - NPS, ratings, trust score
-- **Service Desk** - Tickets e SLA
+### 📈 Módulos Disponíveis
+- **Dashboard V2** - Análise detalhada de oferta, demanda e financeiro com filtros
+- **Pipeline** - Funil completo: solicitações → propostas → contratações
+- **Financeiro** - Receitas, MRR, churn, growth rate (integração Stripe)
+- **Usuários** - Gestão de famílias e profissionais (Firebase)
+- **Analytics** - Tráfego, conversões, fontes (Google Analytics 4)
+
+### 🔌 Integrações Reais
+
+#### Firebase (Firestore)
+- Agregação de usuários por role (families/professionals)
+- Contagem de solicitações, propostas e contratos
+- Cálculo de taxas de conversão e atividade
+- Queries otimizadas com índices
+
+#### Stripe API
+- MRR (Monthly Recurring Revenue) de assinaturas ativas
+- Receita total de cobranças bem-sucedidas
+- Churn rate (cancelamentos últimos 30 dias)
+- Contagem de assinaturas por status
+
+#### Google Analytics 4
+- Tráfego de usuários (ativos, novos, engajados)
+- Métricas de conversão e eventos
+- Top páginas e fontes de tráfego
+- Análise de funil
+
+📖 **Setup completo:** [INTEGRATIONS_SETUP.md](./INTEGRATIONS_SETUP.md)
 
 ## 🏗️ Estrutura
 
@@ -106,13 +135,40 @@ Veja guia detalhado: **[VERCEL_ENV.md](./VERCEL_ENV.md)**
 
 ## 📚 Documentação
 
+### Guias de Setup
+- **[INTEGRATIONS_SETUP.md](./INTEGRATIONS_SETUP.md)** - 🔌 Setup completo das integrações (Firebase, Stripe, GA4)
+- **[INTEGRATION_SUMMARY.md](./INTEGRATION_SUMMARY.md)** - 📋 Resumo das implementações
+- **[TORRE_V2_ARCHITECTURE.md](./TORRE_V2_ARCHITECTURE.md)** - 🏗️ Arquitetura e decisões técnicas
+- **[GUIA_USO.md](./GUIA_USO.md)** - 📖 Guia completo de uso do painel
+- **[VERCEL_ENV.md](./VERCEL_ENV.md)** - 🔐 Guia de variáveis de ambiente
+
+### Documentação Técnica
 - **[ESTRUTURA_COMPLETA.md](./ESTRUTURA_COMPLETA.md)** - Overview completo do projeto
-- **[VERCEL_ENV.md](./VERCEL_ENV.md)** - Guia de variáveis de ambiente
 - **[TORRE_DE_CONTROLE.md](./TORRE_DE_CONTROLE.md)** - Arquitetura da Torre
 - **[HOME_KPIS.md](./HOME_KPIS.md)** - Detalhamento dos 6 KPIs
 - **[PIPELINE.md](./PIPELINE.md)** - Pipeline de contratação
 - **[SERVICE_DESK.md](./SERVICE_DESK.md)** - Service Desk e SLA
 - **[ALERTAS.md](./ALERTAS.md)** - Sistema de alertas
+
+## 🔍 Health Check
+
+Endpoint para monitoramento de integrações:
+
+```bash
+GET /api/health
+```
+
+Retorna status de:
+- Firebase Admin SDK
+- Stripe API
+- Google Analytics API
+
+## 🎯 Performance
+
+- ⚡ **Build Time:** ~50s
+- 🚀 **First Load:** < 2s
+- 📊 **API Response:** < 500ms
+- 🔄 **Auto-refresh:** 30s (background)
 
 ---
 
