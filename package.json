@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "test": "jest",
+    "check:env": "node scripts/check-env.js",
+    "check:health": "curl http://localhost:3001/api/health"
   },
   "dependencies": {
     "@google-analytics/data": "^5.2.1",
