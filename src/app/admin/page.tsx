@@ -283,10 +283,25 @@ export default function TorreControle() {
         {/* Hero KPIs with Modern Design */}
         <section className="mb-8">
           <div className="mb-6">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <span className="text-4xl">📊</span>
-              Métricas Principais
-            </h2>
+            <div className="flex items-center gap-3 mb-2">
+              <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <span className="text-4xl">📊</span>
+                Métricas Principais
+              </h2>
+              <div className="group/info relative">
+                <span className="text-gray-400 hover:text-gray-600 cursor-help transition-colors text-xl">ℹ️</span>
+                <div className="invisible group-hover/info:visible opacity-0 group-hover/info:opacity-100 absolute top-full left-0 mt-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 w-80 transition-all duration-200">
+                  <div className="font-bold mb-2 text-sm">📊 Métricas Principais</div>
+                  <div className="text-gray-300 mb-2">
+                    <strong>O que são:</strong> Os 3-4 indicadores mais críticos da plataforma
+                  </div>
+                  <div className="text-gray-300">
+                    <strong>Importância:</strong> Oferecem visão instantânea da saúde operacional, com status codificado por cores e tendências direcionais para rápida tomada de decisão
+                  </div>
+                  <div className="absolute bottom-full left-4 mb-[-1px] border-4 border-transparent border-b-gray-900"></div>
+                </div>
+              </div>
+            </div>
             <p className="text-gray-600">Indicadores chave de performance em tempo real</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -300,10 +315,25 @@ export default function TorreControle() {
         {secondaryKpis.length > 0 && (
           <section className="mb-8">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-                <span className="text-3xl">📈</span>
-                Indicadores Secundários
-              </h2>
+              <div className="flex items-center gap-3 mb-2">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                  <span className="text-3xl">📈</span>
+                  Indicadores Secundários
+                </h2>
+                <div className="group/info relative">
+                  <span className="text-gray-400 hover:text-gray-600 cursor-help transition-colors">ℹ️</span>
+                  <div className="invisible group-hover/info:visible opacity-0 group-hover/info:opacity-100 absolute top-full left-0 mt-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 w-80 transition-all duration-200">
+                    <div className="font-bold mb-2 text-sm">📈 Indicadores Secundários</div>
+                    <div className="text-gray-300 mb-2">
+                      <strong>O que são:</strong> Métricas complementares que fornecem contexto adicional
+                    </div>
+                    <div className="text-gray-300">
+                      <strong>Uso:</strong> Permitem análise mais profunda e detecção de padrões secundários que podem impactar as métricas principais
+                    </div>
+                    <div className="absolute bottom-full left-4 mb-[-1px] border-4 border-transparent border-b-gray-900"></div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {secondaryKpis.map(kpi => (
@@ -317,19 +347,57 @@ export default function TorreControle() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Quick Actions */}
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-8 border border-gray-200/50 hover:shadow-2xl transition-all duration-300">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <span className="text-3xl">⚡</span>
-              Acesso Rápido
-            </h2>
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                <span className="text-3xl">⚡</span>
+                Acesso Rápido
+              </h2>
+              <div className="group/info relative">
+                <span className="text-gray-400 hover:text-gray-600 cursor-help transition-colors text-lg">ℹ️</span>
+                <div className="invisible group-hover/info:visible opacity-0 group-hover/info:opacity-100 absolute top-full left-0 mt-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 w-72 transition-all duration-200">
+                  <div className="font-bold mb-2 text-sm">⚡ Acesso Rápido</div>
+                  <div className="text-gray-300">
+                    <strong>Navegação ágil:</strong> Atalhos para os módulos principais da plataforma, permitindo acesso imediato às áreas de Dashboard, Pipeline, Financeiro e Usuários
+                  </div>
+                  <div className="absolute bottom-full left-4 mb-[-1px] border-4 border-transparent border-b-gray-900"></div>
+                </div>
+              </div>
+            </div>
             <QuickActionsGrid />
           </div>
 
           {/* System Health */}
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-8 border border-gray-200/50 hover:shadow-2xl transition-all duration-300">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <span className="text-3xl">💻</span>
-              Saúde do Sistema
-            </h2>
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                <span className="text-3xl">💻</span>
+                Saúde do Sistema
+              </h2>
+              <div className="group/info relative">
+                <span className="text-gray-400 hover:text-gray-600 cursor-help transition-colors text-lg">ℹ️</span>
+                <div className="invisible group-hover/info:visible opacity-0 group-hover/info:opacity-100 absolute top-full left-1/2 -translate-x-1/2 mt-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 w-80 transition-all duration-200">
+                  <div className="font-bold mb-2 text-sm">💻 Saúde do Sistema</div>
+                  <div className="text-gray-300 mb-2">
+                    <strong>O que mede:</strong> Percentual de indicadores operando normalmente (status verde)
+                  </div>
+                  <div className="text-gray-300 mb-2">
+                    <strong>Como calcula:</strong> (Indicadores Saudáveis ÷ Total de Indicadores) × 100
+                  </div>
+                  <div className="text-gray-300 mb-2">
+                    <strong>Classificação:</strong>
+                    <ul className="ml-4 mt-1 space-y-1">
+                      <li>• ≥75%: ✓ Operação Normal (verde)</li>
+                      <li>• 50-74%: ⚠ Atenção Necessária (amarelo)</li>
+                      <li>• &lt;50%: ✗ Atenção Crítica (vermelho)</li>
+                    </ul>
+                  </div>
+                  <div className="text-gray-400 text-[10px]">
+                    Atualização: Tempo real a cada 2 minutos
+                  </div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-[-1px] border-4 border-transparent border-b-gray-900"></div>
+                </div>
+              </div>
+            </div>
             <SystemHealthCard health={platformHealth} />
           </div>
         </div>
@@ -338,10 +406,32 @@ export default function TorreControle() {
         {criticalAlerts.length > 0 && (
           <section className="mb-8">
             <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-2xl shadow-xl p-8 border border-red-200/50">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                <span className="text-3xl animate-pulse">🚨</span>
-                Alertas Críticos
-              </h2>
+              <div className="flex items-center gap-3 mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                  <span className="text-3xl animate-pulse">🚨</span>
+                  Alertas Críticos
+                </h2>
+                <div className="group/info relative">
+                  <span className="text-gray-400 hover:text-gray-600 cursor-help transition-colors text-lg">ℹ️</span>
+                  <div className="invisible group-hover/info:visible opacity-0 group-hover/info:opacity-100 absolute top-full left-0 mt-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 w-80 transition-all duration-200">
+                    <div className="font-bold mb-2 text-sm">🚨 Alertas Críticos</div>
+                    <div className="text-gray-300 mb-2">
+                      <strong>O que são:</strong> Notificações de problemas de alta prioridade que requerem atenção imediata
+                    </div>
+                    <div className="text-gray-300 mb-2">
+                      <strong>Classificação:</strong>
+                      <ul className="ml-4 mt-1 space-y-1">
+                        <li>• 🚨 Crítico: Ação urgente necessária</li>
+                        <li>• ⚠️ Alta: Atenção prioritária</li>
+                      </ul>
+                    </div>
+                    <div className="text-gray-400 text-[10px]">
+                      Cada alerta contém ação recomendada e módulo afetado
+                    </div>
+                    <div className="absolute bottom-full left-4 mb-[-1px] border-4 border-transparent border-b-gray-900"></div>
+                  </div>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {criticalAlerts.map(alert => (
                   <AlertCardModern key={alert.id} alert={alert} />
@@ -415,7 +505,19 @@ function HeroKpiCard({ kpi }: { kpi: Kpi }) {
         </div>
 
         {/* Label */}
-        <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">{kpi.label}</div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{kpi.label}</div>
+          {kpi.tooltip && (
+            <div className="group/info relative">
+              <span className="text-gray-400 hover:text-gray-600 cursor-help transition-colors">ℹ️</span>
+              <div className="invisible group-hover/info:visible opacity-0 group-hover/info:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 w-64 transition-all duration-200">
+                <div className="font-semibold mb-1">{kpi.label}</div>
+                <div className="text-gray-300">{kpi.tooltip}</div>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Value */}
         <div className="flex items-baseline gap-2">
@@ -427,12 +529,7 @@ function HeroKpiCard({ kpi }: { kpi: Kpi }) {
           )}
         </div>
 
-        {/* Tooltip */}
-        {kpi.tooltip && (
-          <div className="mt-3 text-xs text-gray-600 bg-white/60 rounded-lg p-2">
-            {kpi.tooltip}
-          </div>
-        )}
+
       </div>
     </div>
   );
@@ -467,7 +564,19 @@ function SecondaryKpiCard({ kpi }: { kpi: Kpi }) {
           </div>
         </div>
 
-        <div className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">{kpi.label}</div>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="text-xs font-bold text-gray-700 uppercase tracking-wider">{kpi.label}</div>
+          {kpi.tooltip && (
+            <div className="group/info relative">
+              <span className="text-gray-400 hover:text-gray-600 cursor-help transition-colors text-sm">ℹ️</span>
+              <div className="invisible group-hover/info:visible opacity-0 group-hover/info:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 w-64 transition-all duration-200">
+                <div className="font-semibold mb-1">{kpi.label}</div>
+                <div className="text-gray-300">{kpi.tooltip}</div>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-baseline gap-2">
           <div className="text-3xl font-black bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
@@ -503,7 +612,18 @@ function AlertCardModern({ alert }: { alert: Alert }) {
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full border-2 border-red-500 animate-pulse"></div>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-base font-bold text-gray-900 mb-1">{alert.label}</div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="text-base font-bold text-gray-900">{alert.label}</div>
+            <div className="group/info relative">
+              <span className="text-gray-400 hover:text-gray-600 cursor-help transition-colors text-sm">ℹ️</span>
+              <div className="invisible group-hover/info:visible opacity-0 group-hover/info:opacity-100 absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 w-64 transition-all duration-200">
+                <div className="font-semibold mb-1">Alerta: {alert.label}</div>
+                <div className="text-gray-300 mb-2">Ação recomendada: {alert.action}</div>
+                <div className="text-gray-400 text-[10px]">Severidade: {alert.severity === 'critical' ? 'Crítica' : alert.severity === 'high' ? 'Alta' : alert.severity === 'medium' ? 'Média' : 'Baixa'}</div>
+                <div className="absolute top-full left-4 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+              </div>
+            </div>
+          </div>
           <div className="text-sm text-gray-600 mb-2">{alert.action}</div>
           {alert.module && (
             <div className="inline-block px-2 py-1 bg-gray-100 rounded text-xs font-semibold text-gray-700">
@@ -542,7 +662,17 @@ function QuickActionsGrid() {
             <div className={`w-12 h-12 bg-gradient-to-br ${module.gradient} rounded-xl flex items-center justify-center shadow-lg mb-3 transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
               <span className="text-2xl">{module.icon}</span>
             </div>
-            <div className="text-base font-bold text-gray-900 mb-1">{module.title}</div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="text-base font-bold text-gray-900">{module.title}</div>
+              <div className="group/info relative">
+                <span className="text-gray-400 hover:text-gray-600 cursor-help transition-colors text-xs">ℹ️</span>
+                <div className="invisible group-hover/info:visible opacity-0 group-hover/info:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 w-56 transition-all duration-200 pointer-events-none">
+                  <div className="font-semibold mb-1">{module.title}</div>
+                  <div className="text-gray-300">{module.description === 'Análises' ? 'Visualize métricas detalhadas, KPIs e tendências do sistema' : module.description === 'Funil' ? 'Acompanhe o pipeline de vendas e conversões' : module.description === 'Receitas' ? 'Gerencie receitas, transações e indicadores financeiros' : 'Administre usuários, permissões e acessos'}</div>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+                </div>
+              </div>
+            </div>
             <div className="text-xs text-gray-600">{module.description}</div>
           </div>
           
@@ -609,24 +739,41 @@ function SystemHealthCard({ health }: { health: { score: number, status: KpiStat
 
       {/* Status Indicators */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-green-50 rounded-lg p-3 text-center border border-green-200">
+        <div className="group/status relative bg-green-50 rounded-lg p-3 text-center border border-green-200 cursor-help hover:shadow-md transition-shadow">
           <div className="text-2xl font-black text-green-600">✓</div>
           <div className="text-xs font-semibold text-gray-700 mt-1">Saudável</div>
+          <div className="invisible group-hover/status:visible opacity-0 group-hover/status:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-[10px] rounded-lg shadow-xl z-50 w-48 transition-all duration-200 pointer-events-none">
+            <strong>Status Saudável:</strong> Operando dentro dos parâmetros esperados sem necessidade de intervenção
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+          </div>
         </div>
-        <div className="bg-yellow-50 rounded-lg p-3 text-center border border-yellow-200">
+        <div className="group/status relative bg-yellow-50 rounded-lg p-3 text-center border border-yellow-200 cursor-help hover:shadow-md transition-shadow">
           <div className="text-2xl font-black text-yellow-600">⚠</div>
           <div className="text-xs font-semibold text-gray-700 mt-1">Atenção</div>
+          <div className="invisible group-hover/status:visible opacity-0 group-hover/status:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-[10px] rounded-lg shadow-xl z-50 w-48 transition-all duration-200 pointer-events-none">
+            <strong>Status Atenção:</strong> Indicador fora do ideal, requer monitoramento e possível ação preventiva
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+          </div>
         </div>
-        <div className="bg-red-50 rounded-lg p-3 text-center border border-red-200">
+        <div className="group/status relative bg-red-50 rounded-lg p-3 text-center border border-red-200 cursor-help hover:shadow-md transition-shadow">
           <div className="text-2xl font-black text-red-600">✗</div>
           <div className="text-xs font-semibold text-gray-700 mt-1">Crítico</div>
+          <div className="invisible group-hover/status:visible opacity-0 group-hover/status:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-[10px] rounded-lg shadow-xl z-50 w-48 transition-all duration-200 pointer-events-none">
+            <strong>Status Crítico:</strong> Problema grave detectado, requer ação imediata para evitar impactos severos
+            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+          </div>
         </div>
       </div>
 
       {/* Real-time Badge */}
-      <div className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-3 border border-blue-200">
+      <div className="group/realtime relative flex items-center justify-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-3 border border-blue-200 cursor-help hover:shadow-md transition-shadow">
         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
         <span className="text-xs font-semibold text-gray-700">Atualização em tempo real</span>
+        <span className="text-gray-400 hover:text-gray-600 transition-colors text-sm ml-1">ℹ️</span>
+        <div className="invisible group-hover/realtime:visible opacity-0 group-hover/realtime:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-[10px] rounded-lg shadow-xl z-50 w-56 transition-all duration-200 pointer-events-none">
+          <strong>Monitoramento Contínuo:</strong> Os dados são atualizados automaticamente a cada 2 minutos, garantindo visibilidade instantânea do estado da plataforma
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+        </div>
       </div>
     </div>
   );
