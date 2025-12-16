@@ -1,24 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { getAuth } from 'firebase/auth';
-import { getFirebaseApp } from '@/firebase/firebaseApp';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
+import AdminLayout, { StatCard, Section, Card, Button, LoadingSkeleton } from '@/components/admin/AdminLayout';
 import DashboardFilters from '@/components/admin/v2/DashboardFilters';
 import FamiliesBlock from '@/components/admin/v2/FamiliesBlock';
 import ProfessionalsBlock from '@/components/admin/v2/ProfessionalsBlock';
 import FinanceBlock from '@/components/admin/v2/FinanceBlock';
-import type {
-  DashboardData,
-  DashboardFilterPreset,
-  DashboardDateGrouping,
-} from '@/services/admin/dashboard';
+import type { DashboardData, DashboardFilterPreset, DashboardDateGrouping } from '@/services/admin/dashboard';
 
 export default function AdminDashboardV2() {
-  const router = useRouter();
   const { authReady } = useFirebaseAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,179 +40,164 @@ export default function AdminDashboardV2() {
       if (filters.endDate) params.set('endDate', filters.endDate.toISOString());
 
       const response = await authFetch(`/api/admin/dashboard-v2?${params}`);
-      if (!response.ok) {
-        throw new Error('Erro ao carregar dados do dashboard');
-      }
+      if (!response.ok) throw new Error('Erro ao carregar dados');
 
       const result = await response.json();
       setData(result);
       setLastUpdate(new Date());
     } catch (err: any) {
       setError(err.message);
-      console.error('[Dashboard V2] Erro:', err);
     } finally {
       setLoading(false);
     }
   }, [filters]);
 
   useEffect(() => {
-    // Só buscar dados quando autenticação estiver pronta
     if (!authReady) return;
-    
     fetchData();
   }, [authReady, filters, fetchData]);
 
   useEffect(() => {
     if (!autoRefresh) return;
-
-    const interval = setInterval(() => {
-      fetchData();
-    }, 300000); // 5 minutos
-
+    const interval = setInterval(fetchData, 300000); // 5 min
     return () => clearInterval(interval);
   }, [autoRefresh, fetchData]);
 
-  const handleLogout = async () => {
-    const app = getFirebaseApp();
-    const auth = getAuth(app);
-    await auth.signOut();
-    localStorage.removeItem('admin_logged');
-    localStorage.removeItem('firebase_token');
-    router.push('/admin/login');
-  };
+  if (loading && !data) {
+    return (
+      <AdminLayout title="Dashboard V2" subtitle="Visão Integrada" icon="📱">
+        <LoadingSkeleton lines={6} />
+      </AdminLayout>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <AdminLayout title="Dashboard V2" subtitle="Visão Integrada" icon="📱">
+        <Card padding="lg">
+          <div className="text-center">
+            <div className="text-4xl mb-3">⚠️</div>
+            <p className="text-sm text-slate-600 mb-4">{error || 'Erro ao carregar'}</p>
+            <Button variant="primary" onClick={fetchData}>Tentar Novamente</Button>
+          </div>
+        </Card>
+      </AdminLayout>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-8">
-          <div className="flex items-center gap-4">
-            <div
-              className="cursor-pointer"
-              onClick={() => router.push('/admin')}
-            >
-              <div className="text-3xl font-black bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
-                Cuide.me
+    <AdminLayout title="Dashboard V2" subtitle="Visão Integrada" icon="📱">
+      {/* Filters */}
+      <Card padding="md" className="mb-6">
+        <DashboardFilters
+          preset={filters.preset}
+          grouping={filters.grouping}
+          onPresetChange={(preset) => setFilters(f => ({ ...f, preset }))}
+          onGroupingChange={(grouping) => setFilters(f => ({ ...f, grouping }))}
+          onCustomRangeChange={(start, end) => setFilters(f => ({ ...f, startDate: start, endDate: end }))}
+        />
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            Atualizado: {lastUpdate?.toLocaleTimeString('pt-BR') || '-'}
+          </div>
+          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+              className="rounded"
+            />
+            Auto-refresh (5min)
+          </label>
+        </div>
+      </Card>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <StatCard
+          label="Famílias Ativas"
+          value={data.families.metrics.totalActive}
+          icon="👨‍👩‍👧‍👦"
+          trend={data.families.metrics.growthRate > 0 ? 'up' : 'down'}
+          change={data.families.metrics.growthRate}
+        />
+        <StatCard
+          label="Profissionais Ativos"
+          value={data.professionals.metrics.totalActive}
+          icon="👨‍⚕️"
+          trend={data.professionals.metrics.growthRate > 0 ? 'up' : 'down'}
+          change={data.professionals.metrics.growthRate}
+        />
+        <StatCard
+          label="MRR Total"
+          value={`R$ ${(data.finance.metrics.mrr / 1000).toFixed(0)}k`}
+          icon="💰"
+          trend={data.finance.metrics.mrrGrowthRate > 0 ? 'up' : 'down'}
+          change={data.finance.metrics.mrrGrowthRate}
+        />
+        <StatCard
+          label="Churn Rate"
+          value={`${data.finance.metrics.churnRate.toFixed(1)}%`}
+          icon="📉"
+          trend={data.finance.metrics.churnRate < 5 ? 'up' : 'down'}
+          change={-data.finance.metrics.churnRate}
+        />
+      </div>
+
+      {/* Main Content Blocks */}
+      <Section title="Famílias">
+        <FamiliesBlock data={data.families} />
+      </Section>
+
+      <Section title="Profissionais">
+        <ProfessionalsBlock data={data.professionals} />
+      </Section>
+
+      <Section title="Financeiro">
+        <FinanceBlock data={data.finance} />
+      </Section>
+
+      {/* Demanda & Oferta */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Section title="Demanda">
+          <Card padding="md">
+            <div className="space-y-3">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-600">Solicitações Ativas:</span>
+                <span className="font-semibold text-slate-900">{data.demand.activeRequests}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-600">Taxa de Match:</span>
+                <span className="font-semibold text-slate-900">{data.demand.matchRate.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-600">Tempo Médio:</span>
+                <span className="font-semibold text-slate-900">{data.demand.averageMatchTime}h</span>
               </div>
             </div>
-            <div>
-              <h1 className="text-4xl font-bold text-black">Dashboard Cuide-me 2.0</h1>
-              <p className="text-sm text-black mt-2">
-                {lastUpdate && `Última atualização: ${lastUpdate.toLocaleTimeString('pt-BR')}`}
-              </p>
+          </Card>
+        </Section>
+
+        <Section title="Oferta">
+          <Card padding="md">
+            <div className="space-y-3">
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-600">Disponibilidade:</span>
+                <span className="font-semibold text-slate-900">{data.supply.availability.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-600">Utilização:</span>
+                <span className="font-semibold text-slate-900">{data.supply.utilizationRate.toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-600">Capacidade:</span>
+                <span className="font-semibold text-slate-900">{data.supply.capacity} slots</span>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-4">
-            <button
-              onClick={() => fetchData()}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <svg
-                    className="animate-spin h-4 w-4"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  Atualizando...
-                </>
-              ) : (
-                <>🔄 Atualizar</>
-              )}
-            </button>
-            <button
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                autoRefresh
-                  ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-white text-black border hover:bg-black hover:text-white'
-              }`}
-            >
-              {autoRefresh ? '✅ Auto-refresh (5min)' : '⏸️ Auto-refresh Off'}
-            </button>
-            <button
-              onClick={() => router.push('/admin')}
-              className="px-4 py-2 bg-white text-black border rounded-lg hover:bg-black hover:text-white transition-colors"
-            >
-              ← Torre de Controle
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-white text-black border rounded-lg hover:bg-black hover:text-white transition-colors"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
-
-        {/* Erro */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-black">❌ {error}</p>
-          </div>
-        )}
-
-        {/* Botões de Acesso Rápido */}
-        <div className="mb-6 bg-white border rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-black mb-4">📑 Acesso Rápido</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              onClick={() => router.push('/admin/users')}
-              className="px-6 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-left"
-            >
-              <div className="text-2xl mb-2">👥</div>
-              <div className="font-semibold">Usuários</div>
-              <div className="text-xs mt-1">Gerenciar profissionais e clientes</div>
-            </button>
-
-            <button
-              onClick={() => router.push('/admin')}
-              className="px-6 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-left"
-            >
-              <div className="text-2xl mb-2">⚙️</div>
-              <div className="font-semibold">Configurações</div>
-              <div className="text-xs mt-1">Configurações do admin</div>
-            </button>
-
-            <button
-              onClick={() =>
-                window.open(
-                  'https://console.firebase.google.com/project/plataforma-cuide-me',
-                  '_blank'
-                )
-              }
-              className="px-6 py-4 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-left"
-            >
-              <div className="text-2xl mb-2">🔥</div>
-              <div className="font-semibold">Firebase Console</div>
-              <div className="text-xs mt-1">Acessar banco de dados</div>
-            </button>
-          </div>
-        </div>
-
-        {/* Filtros */}
-        <DashboardFilters onFilterChange={setFilters} />
-
-        {/* Blocos de KPIs */}
-        <FamiliesBlock data={data?.families || null} loading={loading} />
-        <ProfessionalsBlock data={data?.professionals || null} loading={loading} />
-        <FinanceBlock data={data?.finance || null} loading={loading} />
+          </Card>
+        </Section>
       </div>
-    </div>
+    </AdminLayout>
   );
 }
