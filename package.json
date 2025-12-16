@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
+    "test:integrations": "tsx scripts/test-integrations.ts",
     "check:env": "node scripts/check-env.js",
     "check:health": "curl http://localhost:3001/api/health"
   },
@@ -32,6 +33,7 @@
     "eslint": "^9.13.0",
     "eslint-config-next": "16.0.10",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "^4.1.18",
+    "tsx": "^4.21.0"
   }
 }
