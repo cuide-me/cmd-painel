@@ -29,13 +29,91 @@ import {
 // ═══════════════════════════════════════════════════════════════
 
 export async function getControlTowerDashboard(): Promise<ControlTowerDashboard> {
-  console.log('[Control Tower] Generating mock dashboard...');
+  console.log('[Control Tower] Fetching real data from Firebase and Stripe...');
   
-  // MOCK DATA - Não acessa Firebase/Stripe para evitar erros
-  const mockDashboard: ControlTowerDashboard = {
+  try {
+    // Executar todas as queries em paralelo para performance
+    const [
+      monthRevenue,
+      burnRate,
+      runway,
+      mrrAtRisk,
+      requestsBySLA,
+      averageTimeToMatch,
+      conversionFunnel,
+      availableProfessionals,
+      postAcceptAbandonment
+    ] = await Promise.all([
+      getMonthRevenue(),
+      getBurnRate(),
+      getRunway(),
+      getMRRAtRisk(),
+      getRequestsBySLA(),
+      getAverageTimeToMatch(),
+      getConversionFunnel(),
+      getAvailableProfessionals(),
+      getPostAcceptAbandonment()
+    ]);
+    
+    // Calcular saúde do sistema
+    const systemHealth = calculateSystemHealth({
+      operations: {
+        requestsBySLA,
+        averageTimeToMatch,
+        conversionFunnel
+      },
+      marketplace: {
+        availableProfessionals,
+        postAcceptAbandonment
+      }
+    });
+    
+    // Montar dashboard completo
+    const dashboard: ControlTowerDashboard = {
+      timestamp: new Date(),
+      businessHealth: {
+        monthRevenue,
+        burnRate,
+        runway,
+        mrrAtRisk,
+        systemHealth
+      },
+      operations: {
+        requestsBySLA,
+        averageTimeToMatch,
+        conversionFunnel
+      },
+      marketplace: {
+        availableProfessionals,
+        postAcceptAbandonment
+      },
+      urgentActions: []
+    };
+    
+    // Gerar ações urgentes baseadas no estado completo
+    dashboard.urgentActions = generateUrgentActions(dashboard);
+    
+    console.log('[Control Tower] Dashboard generated successfully from real data');
+    return dashboard;
+    
+  } catch (error) {
+    console.error('[Control Tower] Error fetching real data, falling back to mock:', error);
+    
+    // Fallback para dados mock em caso de erro
+    return getFallbackMockDashboard();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FALLBACK MOCK DATA
+// ═══════════════════════════════════════════════════════════════
+
+function getFallbackMockDashboard(): ControlTowerDashboard {
+  console.log('[Control Tower] Using fallback mock data');
+  
+  return {
     timestamp: new Date(),
     
-    // Business Health Module
     businessHealth: {
       monthRevenue: {
         current: 125000,
@@ -67,14 +145,13 @@ export async function getControlTowerDashboard(): Promise<ControlTowerDashboard>
         score: 87,
         status: 'healthy' as const,
         issues: [
-          '23 solicitações entre 24-48h',
-          '8 solicitações acima de 48h',
-          '12 abandonos pós-aceite'
+          '⚠️ Usando dados simulados (Firebase indisponível)',
+          '23 solicitações entre 24-48h (mock)',
+          '8 solicitações acima de 48h (mock)'
         ]
       }
     },
     
-    // Operations Module
     operations: {
       requestsBySLA: {
         underTwentyFour: { count: 125, value: 87, status: 'ok' as const },
@@ -99,7 +176,6 @@ export async function getControlTowerDashboard(): Promise<ControlTowerDashboard>
       }
     },
     
-    // Marketplace Module
     marketplace: {
       availableProfessionals: {
         count: 156,
@@ -116,29 +192,25 @@ export async function getControlTowerDashboard(): Promise<ControlTowerDashboard>
       }
     },
     
-    // Urgent Actions
     urgentActions: [
       {
         id: '1',
         priority: 'critical' as const,
-        title: 'R$ 8.5k MRR em risco',
-        description: '12 famílias com abandono pós-aceite de profissional',
-        impact: 'R$ 8.5k MRR / 6.8% da receita',
-        action: 'Acionar CS imediatamente + Oferecer profissionais backup'
+        title: '⚠️ MOCK DATA - Firebase indisponível',
+        description: 'Usando dados simulados. Verifique variáveis de ambiente do Firebase.',
+        impact: 'Dashboard não reflete dados reais',
+        action: 'Configurar FIREBASE_ADMIN_SDK_B64 e FIREBASE_PROJECT_ID no Vercel'
       },
       {
         id: '2',
         priority: 'high' as const,
-        title: '8 solicitações acima de 48h',
-        description: 'Tempo médio de match em 12.5h (meta: 8h)',
-        impact: '~15% de conversão perdida',
-        action: 'Redistribuir carga do CS + Ativar profissionais inativos'
+        title: 'R$ 8.5k MRR em risco (mock)',
+        description: '12 famílias com abandono pós-aceite de profissional',
+        impact: 'R$ 8.5k MRR / 6.8% da receita',
+        action: 'Acionar CS imediatamente + Oferecer profissionais backup'
       }
     ]
   };
-  
-  console.log('[Control Tower] Mock dashboard generated');
-  return mockDashboard;
 }
 
 // ═══════════════════════════════════════════════════════════════
