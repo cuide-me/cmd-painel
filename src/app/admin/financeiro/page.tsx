@@ -93,16 +93,12 @@ export default function AdminFinanceiroPage() {
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
             <div
-              className="relative w-16 h-16 cursor-pointer"
+              className="cursor-pointer"
               onClick={() => router.push('/admin')}
             >
-              <Image
-                src="/logo-cuide-me.png"
-                alt="Cuide-me"
-                fill
-                className="object-contain"
-                priority
-              />
+              <div className="text-3xl font-black bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-transparent">
+                Cuide.me
+              </div>
             </div>
             <div>
               <h1 className="text-4xl font-bold text-black">Financeiro</h1>

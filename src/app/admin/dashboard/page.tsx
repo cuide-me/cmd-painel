@@ -96,16 +96,12 @@ export default function AdminDashboardV2() {
         <div className="flex justify-between items-start mb-8">
           <div className="flex items-center gap-4">
             <div
-              className="relative w-16 h-16 cursor-pointer"
+              className="cursor-pointer"
               onClick={() => router.push('/admin')}
             >
-              <Image
-                src="/logo-cuide-me.png"
-                alt="Cuide-me"
-                fill
-                className="object-contain"
-                priority
-              />
+              <div className="text-3xl font-black bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
+                Cuide.me
+              </div>
             </div>
             <div>
               <h1 className="text-4xl font-bold text-black">Dashboard Cuide-me 2.0</h1>

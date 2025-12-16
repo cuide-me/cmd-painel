@@ -53,10 +53,12 @@ export default function AdminPipelinePage() {
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
             <div
-              className="relative w-16 h-16 cursor-pointer"
+              className="cursor-pointer"
               onClick={() => router.push('/admin')}
             >
-              <Image src="/logo-cuide-me.png" alt="Cuide-me" fill className="object-contain" />
+              <div className="text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
+                Cuide.me
+              </div>
             </div>
             <div>
               <h1 className="text-4xl font-bold text-black">Pipeline de Contratação</h1>
