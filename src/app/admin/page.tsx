@@ -644,8 +644,9 @@ function QuickActionsGrid() {
     { icon: '📊', title: 'Dashboard', href: '/admin/dashboard', gradient: 'from-blue-500 to-cyan-600', description: 'Análises' },
     { icon: '🏥', title: 'Saúde Operacional', href: '/admin/operational-health', gradient: 'from-teal-500 to-cyan-600', description: 'Oferta & Demanda' },
     { icon: '🚨', title: 'Centro de Alertas', href: '/admin/alerts', gradient: 'from-red-500 to-rose-600', description: 'Alertas Inteligentes' },
+    { icon: '📈', title: 'Growth & Activation', href: '/admin/growth', gradient: 'from-purple-500 to-pink-600', description: 'AARRR Framework' },
     { icon: '🎫', title: 'Service Desk', href: '/admin/service-desk', gradient: 'from-indigo-500 to-purple-600', description: 'Tickets' },
-    { icon: '🔄', title: 'Pipeline', href: '/admin/pipeline', gradient: 'from-purple-500 to-pink-600', description: 'Funil' },
+    { icon: '🔄', title: 'Pipeline', href: '/admin/pipeline', gradient: 'from-violet-500 to-fuchsia-600', description: 'Funil' },
     { icon: '💰', title: 'Financeiro', href: '/admin/financeiro', gradient: 'from-green-500 to-emerald-600', description: 'Receitas' },
     { icon: '👥', title: 'Usuários', href: '/admin/users', gradient: 'from-orange-500 to-red-600', description: 'Gestão' },
   ];
@@ -671,7 +672,7 @@ function QuickActionsGrid() {
                 <span className="text-gray-400 hover:text-gray-600 cursor-help transition-colors text-xs">ℹ️</span>
                 <div className="invisible group-hover/info:visible opacity-0 group-hover/info:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl z-50 w-56 transition-all duration-200 pointer-events-none">
                   <div className="font-semibold mb-1">{module.title}</div>
-                  <div className="text-gray-300">{module.description === 'Análises' ? 'Visualize métricas detalhadas, KPIs e tendências do sistema' : module.description === 'Oferta & Demanda' ? 'Monitore saúde dos profissionais, famílias e qualidade do match' : module.description === 'Alertas Inteligentes' ? 'Sistema de alertas com priorização automática, SLA tracking e rastreamento de ações' : module.description === 'Tickets' ? 'Gerencie tickets de suporte com Kanban visual e SLA tracking' : module.description === 'Funil' ? 'Acompanhe o pipeline de vendas e conversões' : module.description === 'Receitas' ? 'Gerencie receitas, transações e indicadores financeiros' : 'Administre usuários, permissões e acessos'}</div>
+                  <div className="text-gray-300">{module.description === 'Análises' ? 'Visualize métricas detalhadas, KPIs e tendências do sistema' : module.description === 'Oferta & Demanda' ? 'Monitore saúde dos profissionais, famílias e qualidade do match' : module.description === 'Alertas Inteligentes' ? 'Sistema de alertas com priorização automática, SLA tracking e rastreamento de ações' : module.description === 'AARRR Framework' ? 'Aquisição, Ativação, Retenção, Receita e Referral - métricas completas de crescimento' : module.description === 'Tickets' ? 'Gerencie tickets de suporte com Kanban visual e SLA tracking' : module.description === 'Funil' ? 'Acompanhe o pipeline de vendas e conversões' : module.description === 'Receitas' ? 'Gerencie receitas, transações e indicadores financeiros' : 'Administre usuários, permissões e acessos'}</div>
                   <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
                 </div>
               </div>
