@@ -6,7 +6,7 @@
  */
 
 import { useRouter } from 'next/navigation';
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -55,6 +55,38 @@ export default function AdminLayout({ children, title, subtitle, icon = '📊' }
   );
 }
 
+// Tooltip Component
+interface TooltipProps {
+  content: string;
+  children?: ReactNode;
+}
+
+export function Tooltip({ content, children }: TooltipProps) {
+  const [show, setShow] = useState(false);
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onClick={() => setShow(!show)}
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 hover:bg-blue-500 hover:text-white text-slate-600 text-xs transition-colors cursor-help"
+      >
+        {children || 'i'}
+      </button>
+      {show && (
+        <div className="absolute z-50 w-64 p-2 text-xs text-white bg-slate-900 rounded-lg shadow-lg -top-2 left-6 transform -translate-y-full">
+          <div className="relative">
+            {content}
+            <div className="absolute w-2 h-2 bg-slate-900 transform rotate-45 -bottom-1 left-2"></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Stat Card Component
 interface StatCardProps {
   label: string;
@@ -62,14 +94,18 @@ interface StatCardProps {
   change?: number;
   icon?: string;
   trend?: 'up' | 'down' | 'neutral';
+  tooltip?: string;
 }
 
-export function StatCard({ label, value, change, icon, trend }: StatCardProps) {
+export function StatCard({ label, value, change, icon, trend, tooltip }: StatCardProps) {
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">{label}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">{label}</p>
+            {tooltip && <Tooltip content={tooltip} />}
+          </div>
           <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
           {change !== undefined && (
             <p className={`text-xs font-medium mt-1 flex items-center gap-1 ${

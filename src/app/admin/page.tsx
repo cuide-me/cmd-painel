@@ -112,123 +112,48 @@ export default function TorreControleV2() {
       <Section title="💰 Realidade do Negócio">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* 1. Receita do Mês */}
-          <Card padding="md" className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-blue-700">Receita do Mês</span>
-                {businessHealth.monthRevenue.isMock && (
-                  <span className="text-xs py-0 px-1 bg-yellow-100 text-yellow-700 rounded font-medium">SIMULADO</span>
-                )}
-              </div>
-              <div className="text-2xl font-bold text-blue-900">
-                {formatCurrency(businessHealth.monthRevenue.current)}
-              </div>
-              <div className={`text-xs font-medium ${getTrendColor(businessHealth.monthRevenue.trend)}`}>
-                {getTrendIcon(businessHealth.monthRevenue.trend)} {businessHealth.monthRevenue.percentChange > 0 ? '+' : ''}
-                {businessHealth.monthRevenue.percentChange.toFixed(1)}% vs mês anterior
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            label="Receita do Mês"
+            value={formatCurrency(businessHealth.monthRevenue.current)}
+            change={businessHealth.monthRevenue.percentChange}
+            trend={businessHealth.monthRevenue.trend === 'stable' ? 'neutral' : businessHealth.monthRevenue.trend}
+            icon="💰"
+            tooltip="MRR (Monthly Recurring Revenue) total do mês atual. Soma de todas as assinaturas ativas. Indica a saúde financeira recorrente do negócio."
+          />
 
           {/* 2. Burn Rate */}
-          <Card padding="md" className={`border-2 ${
-            businessHealth.burnRate.status === 'profit' ? 'bg-green-50 border-green-300' :
-            businessHealth.burnRate.status === 'burning' ? 'bg-red-50 border-red-300' :
-            'bg-yellow-50 border-yellow-300'
-          }`}>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-700">Burn Rate Mensal</span>
-                {businessHealth.burnRate.isMock && (
-                  <span className="text-xs py-0 px-1 bg-yellow-100 text-yellow-700 rounded font-medium">SIMULADO</span>
-                )}
-              </div>
-              <div className={`text-2xl font-bold ${
-                businessHealth.burnRate.status === 'profit' ? 'text-green-700' :
-                businessHealth.burnRate.status === 'burning' ? 'text-red-700' :
-                'text-yellow-700'
-              }`}>
-                {formatCurrency(Math.abs(businessHealth.burnRate.netBurn))}
-              </div>
-              <div className="text-xs font-medium text-slate-700">
-                {businessHealth.burnRate.status === 'profit' ? '✅ Lucrando' :
-                 businessHealth.burnRate.status === 'burning' ? '⚠️ Queimando caixa' :
-                 '→ Neutro'}
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            label="Burn Rate"
+            value={formatCurrency(Math.abs(businessHealth.burnRate.netBurn))}
+            icon={businessHealth.burnRate.status === 'profit' ? '💚' : businessHealth.burnRate.status === 'burning' ? '🔥' : '💛'}
+            tooltip="Diferença entre receita e despesas mensais. Positivo = Lucro. Negativo = Queimando caixa. Mede se o negócio está sustentável financeiramente."
+          />
 
           {/* 3. Runway */}
-          <Card padding="md" className={`border-2 ${
-            businessHealth.runway.status === 'healthy' ? 'bg-green-50 border-green-300' :
-            businessHealth.runway.status === 'warning' ? 'bg-yellow-50 border-yellow-300' :
-            'bg-red-50 border-red-300'
-          }`}>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-700">Runway</span>
-                {businessHealth.runway.isMock && (
-                  <span className="text-xs py-0 px-1 bg-yellow-100 text-yellow-700 rounded font-medium">SIMULADO</span>
-                )}
-              </div>
-              <div className={`text-2xl font-bold ${
-                businessHealth.runway.status === 'healthy' ? 'text-green-700' :
-                businessHealth.runway.status === 'warning' ? 'text-yellow-700' :
-                'text-red-700'
-              }`}>
-                {businessHealth.runway.months === 999 ? '∞' : `${businessHealth.runway.months}m`}
-              </div>
-              <div className="text-xs font-medium text-slate-700">
-                {businessHealth.runway.status === 'healthy' && '🟢 Saudável'}
-                {businessHealth.runway.status === 'warning' && '🟡 Atenção'}
-                {businessHealth.runway.status === 'critical' && '🔴 Crítico'}
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            label="Runway"
+            value={businessHealth.runway.months === 999 ? '∞' : `${businessHealth.runway.months} meses`}
+            icon={businessHealth.runway.status === 'healthy' ? '🟢' : businessHealth.runway.status === 'warning' ? '🟡' : '🔴'}
+            tooltip="Quantos meses a empresa sobrevive com o caixa atual se o Burn Rate continuar. Crítico se < 6 meses. Saudável se > 12 meses."
+          />
 
           {/* 4. MRR em Risco */}
-          <Card padding="md" className={`border-2 ${
-            businessHealth.mrrAtRisk.percentage > 15 ? 'bg-red-50 border-red-300' :
-            businessHealth.mrrAtRisk.percentage > 5 ? 'bg-yellow-50 border-yellow-300' :
-            'bg-green-50 border-green-300'
-          }`}>
-            <div className="space-y-2">
-              <span className="text-xs font-medium text-slate-700">MRR em Risco</span>
-              <div className={`text-2xl font-bold ${
-                businessHealth.mrrAtRisk.percentage > 15 ? 'text-red-700' :
-                businessHealth.mrrAtRisk.percentage > 5 ? 'text-yellow-700' :
-                'text-green-700'
-              }`}>
-                {formatCurrency(businessHealth.mrrAtRisk.amount)}
-              </div>
-              <div className="text-xs font-medium text-slate-700">
-                {businessHealth.mrrAtRisk.percentage.toFixed(1)}% do MRR total
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            label="MRR em Risco"
+            value={formatCurrency(businessHealth.mrrAtRisk.amount)}
+            change={-businessHealth.mrrAtRisk.percentage}
+            trend="down"
+            icon="⚠️"
+            tooltip="Valor mensal em risco de churn (cancelamento). Inclui clientes insatisfeitos, pagamentos atrasados, ou profissionais que desistiram pós-aceite. Requer ação imediata do CS."
+          />
 
           {/* 5. Saúde do Sistema */}
-          <Card padding="md" className={`border-2 ${
-            businessHealth.systemHealth.status === 'healthy' ? 'bg-green-50 border-green-300' :
-            businessHealth.systemHealth.status === 'warning' ? 'bg-yellow-50 border-yellow-300' :
-            'bg-red-50 border-red-300'
-          }`}>
-            <div className="space-y-2">
-              <span className="text-xs font-medium text-slate-700">Saúde do Sistema</span>
-              <div className={`text-2xl font-bold ${
-                businessHealth.systemHealth.status === 'healthy' ? 'text-green-700' :
-                businessHealth.systemHealth.status === 'warning' ? 'text-yellow-700' :
-                'text-red-700'
-              }`}>
-                {businessHealth.systemHealth.score}/100
-              </div>
-              <div className="text-xs font-medium text-slate-700">
-                {businessHealth.systemHealth.status === 'healthy' && '✅ Operacional'}
-                {businessHealth.systemHealth.status === 'warning' && '⚠️ Com alertas'}
-                {businessHealth.systemHealth.status === 'critical' && '🚨 Crítico'}
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            label="Saúde do Sistema"
+            value={`${businessHealth.systemHealth.score}/100`}
+            icon={businessHealth.systemHealth.status === 'healthy' ? '✅' : businessHealth.systemHealth.status === 'warning' ? '⚠️' : '🚨'}
+            tooltip="Score geral de saúde operacional (0-100). Considera SLA de atendimento, taxa de conversão, abandono de profissionais e gargalos. < 70 = crítico."
+          />
         </div>
 
         {/* Detalhes do MRR em Risco */}
@@ -252,227 +177,40 @@ export default function TorreControleV2() {
       {/* BLOCO 2: GARGALOS OPERACIONAIS */}
       <Section title="⚙️ Gargalos Operacionais">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* 6. Solicitações por SLA */}
-          <Card padding="md">
-            <div className="space-y-3">
-              <span className="text-sm font-semibold text-slate-900">Solicitações Abertas</span>
-              
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 rounded bg-green-50">
-                  <span className="text-xs font-medium text-green-700">{'< 24h'}</span>
-                  <span className="text-lg font-bold text-green-700">
-                    {operations.requestsBySLA.underTwentyFour.count}
-                  </span>
-                </div>
+          <StatCard
+            label="SLA < 24h"
+            value={operations.requestsBySLA.underTwentyFour.count.toString()}
+            tooltip="Solicitações dentro do SLA ideal (criadas há menos de 24h). Meta: 80%+ das solicitações. Indica eficiência operacional e boa experiência do usuário."
+          />
+          
+          <StatCard
+            label="Tempo Médio Match"
+            value={`${operations.averageTimeToMatch.hours.toFixed(1)}h`}
+            tooltip="Tempo médio entre criar uma solicitação e encontrar um profissional. Meta: < 8h. Afeta diretamente a satisfação do cliente e taxa de conversão."
+          />
 
-                <div className="flex items-center justify-between p-2 rounded bg-yellow-50">
-                  <span className="text-xs font-medium text-yellow-700">24-48h</span>
-                  <span className="text-lg font-bold text-yellow-700">
-                    {operations.requestsBySLA.twentyFourToFortyEight.count}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-2 rounded bg-red-50 border-2 border-red-300">
-                  <span className="text-xs font-medium text-red-700">{'> 48h (CRÍTICO)'}</span>
-                  <span className="text-lg font-bold text-red-700">
-                    {operations.requestsBySLA.overFortyEight.count}
-                  </span>
-                </div>
-              </div>
-
-              {operations.requestsBySLA.overFortyEight.count > 0 && (
-                <div className="pt-2 border-t border-slate-200">
-                  <p className="text-xs text-red-600 font-medium">
-                    ⚠️ Ação urgente necessária
-                  </p>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* 7. Tempo Médio até Match */}
-          <Card padding="md">
-            <div className="space-y-3">
-              <span className="text-sm font-semibold text-slate-900">Tempo Médio até Match</span>
-              
-              <div className="text-center">
-                <div className={`text-3xl font-bold ${
-                  operations.averageTimeToMatch.status === 'good' ? 'text-green-600' :
-                  operations.averageTimeToMatch.status === 'acceptable' ? 'text-yellow-600' :
-                  'text-red-600'
-                }`}>
-                  {operations.averageTimeToMatch.hours.toFixed(1)}h
-                </div>
-                <div className="text-xs text-slate-600 mt-1">
-                  Meta: {operations.averageTimeToMatch.target}h
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-2 text-xs">
-                <span className={`font-medium ${getTrendColor(operations.averageTimeToMatch.trend)}`}>
-                  {getTrendIcon(operations.averageTimeToMatch.trend)}
-                  {operations.averageTimeToMatch.trend === 'improving' && ' Melhorando'}
-                  {operations.averageTimeToMatch.trend === 'stable' && ' Estável'}
-                  {operations.averageTimeToMatch.trend === 'worsening' && ' Piorando'}
-                </span>
-              </div>
-
-              {/* Mini-gráfico dos últimos 7 dias */}
-              <div className="flex items-end justify-between h-12 gap-1 pt-2 border-t border-slate-200">
-                {operations.averageTimeToMatch.last7Days.map((value, i) => {
-                  const maxValue = Math.max(...operations.averageTimeToMatch.last7Days);
-                  const height = maxValue > 0 ? (value / maxValue) * 100 : 0;
-                  return (
-                    <div key={i} className="flex-1 flex flex-col justify-end">
-                      <div 
-                        className={`w-full rounded-t ${
-                          value <= operations.averageTimeToMatch.target ? 'bg-green-300' :
-                          value <= operations.averageTimeToMatch.target * 2 ? 'bg-yellow-300' :
-                          'bg-red-300'
-                        }`}
-                        style={{ height: `${height}%` }}
-                      ></div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </Card>
-
-          {/* 8. Funil de Conversão */}
-          <Card padding="md">
-            <div className="space-y-3">
-              <span className="text-sm font-semibold text-slate-900">Funil de Conversão</span>
-              
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-700">Solicitações Criadas</span>
-                    <span className="font-bold text-slate-900">{operations.conversionFunnel.created.count}</span>
-                  </div>
-                  <div className="w-full h-2 bg-blue-200 rounded-full"></div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-700">Match Realizado</span>
-                    <span className="font-bold text-slate-900">
-                      {operations.conversionFunnel.matched.count} ({operations.conversionFunnel.matched.conversionRate.toFixed(0)}%)
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full">
-                    <div 
-                      className="h-2 bg-green-400 rounded-full" 
-                      style={{ width: `${operations.conversionFunnel.matched.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-700">Pagamento Concluído</span>
-                    <span className="font-bold text-slate-900">
-                      {operations.conversionFunnel.paid.count} ({operations.conversionFunnel.paid.conversionRate.toFixed(0)}%)
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full">
-                    <div 
-                      className="h-2 bg-blue-500 rounded-full" 
-                      style={{ width: `${operations.conversionFunnel.paid.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-200 text-xs text-slate-600">
-                Dropoffs: {operations.conversionFunnel.dropoffs.createdToMatched} criação→match, {operations.conversionFunnel.dropoffs.matchedToPaid} match→pago
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            label="SLA > 48h (CRÍTICO)"
+            value={operations.requestsBySLA.overFortyEight.count.toString()}
+            tooltip="Solicitações críticas com mais de 48h sem match. Alto risco de cancelamento. Requer ação urgente da equipe de operações."
+          />
         </div>
       </Section>
 
       {/* BLOCO 3: SAÚDE DO MARKETPLACE */}
       <Section title="🎯 Saúde do Marketplace">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 9. Profissionais Disponíveis */}
-          <Card padding="md">
-            <div className="space-y-3">
-              <span className="text-sm font-semibold text-slate-900">Profissionais Disponíveis AGORA</span>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-blue-600">
-                    {marketplace.availableProfessionals.count}
-                  </div>
-                  <div className="text-xs text-slate-600 mt-1">
-                    disponíveis para atender
-                  </div>
-                </div>
-                
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-slate-700">
-                    {marketplace.availableProfessionals.openDemand}
-                  </div>
-                  <div className="text-xs text-slate-600 mt-1">
-                    solicitações abertas
-                  </div>
-                </div>
-              </div>
+          <StatCard
+            label="Profissionais Disponíveis"
+            value={marketplace.availableProfessionals.count.toString()}
+            tooltip="Número de profissionais disponíveis AGORA para atender. Comparado com demanda aberta para avaliar capacidade. Ratio ideal: > 1.2 profissionais por solicitação."
+          />
 
-              <div className={`p-3 rounded-lg text-center ${
-                marketplace.availableProfessionals.balance === 'surplus' ? 'bg-green-100 text-green-700' :
-                marketplace.availableProfessionals.balance === 'balanced' ? 'bg-blue-100 text-blue-700' :
-                'bg-red-100 text-red-700'
-              }`}>
-                <div className="text-lg font-bold">
-                  {marketplace.availableProfessionals.balance === 'surplus' && '✅ Superávit'}
-                  {marketplace.availableProfessionals.balance === 'balanced' && '⚖️ Balanceado'}
-                  {marketplace.availableProfessionals.balance === 'deficit' && '⚠️ Déficit'}
-                </div>
-                <div className="text-xs mt-1">
-                  Ratio: {marketplace.availableProfessionals.ratio.toFixed(2)} profissionais/demanda
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* 10. Abandono Pós-Aceite */}
-          <Card padding="md">
-            <div className="space-y-3">
-              <span className="text-sm font-semibold text-slate-900">Abandono Pós-Aceite</span>
-              
-              <div className="text-center">
-                <div className={`text-4xl font-bold ${
-                  marketplace.postAcceptAbandonment.status === 'ok' ? 'text-green-600' :
-                  marketplace.postAcceptAbandonment.status === 'warning' ? 'text-yellow-600' :
-                  'text-red-600'
-                }`}>
-                  {marketplace.postAcceptAbandonment.rate.toFixed(1)}%
-                </div>
-                <div className="text-xs text-slate-600 mt-1">
-                  Limite aceitável: {marketplace.postAcceptAbandonment.acceptableLimit}%
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-2 text-xs">
-                <span className={`font-medium ${getTrendColor(marketplace.postAcceptAbandonment.trend)}`}>
-                  {getTrendIcon(marketplace.postAcceptAbandonment.trend)}
-                  {marketplace.postAcceptAbandonment.trend === 'improving' && ' Melhorando'}
-                  {marketplace.postAcceptAbandonment.trend === 'stable' && ' Estável'}
-                  {marketplace.postAcceptAbandonment.trend === 'worsening' && ' Piorando'}
-                </span>
-              </div>
-
-              <div className={`p-3 rounded-lg text-center text-sm ${
-                marketplace.postAcceptAbandonment.status === 'ok' ? 'bg-green-50 text-green-700' :
-                marketplace.postAcceptAbandonment.status === 'warning' ? 'bg-yellow-50 text-yellow-700' :
-                'bg-red-50 text-red-700'
-              }`}>
-                {marketplace.postAcceptAbandonment.count} abandonos nos últimos 30 dias
-              </div>
-            </div>
-          </Card>
+          <StatCard
+            label="Abandono Pós-Aceite"
+            value={`${marketplace.postAcceptAbandonment.rate.toFixed(1)}%`}
+            tooltip="Taxa de profissionais que aceitaram solicitação mas depois abandonaram. Limite aceitável: < 5%. Indica qualidade do match e comprometimento dos profissionais."
+          />
         </div>
       </Section>
 
