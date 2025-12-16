@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    --foreground-rgb: 226, 232, 240;
-    --background-rgb: 2, 6, 23;
+    --foreground-rgb: 28, 30, 33;
+    --background-rgb: 240, 242, 245;
   }
 
   body {
@@ -52,22 +52,22 @@
     box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
   }
 
-  /* Scrollbar Styling for Dark Theme */
+  /* Scrollbar Styling for Light Theme */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    background: rgb(15, 23, 42);
+    background: rgb(240, 242, 245);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgb(51, 65, 85);
+    background: rgb(200, 205, 210);
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgb(71, 85, 105);
+    background: rgb(150, 160, 170);
   }
 }
