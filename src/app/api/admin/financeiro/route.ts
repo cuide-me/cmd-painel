@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFinanceiroData } from '@/services/admin/finance';
+import { getFinanceOverview } from '@/services/admin/finance';
+import { getStripeClient } from '@/lib/server/stripe';
 
 export async function GET(request: NextRequest) {
   try {
