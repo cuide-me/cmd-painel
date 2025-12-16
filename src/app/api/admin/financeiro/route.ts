@@ -99,6 +99,12 @@ export async function GET(request: NextRequest) {
         netRevenue: netRevenue / 100,
         transactionCount: successfulCharges.length,
         refundCount: refunds.data.filter(r => r.status === 'succeeded').length,
+        refundRate:
+          successfulCharges.length > 0
+            ? (refunds.data.filter(r => r.status === 'succeeded').length /
+                successfulCharges.length) *
+              100
+            : 0,
         averageTicket:
           successfulCharges.length > 0 ? totalReceived / successfulCharges.length / 100 : 0,
       },

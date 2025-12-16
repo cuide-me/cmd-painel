@@ -16,6 +16,7 @@ interface FinanceiroData {
     netRevenue: number;
     transactionCount: number;
     refundCount: number;
+    refundRate: number;
     averageTicket: number;
   };
   revenueByMonth: Record<string, number>;
@@ -148,30 +149,79 @@ export default function AdminFinanceiroPage() {
           <>
             {/* Cards de Resumo */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
-                <div className="text-sm text-black mb-1">Receita Bruta</div>
+              {/* Receita Bruta */}
+              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6 group relative">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-black">Receita Bruta</div>
+                  <div className="relative">
+                    <span className="text-gray-400 cursor-help text-lg" title="Informações">ℹ️</span>
+                    <div className="hidden group-hover:block absolute right-0 top-6 w-64 p-3 bg-black text-white text-xs rounded-lg shadow-lg z-10">
+                      <strong>Receita Bruta:</strong> Total de pagamentos aprovados (succeeded) nos últimos 90 dias, antes de descontar taxas e reembolsos. Inclui todos os valores recebidos via Stripe.
+                    </div>
+                  </div>
+                </div>
                 <div className="text-2xl font-bold text-black">
                   {formatCurrency(data.summary.totalReceived)}
                 </div>
               </div>
-              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6">
-                <div className="text-sm text-black mb-1">Taxas Stripe</div>
+
+              {/* Taxas Stripe */}
+              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 group relative">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-black">Taxas Stripe</div>
+                  <div className="relative">
+                    <span className="text-gray-400 cursor-help text-lg" title="Informações">ℹ️</span>
+                    <div className="hidden group-hover:block absolute right-0 top-6 w-64 p-3 bg-black text-white text-xs rounded-lg shadow-lg z-10">
+                      <strong>Taxas Stripe:</strong> Total de fees cobradas pelo Stripe (geralmente 4,99% + R$0,39 por transação). Inclui taxas de processamento de cartão, bandeira e gateway de pagamento.
+                    </div>
+                  </div>
+                </div>
                 <div className="text-2xl font-bold text-black">
                   {formatCurrency(data.summary.totalFees)}
                 </div>
               </div>
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
-                <div className="text-sm text-black mb-1">Receita Líquida</div>
+
+              {/* Receita Líquida */}
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 group relative">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-black">Receita Líquida</div>
+                  <div className="relative">
+                    <span className="text-gray-400 cursor-help text-lg" title="Informações">ℹ️</span>
+                    <div className="hidden group-hover:block absolute right-0 top-6 w-64 p-3 bg-black text-white text-xs rounded-lg shadow-lg z-10">
+                      <strong>Receita Líquida:</strong> Valor real que você recebe. Calculado como: Receita Bruta - Taxas Stripe - Reembolsos. Este é o valor que será depositado em sua conta.
+                    </div>
+                  </div>
+                </div>
                 <div className="text-2xl font-bold text-black">
                   {formatCurrency(data.summary.netRevenue)}
                 </div>
               </div>
-              <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-6">
-                <div className="text-sm text-black mb-1">Transações</div>
+
+              {/* Transações */}
+              <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-6 group relative">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-black">Transações</div>
+                  <div className="relative">
+                    <span className="text-gray-400 cursor-help text-lg" title="Informações">ℹ️</span>
+                    <div className="hidden group-hover:block absolute right-0 top-6 w-64 p-3 bg-black text-white text-xs rounded-lg shadow-lg z-10">
+                      <strong>Transações:</strong> Número total de pagamentos aprovados (succeeded) nos últimos 90 dias. Não inclui pagamentos falhados, pendentes ou cancelados.
+                    </div>
+                  </div>
+                </div>
                 <div className="text-2xl font-bold text-black">{data.summary.transactionCount}</div>
               </div>
-              <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
-                <div className="text-sm text-black mb-1">Ticket Médio</div>
+
+              {/* Ticket Médio */}
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6 group relative">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-black">Ticket Médio</div>
+                  <div className="relative">
+                    <span className="text-gray-400 cursor-help text-lg" title="Informações">ℹ️</span>
+                    <div className="hidden group-hover:block absolute right-0 top-6 w-64 p-3 bg-black text-white text-xs rounded-lg shadow-lg z-10">
+                      <strong>Ticket Médio:</strong> Valor médio por transação. Calculado como: Receita Bruta ÷ Número de Transações. Útil para entender o comportamento de compra dos clientes.
+                    </div>
+                  </div>
+                </div>
                 <div className="text-2xl font-bold text-black">
                   {formatCurrency(data.summary.averageTicket)}
                 </div>
@@ -180,11 +230,19 @@ export default function AdminFinanceiroPage() {
 
             {/* Card de Reembolsos */}
             {data.summary.refundCount > 0 && (
-              <div className="mb-8 p-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+              <div className="mb-8 p-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg group relative">
                 <div className="flex items-center gap-3 mb-2">
                   <span className="text-2xl">↩️</span>
-                  <div>
-                    <div className="text-lg font-bold text-black">Reembolsos</div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="text-lg font-bold text-black">Reembolsos</div>
+                      <div className="relative">
+                        <span className="text-gray-400 cursor-help text-lg" title="Informações">ℹ️</span>
+                        <div className="hidden group-hover:block absolute left-0 top-6 w-72 p-3 bg-black text-white text-xs rounded-lg shadow-lg z-10">
+                          <strong>Reembolsos:</strong> Total devolvido aos clientes por cancelamentos, insatisfação ou problemas com o serviço. Este valor já está descontado da Receita Líquida. Inclui reembolsos parciais e totais.
+                        </div>
+                      </div>
+                    </div>
                     <div className="text-sm text-gray-600">
                       {data.summary.refundCount} transação(ões) reembolsada(s)
                     </div>
@@ -193,8 +251,19 @@ export default function AdminFinanceiroPage() {
                 <div className="text-3xl font-bold text-black mt-3">
                   {formatCurrency(data.summary.totalRefunded)}
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
-                  Total reembolsado aos clientes
+                <div className="flex items-center justify-between mt-1">
+                  <div className="text-sm text-gray-600">
+                    Total reembolsado aos clientes
+                  </div>
+                  <div className={`text-sm font-semibold px-2 py-1 rounded ${
+                    data.summary.refundRate < 5
+                      ? 'bg-green-100 text-green-700'
+                      : data.summary.refundRate < 10
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {data.summary.refundRate.toFixed(1)}% de taxa de reembolso
+                  </div>
                 </div>
               </div>
             )}
