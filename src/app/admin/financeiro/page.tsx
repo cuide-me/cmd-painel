@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { getAuth } from 'firebase/auth';
+import { getFirebaseApp } from '@/firebase/firebaseApp';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
 
 interface FinanceiroData {
@@ -37,6 +40,7 @@ interface FinanceiroData {
 
 export default function AdminFinanceiroPage() {
   const router = useRouter();
+  const { authReady } = useFirebaseAuth();
   const [data, setData] = useState<FinanceiroData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,14 +63,11 @@ export default function AdminFinanceiroPage() {
   }, []);
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem('admin_logged') === 'true';
-    if (!isLoggedIn) {
-      router.push('/admin/login');
-      return;
-    }
+    // Só buscar dados quando autenticação estiver pronta
+    if (!authReady) return;
 
     fetchData();
-  }, [fetchData, router]);
+  }, [authReady, fetchData]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {

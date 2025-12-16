@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { getAuth } from 'firebase/auth';
+import { getFirebaseApp } from '@/firebase/firebaseApp';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import DashboardFilters from '@/components/admin/v2/DashboardFilters';
 import FamiliesBlock from '@/components/admin/v2/FamiliesBlock';
@@ -16,6 +19,7 @@ import type {
 
 export default function AdminDashboardV2() {
   const router = useRouter();
+  const { authReady } = useFirebaseAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,15 +64,11 @@ export default function AdminDashboardV2() {
   }, [filters]);
 
   useEffect(() => {
-    // Verificar autenticação
-    const isLoggedIn = localStorage.getItem('admin_logged') === 'true';
-    if (!isLoggedIn) {
-      router.push('/admin/login');
-      return;
-    }
-
+    // Só buscar dados quando autenticação estiver pronta
+    if (!authReady) return;
+    
     fetchData();
-  }, [filters, fetchData, router]);
+  }, [authReady, filters, fetchData]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -80,8 +80,12 @@ export default function AdminDashboardV2() {
     return () => clearInterval(interval);
   }, [autoRefresh, fetchData]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const app = getFirebaseApp();
+    const auth = getAuth(app);
+    await auth.signOut();
     localStorage.removeItem('admin_logged');
+    localStorage.removeItem('firebase_token');
     router.push('/admin/login');
   };
 

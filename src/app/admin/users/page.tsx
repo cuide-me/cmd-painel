@@ -3,11 +3,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { getAuth } from 'firebase/auth';
+import { getFirebaseApp } from '@/firebase/firebaseApp';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import type { AdminUserRow } from '@/services/admin/users';
 
 export default function AdminUsersPage() {
   const router = useRouter();
+  const { authReady } = useFirebaseAuth();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,15 +50,11 @@ export default function AdminUsersPage() {
   }, [perfilFilter, searchTerm]);
 
   useEffect(() => {
-    // Verificar autenticação
-    const isLoggedIn = localStorage.getItem('admin_logged') === 'true';
-    if (!isLoggedIn) {
-      router.push('/admin/login');
-      return;
-    }
+    // Só buscar dados quando autenticação estiver pronta
+    if (!authReady) return;
 
     fetchUsers();
-  }, [fetchUsers, router]);
+  }, [authReady, fetchUsers]);
 
   const handleExport = () => {
     setExporting(true);
@@ -98,8 +98,12 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const app = getFirebaseApp();
+    const auth = getAuth(app);
+    await auth.signOut();
     localStorage.removeItem('admin_logged');
+    localStorage.removeItem('firebase_token');
     router.push('/admin/login');
   };
 

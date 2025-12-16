@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { getAuth } from 'firebase/auth';
+import { getFirebaseApp } from '@/firebase/firebaseApp';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import type { PipelineData } from '@/services/admin/pipeline';
 
 export default function AdminPipelinePage() {
   const router = useRouter();
+  const { authReady } = useFirebaseAuth();
   const [data, setData] = useState<PipelineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,14 +34,11 @@ export default function AdminPipelinePage() {
   }, []);
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem('admin_logged') === 'true';
-    if (!isLoggedIn) {
-      router.push('/admin/login');
-      return;
-    }
+    // Só buscar dados quando autenticação estiver pronta
+    if (!authReady) return;
 
     fetchData();
-  }, [fetchData, router]);
+  }, [authReady, fetchData]);
 
   const formatHours = (hours: number) => {
     if (hours < 24) return `${Math.round(hours)}h`;

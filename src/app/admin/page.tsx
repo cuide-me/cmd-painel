@@ -17,6 +17,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getAuth } from 'firebase/auth';
+import { getFirebaseApp } from '@/firebase/firebaseApp';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
 
 // ═══════════════════════════════════════════════════════════════
@@ -58,6 +61,7 @@ interface TorreData {
 
 export default function TorreControle() {
   const router = useRouter();
+  const { authReady } = useFirebaseAuth();
   const [data, setData] = useState<TorreData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,12 +72,8 @@ export default function TorreControle() {
   // ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    // Auth check
-    const isLoggedIn = localStorage.getItem('admin_logged') === 'true';
-    if (!isLoggedIn) {
-      router.push('/admin/login');
-      return;
-    }
+    // Só buscar dados quando autenticação estiver pronta
+    if (!authReady) return;
 
     // Initial load
     fetchData();
@@ -84,7 +84,7 @@ export default function TorreControle() {
     }, 120000);
 
     return () => clearInterval(interval);
-  }, [router]);
+  }, [authReady]);
 
   const fetchData = async (background = false) => {
     try {
@@ -185,8 +185,12 @@ export default function TorreControle() {
   // Handlers
   // ─────────────────────────────────────────────────────────────
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const app = getFirebaseApp();
+    const auth = getAuth(app);
+    await auth.signOut();
     localStorage.removeItem('admin_logged');
+    localStorage.removeItem('firebase_token');
     router.push('/admin/login');
   };
 
