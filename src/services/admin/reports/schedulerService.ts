@@ -27,12 +27,14 @@ export async function scheduleReport(config: ReportConfig): Promise<ReportSchedu
   const schedule: ReportSchedule = {
     id: `sched_${Date.now()}`,
     reportConfigId: config.id,
+    reportId: config.id,
     frequency: config.frequency,
     timeOfDay: '09:00', // Default
     timezone: 'America/Sao_Paulo',
     nextRun,
     enabled: true,
     paused: false,
+    deliveryChannels: ['email'],
     executionCount: 0,
     successCount: 0,
     failureCount: 0
@@ -58,7 +60,7 @@ export async function getScheduledReports(): Promise<ReportSchedule[]> {
     .orderBy('nextRun', 'asc')
     .get();
   
-  return snapshot.docs.map(doc => doc.data() as ReportSchedule);
+  return snapshot.docs.map((doc: any) => doc.data() as ReportSchedule);
 }
 
 export async function processScheduledReports(): Promise<void> {
@@ -169,9 +171,11 @@ export async function executeReport(config: ReportConfig): Promise<ReportExecuti
   const execution: ReportExecution = {
     id: `exec_${Date.now()}`,
     reportConfigId: config.id,
+    reportId: config.id,
     reportName: config.name,
     status: 'pending',
     startedAt: new Date(),
+    startTime: new Date(),
     retryCount: 0,
     format: config.format
   };
@@ -457,7 +461,7 @@ export async function getReportExecutions(
   
   const snapshot = await query.get();
   
-  return snapshot.docs.map(doc => doc.data() as ReportExecution);
+  return snapshot.docs.map((doc: any) => doc.data() as ReportExecution);
 }
 
 export async function getReportExecution(executionId: string): Promise<ReportExecution | null> {

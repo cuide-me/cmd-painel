@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════════
     
     const authResult = await verifyAdminAuth(request);
-    if (!authResult.authorized) {
+    if (!authResult || !authResult.authorized) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

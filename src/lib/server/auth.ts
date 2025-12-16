@@ -22,6 +22,30 @@ export interface AuthError {
   error: NextResponse;
 }
 
+export interface AdminAuthResult {
+  authorized: boolean;
+  uid?: string;
+  decodedToken?: DecodedIdToken;
+}
+
+/**
+ * Verifies admin authentication and returns result with authorized flag
+ * Returns null if authentication fails
+ */
+export async function verifyAdminAuth(request: NextRequest): Promise<AdminAuthResult | null> {
+  const auth = await requireUser(request);
+  
+  if ('error' in auth) {
+    return null;
+  }
+  
+  return {
+    authorized: true,
+    uid: auth.uid,
+    decodedToken: auth.decodedToken
+  };
+}
+
 /**
  * Validates Firebase ID token from Authorization header
  *

@@ -8,9 +8,9 @@ import type {
   ReportExecution,
   ReportSchedule,
   ReportsDashboard,
-  ReportTemplate,
-  REPORT_TEMPLATES
+  ReportTemplate
 } from './types';
+import { REPORT_TEMPLATES } from './types';
 import { generateReport } from './reportGenerator';
 import { exportReport } from './exportService';
 import {
@@ -133,7 +133,7 @@ export async function listReportConfigs(userId?: string): Promise<ReportConfig[]
   
   const snapshot = await query.get();
   
-  return snapshot.docs.map(doc => doc.data() as ReportConfig);
+  return snapshot.docs.map((doc: any) => doc.data() as ReportConfig);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -150,36 +150,38 @@ export async function getReportsDashboard(): Promise<ReportsDashboard> {
     db.collection('report_executions').orderBy('startedAt', 'desc').limit(50).get()
   ]);
   
-  const reports = reportsSnapshot.docs.map(doc => doc.data() as ReportConfig);
-  const schedules = schedulesSnapshot.docs.map(doc => doc.data() as ReportSchedule);
-  const executions = executionsSnapshot.docs.map(doc => doc.data() as ReportExecution);
+  const reports = reportsSnapshot.docs.map((doc: any) => doc.data() as ReportConfig);
+  const schedules = schedulesSnapshot.docs.map((doc: any) => doc.data() as ReportSchedule);
+  const executions = executionsSnapshot.docs.map((doc: any) => doc.data() as ReportExecution);
   
   // Calculate statistics
   const now = new Date();
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   
-  const executionsThisMonth = executions.filter(e => 
+  const executionsThisMonth = executions.filter((e: ReportExecution) => 
     new Date(e.startedAt) >= thisMonthStart
   );
   
-  const completedExecutions = executionsThisMonth.filter(e => e.status === 'completed');
+  const completedExecutions = executionsThisMonth.filter((e: ReportExecution) => e.status === 'completed');
   
   const successRate = executionsThisMonth.length > 0
     ? (completedExecutions.length / executionsThisMonth.length) * 100
     : 100;
   
   const averageGenerationTime = completedExecutions.length > 0
-    ? completedExecutions.reduce((sum, e) => sum + (e.duration || 0), 0) / completedExecutions.length / 1000
+    ? completedExecutions.reduce((sum: number, e: ReportExecution) => sum + (e.duration || 0), 0) / completedExecutions.length / 1000
     : 0;
   
   // Calculate storage
-  const totalSize = executions.reduce((sum, e) => sum + (e.fileSize || 0), 0);
+  const totalSize = executions.reduce((sum: number, e: ReportExecution) => sum + (e.fileSize || 0), 0);
   const oldestExecution = executions.length > 0
-    ? new Date(Math.min(...executions.map(e => new Date(e.startedAt).getTime())))
+    ? new Date(Math.min(...executions.map((e: ReportExecution) => new Date(e.startedAt).getTime())))
     : new Date();
   
   return {
     reports,
+    schedules,
+    templates: REPORT_TEMPLATES,
     recentExecutions: executions.slice(0, 20),
     stats: {
       totalReports: reports.length,
