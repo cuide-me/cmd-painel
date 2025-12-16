@@ -33,7 +33,7 @@ export interface AdminAuthResult {
  * Returns null if authentication fails
  */
 export async function verifyAdminAuth(request: NextRequest): Promise<AdminAuthResult | null> {
-  const auth = await requireUser(request);
+  const auth = await requireAdmin(request);
   
   if ('error' in auth) {
     return null;
