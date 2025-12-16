@@ -1,465 +1,231 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { getAuth } from 'firebase/auth';
-import { getFirebaseApp } from '@/firebase/firebaseApp';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
+import AdminLayout, { StatCard, Section, Card, Badge, Button, Table, LoadingSkeleton, EmptyState } from '@/components/admin/AdminLayout';
 import type { AdminUserRow } from '@/services/admin/users';
 
 export default function AdminUsersPage() {
-  const router = useRouter();
   const { authReady } = useFirebaseAuth();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [perfilFilter, setPerfilFilter] = useState<'all' | 'profissional' | 'cliente'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [exporting, setExporting] = useState(false);
-  const [sortField, setSortField] = useState<'nome' | 'especialidade' | 'email' | 'telefone' | 'perfil' | 'porcentagemPerfil' | 'stripeAccountStatus'>(
-    'nome'
-  );
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const itemsPerPage = 25;
 
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-
       const params = new URLSearchParams();
       if (perfilFilter !== 'all') params.set('perfil', perfilFilter);
       if (searchTerm) params.set('search', searchTerm);
-
       const response = await authFetch(`/api/admin/users?${params}`);
-      if (!response.ok) {
-        throw new Error('Erro ao carregar usuários');
-      }
-
+      if (!response.ok) throw new Error('Erro ao carregar usuários');
       const result = await response.json();
       setUsers(result.users || []);
     } catch (err: any) {
       setError(err.message);
-      console.error('[Users Page] Erro:', err);
     } finally {
       setLoading(false);
     }
   }, [perfilFilter, searchTerm]);
 
   useEffect(() => {
-    // Só buscar dados quando autenticação estiver pronta
     if (!authReady) return;
-
     fetchUsers();
   }, [authReady, fetchUsers]);
 
   const handleExport = () => {
-    setExporting(true);
-
-    try {
-      // Gerar CSV manualmente
-      const headers = ['Nome', 'Especialidade', 'Email', 'Telefone', 'Perfil Cuide-me', '% Perfil', 'Status Stripe'];
-      const rows = users.map(u => [
-        u.nome,
-        u.especialidade,
-        u.email,
-        u.telefone,
-        u.perfil === 'profissional' ? 'Profissional' : 'Cliente',
-        u.porcentagemPerfil.toString(),
-        u.stripeAccountStatus,
-      ]);
-
-      const csvContent = [
-        headers.join(';'),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(';')),
-      ].join('\n');
-
-      // Download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute(
-        'download',
-        `usuarios-cuide-me-${new Date().toISOString().split('T')[0]}.csv`
-      );
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error('Erro ao exportar:', err);
-      alert('Erro ao exportar arquivo');
-    } finally {
-      setExporting(false);
-    }
+    const headers = ['Nome', 'Especialidade', 'Email', 'Telefone', 'Perfil', '% Perfil', 'Status Stripe'];
+    const rows = users.map(u => [
+      u.nome, u.especialidade, u.email, u.telefone,
+      u.perfil === 'profissional' ? 'Profissional' : 'Cliente',
+      u.porcentagemPerfil.toString(), u.stripeAccountStatus
+    ]);
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(';'))
+    ].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `usuarios_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
   };
 
-  const handleLogout = async () => {
-    const app = getFirebaseApp();
-    const auth = getAuth(app);
-    await auth.signOut();
-    localStorage.removeItem('admin_logged');
-    localStorage.removeItem('firebase_token');
-    router.push('/admin/login');
-  };
+  if (loading) {
+    return (
+      <AdminLayout title="Gestão de Usuários" subtitle="Profissionais e Famílias" icon="👥">
+        <LoadingSkeleton lines={4} />
+      </AdminLayout>
+    );
+  }
 
-  const handleSort = (field: typeof sortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  };
+  if (error) {
+    return (
+      <AdminLayout title="Gestão de Usuários" subtitle="Profissionais e Famílias" icon="👥">
+        <EmptyState icon="⚠️" title="Erro ao carregar" description={error} action="Tentar novamente" onAction={fetchUsers} />
+      </AdminLayout>
+    );
+  }
 
-  // Apenas ordenação, sem paginação
-  const sortedUsers = [...users].sort((a, b) => {
-    let aVal = a[sortField];
-    let bVal = b[sortField];
+  const profissionais = users.filter(u => u.perfil === 'profissional');
+  const clientes = users.filter(u => u.perfil === 'cliente');
+  const perfilCompleto = users.filter(u => u.porcentagemPerfil === 100);
+  const stripeAtivos = users.filter(u => u.stripeAccountStatus === 'active');
 
-    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+  const filteredUsers = perfilFilter === 'all' ? users : users.filter(u => u.perfil === perfilFilter);
+  const searchedUsers = searchTerm
+    ? filteredUsers.filter(u =>
+        u.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.especialidade?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : filteredUsers;
 
-    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
-    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  const SortIcon = ({ field }: { field: typeof sortField }) => {
-    if (sortField !== field) return <span className="ml-1 text-white">⇅</span>;
-    return <span className="ml-1 text-white">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
-  };
-
-  // Calcular estatísticas
-  const stats = {
-    totalClientes: users.filter(u => u.perfil === 'cliente').length,
-    totalProfissionais: users.filter(u => u.perfil === 'profissional').length,
-    mediaCompletude: users.length > 0 
-      ? Math.round(users.reduce((sum, u) => sum + u.porcentagemPerfil, 0) / users.length)
-      : 0,
-  };
-
-  // Paginação
-  const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentUsers = sortedUsers.slice(startIndex, endIndex);
-
-  const handleItemsPerPageChange = (value: number) => {
-    setItemsPerPage(value);
-    setCurrentPage(1); // Reset para primeira página
-  };
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const totalPages = Math.ceil(searchedUsers.length / itemsPerPage);
+  const paginatedUsers = searchedUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="w-full px-4 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-8">
-          <div className="flex items-center gap-4">
-            <div
-              className="cursor-pointer"
-              onClick={() => router.push('/admin')}
-            >
-              <div className="text-3xl font-black bg-gradient-to-r from-orange-600 to-red-500 bg-clip-text text-transparent">
-                Cuide.me
-              </div>
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-black">Usuários</h1>
-              <p className="text-sm text-black mt-2">
-                Profissionais e famílias cadastrados na plataforma
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <button
-              onClick={handleExport}
-              disabled={exporting || users.length === 0}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:cursor-not-allowed"
-            >
-              {exporting ? '⏳ Exportando...' : '📤 Exportar Excel'}
-            </button>
-            <button
-              onClick={() => router.push('/admin/dashboard')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              📊 Dashboard
-            </button>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-white text-black border rounded-lg hover:bg-black hover:text-white transition-colors"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
-
-        {/* Erro */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-black">❌ {error}</p>
-          </div>
-        )}
-
-        {/* Cards de Estatísticas */}
-        {!loading && users.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className="bg-white border-2 border-blue-500 rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total de Clientes</p>
-                  <p className="text-3xl font-bold text-blue-600 mt-2">{stats.totalClientes}</p>
-                </div>
-                <div className="text-4xl">👨‍👩‍👧‍👦</div>
-              </div>
-            </div>
-
-            <div className="bg-white border-2 border-green-500 rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total de Profissionais</p>
-                  <p className="text-3xl font-bold text-green-600 mt-2">{stats.totalProfissionais}</p>
-                </div>
-                <div className="text-4xl">👨‍⚕️</div>
-              </div>
-            </div>
-
-            <div className="bg-white border-2 border-purple-500 rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Média de Completude</p>
-                  <p className="text-3xl font-bold text-purple-600 mt-2">{stats.mediaCompletude}%</p>
-                </div>
-                <div className="text-4xl">📊</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Filtros */}
-        <div className="bg-white border rounded-lg p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Filtrar por perfil
-              </label>
-              <select
-                value={perfilFilter}
-                onChange={e => setPerfilFilter(e.target.value as any)}
-                className="w-full px-3 py-2 border rounded-lg text-black bg-white"
-              >
-                <option value="all">Todos</option>
-                <option value="profissional">Apenas Profissionais</option>
-                <option value="cliente">Apenas Clientes</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">
-                Buscar por nome ou e-mail
-              </label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Digite para buscar..."
-                className="w-full px-3 py-2 border rounded-lg text-black bg-white"
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={fetchUsers}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            🔍 Aplicar Filtros
-          </button>
-        </div>
-
-        {/* Controles de Paginação */}
-        {!loading && users.length > 0 && (
-          <div className="bg-white border rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-black">Itens por página:</label>
-                <select
-                  value={itemsPerPage}
-                  onChange={e => handleItemsPerPageChange(Number(e.target.value))}
-                  className="px-3 py-2 border rounded-lg text-black bg-white"
-                >
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              <div className="text-sm text-black">
-                Mostrando {startIndex + 1} - {Math.min(endIndex, sortedUsers.length)} de {sortedUsers.length} usuários
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tabela */}
-        {loading ? (
-          <div className="text-center py-12">
-            <p className="text-black">Carregando usuários...</p>
-          </div>
-        ) : (
-          <div className="bg-white border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-black text-white">
-                  <tr>
-                    <th
-                      className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-800"
-                      onClick={() => handleSort('nome')}
-                    >
-                      Nome <SortIcon field="nome" />
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-800"
-                      onClick={() => handleSort('especialidade')}
-                    >
-                      Especialidade <SortIcon field="especialidade" />
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-800"
-                      onClick={() => handleSort('email')}
-                    >
-                      E-mail <SortIcon field="email" />
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-800"
-                      onClick={() => handleSort('telefone')}
-                    >
-                      Telefone <SortIcon field="telefone" />
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-800"
-                      onClick={() => handleSort('perfil')}
-                    >
-                      Perfil Cuide-me <SortIcon field="perfil" />
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-800"
-                      onClick={() => handleSort('porcentagemPerfil')}
-                    >
-                      % Perfil <SortIcon field="porcentagemPerfil" />
-                    </th>
-                    <th
-                      className="px-6 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-800"
-                      onClick={() => handleSort('stripeAccountStatus')}
-                    >
-                      Status Stripe <SortIcon field="stripeAccountStatus" />
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black">
-                  {currentUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-black">
-                        Nenhum usuário encontrado
-                      </td>
-                    </tr>
-                  ) : (
-                    currentUsers.map(user => (
-                      <tr key={user.id}>
-                        <td className="px-6 py-4 text-sm font-medium text-black">{user.nome}</td>
-                        <td className="px-6 py-4 text-sm text-black">{user.especialidade}</td>
-                        <td className="px-6 py-4 text-sm text-black">{user.email}</td>
-                        <td className="px-6 py-4 text-sm text-black">{user.telefone}</td>
-                        <td className="px-6 py-4 text-sm">
-                          <span
-                            className={`px-2 py-1 rounded text-xs font-semibold ${
-                              user.perfil === 'profissional'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-green-100 text-green-800'
-                            }`}
-                          >
-                            {user.perfil === 'profissional' ? 'Profissional' : 'Cliente'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-black">{user.porcentagemPerfil}%</td>
-                        <td className="px-6 py-4 text-sm text-black">{user.stripeAccountStatus}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Rodapé com Total e Paginação */}
-            {users.length > 0 && (
-              <div className="px-6 py-4 border-t border-black bg-white">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-black">
-                    Total: <strong>{sortedUsers.length}</strong> usuários
-                  </p>
-                  
-                  {/* Controles de Paginação */}
-                  {totalPages > 1 && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1 border rounded-lg text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        ← Anterior
-                      </button>
-                      
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          let pageNum;
-                          if (totalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (currentPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + i;
-                          } else {
-                            pageNum = currentPage - 2 + i;
-                          }
-                          
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => handlePageChange(pageNum)}
-                              className={`px-3 py-1 border rounded-lg ${
-                                currentPage === pageNum
-                                  ? 'bg-black text-white'
-                                  : 'text-black hover:bg-gray-100'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      
-                      <button
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1 border rounded-lg text-black hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Próxima →
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+    <AdminLayout title="Gestão de Usuários" subtitle="Profissionais e Famílias" icon="👥">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <StatCard label="Total Usuários" value={users.length} icon="👤" />
+        <StatCard label="Profissionais" value={profissionais.length} icon="👨‍⚕️" />
+        <StatCard label="Famílias" value={clientes.length} icon="👨‍👩‍👧‍👦" />
+        <StatCard label="Perfil 100%" value={perfilCompleto.length} icon="✅" />
       </div>
-    </div>
+
+      {/* Filters & Search */}
+      <Card padding="md" className="mb-6">
+        <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
+          <div className="flex gap-2">
+            {[
+              { id: 'all', label: 'Todos' },
+              { id: 'profissional', label: 'Profissionais' },
+              { id: 'cliente', label: 'Famílias' }
+            ].map(filter => (
+              <button
+                key={filter.id}
+                onClick={() => {
+                  setPerfilFilter(filter.id as any);
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                  perfilFilter === filter.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2 w-full md:w-auto">
+            <input
+              type="text"
+              placeholder="Buscar por nome, email..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="flex-1 md:w-64 px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <Button variant="secondary" size="sm" onClick={handleExport}>
+              📥 Exportar
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Users Table */}
+      <Section title={`Usuários (${searchedUsers.length})`}>
+        <Table
+          headers={['Nome', 'Especialidade', 'Email', 'Telefone', 'Perfil', '% Perfil', 'Stripe']}
+          data={paginatedUsers.map(user => [
+            user.nome,
+            user.especialidade || '-',
+            user.email,
+            user.telefone || '-',
+            user.perfil === 'profissional' ? '👨‍⚕️ Profissional' : '👨‍👩‍👧‍👦 Família',
+            `${user.porcentagemPerfil}%`,
+            user.stripeAccountStatus === 'active' ? '✅' : user.stripeAccountStatus === 'pending' ? '⏳' : '❌'
+          ])}
+          compact
+        />
+
+        {searchedUsers.length === 0 && (
+          <EmptyState
+            icon="🔍"
+            title="Nenhum usuário encontrado"
+            description="Tente ajustar os filtros ou termos de busca"
+          />
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Card padding="md" className="mt-4">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-600">
+                Página {currentPage} de {totalPages} ({searchedUsers.length} usuários)
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  ← Anterior
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Próxima →
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+      </Section>
+
+      {/* Quick Stats */}
+      <Section title="Estatísticas Detalhadas">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Card padding="md">
+            <p className="text-xs text-slate-600 mb-1">Stripe Ativo</p>
+            <p className="text-2xl font-bold text-green-600">{stripeAtivos.length}</p>
+            <p className="text-xs text-slate-500 mt-1">
+              {((stripeAtivos.length / users.length) * 100).toFixed(1)}% do total
+            </p>
+          </Card>
+          <Card padding="md">
+            <p className="text-xs text-slate-600 mb-1">Perfil Completo</p>
+            <p className="text-2xl font-bold text-blue-600">{perfilCompleto.length}</p>
+            <p className="text-xs text-slate-500 mt-1">
+              {((perfilCompleto.length / users.length) * 100).toFixed(1)}% do total
+            </p>
+          </Card>
+          <Card padding="md">
+            <p className="text-xs text-slate-600 mb-1">% Perfil Médio</p>
+            <p className="text-2xl font-bold text-slate-900">
+              {(users.reduce((acc, u) => acc + u.porcentagemPerfil, 0) / users.length).toFixed(0)}%
+            </p>
+          </Card>
+        </div>
+      </Section>
+    </AdminLayout>
   );
 }
