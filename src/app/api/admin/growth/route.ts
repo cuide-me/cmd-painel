@@ -59,11 +59,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-        totals: { profissionais: 0, clientes: 0, total: 0 },
-        error: error.message,
-      },
-      { status: 200 }
-    );
-  }
-}
