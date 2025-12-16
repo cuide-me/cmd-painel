@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStripeClient } from '@/lib/server/stripe';
-import { requireAdmin } from '@/lib/server/auth';
+import { getFinanceiroData } from '@/services/admin/finance';
 
 export async function GET(request: NextRequest) {
-  // 🔒 Verificar se usuário é admin
-  const auth = await requireAdmin(request);
-  if ('error' in auth) return auth.error;
-
   try {
     const stripe = getStripeClient();
     if (!stripe) {

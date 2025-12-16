@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { listUsers } from '@/services/admin/users';
-import { requireAdmin } from '@/lib/server/auth';
 
 export async function GET(request: NextRequest) {
-  // 🔒 Verificar se usuário é admin
-  const auth = await requireAdmin(request);
-  if ('error' in auth) return auth.error;
-
   try {
     // Inicializar Firebase Admin
     getFirebaseAdmin();

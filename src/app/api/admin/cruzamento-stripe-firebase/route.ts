@@ -27,10 +27,6 @@ interface FirebaseProfessional {
 }
 
 export async function GET(request: NextRequest) {
-  // 🔒 Verificar se usuário é admin
-  const auth = await requireAdmin(request);
-  if ('error' in auth) return auth.error;
-
   try {
     const { searchParams } = new URL(request.url);
     const secret = searchParams.get('secret');

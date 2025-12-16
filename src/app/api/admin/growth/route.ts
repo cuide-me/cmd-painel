@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getFirestore } from 'firebase-admin/firestore';
-import { requireAdmin } from '@/lib/server/auth';
 
 export async function GET(request: NextRequest) {
-  // 🔒 Verificar se usuário é admin
-  const auth = await requireAdmin(request);
-  if ('error' in auth) return auth.error;
-
   try {
     getFirebaseAdmin();
     const db = getFirestore();

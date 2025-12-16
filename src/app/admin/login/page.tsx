@@ -16,7 +16,7 @@ export default function AdminLoginPage() {
 
     try {
       // Senha simples - sem Firebase, sem complicação!
-      const ADMIN_PASSWORD = 'admin123'; // Mude para o que você quiser
+      const ADMIN_PASSWORD = 'cuideme@admin321';
       
       if (password === ADMIN_PASSWORD) {
         // Salva autenticação simples
@@ -65,7 +65,7 @@ export default function AdminLoginPage() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="Digite: admin123"
+              placeholder="Digite: cuideme@admin321"
               className="w-full px-4 py-3 border border-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               required
               autoComplete="current-password"
@@ -91,7 +91,7 @@ export default function AdminLoginPage() {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-black">© 2025 Cuide-me - Sistema Administrativo</p>
-          <p className="text-xs text-gray-500 mt-2">Senha padrão: admin123</p>
+          <p className="text-xs text-gray-500 mt-2">Senha: cuideme@admin321</p>
         </div>
       </div>
     </div>
