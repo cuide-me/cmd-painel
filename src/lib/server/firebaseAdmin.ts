@@ -148,6 +148,15 @@ export function getFirebaseAdmin(): App {
   }
 }
 
+/**
+ * Get Firestore instance from Firebase Admin
+ * Must be called after getFirebaseAdmin()
+ */
+export function getFirestore() {
+  const { getFirestore: getFirestoreFunc } = require('firebase-admin/firestore');
+  return getFirestoreFunc(getFirebaseAdmin());
+}
+
 // REMOVED: Don't initialize on module load - only when needed at runtime
 // This prevents build-time initialization which fails because env vars
 // are not available during the Next.js build phase

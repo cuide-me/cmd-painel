@@ -69,7 +69,7 @@ export interface ReportConfig {
 export interface ReportSection {
   id: string;
   title: string;
-  type: 'kpi' | 'chart' | 'table' | 'text' | 'insight';
+  type: 'kpi' | 'chart' | 'table' | 'text' | 'insight' | 'funnel';
   order: number;
   config: Record<string, any>;
 }
@@ -232,7 +232,7 @@ export interface ReportData {
   
   // Insights
   insights: {
-    type: 'success' | 'warning' | 'critical' | 'info';
+    type: 'success' | 'warning' | 'critical' | 'info' | 'opportunity';
     title: string;
     description: string;
     recommendation?: string;
@@ -266,7 +266,7 @@ export interface ExportOptions {
     delimiter: ',' | ';' | '\t';
     includeHeaders: boolean;
     encoding: 'utf-8' | 'latin1';
-    tables: string[]; // Which tables to export
+    tables?: string[]; // Which tables to export (optional - all if not specified)
   };
   
   // Excel options

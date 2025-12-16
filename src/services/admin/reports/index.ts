@@ -21,7 +21,7 @@ import {
   processScheduledReports,
   cleanupOldReports
 } from './schedulerService';
-import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getFirebaseAdmin, getFirestore } from '@/lib/server/firebaseAdmin';
 
 // Re-export for convenience
 export * from './types';
@@ -43,7 +43,7 @@ export {
 export async function createReportConfig(
   config: Omit<ReportConfig, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<ReportConfig> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   const newConfig: ReportConfig = {
     ...config,
@@ -66,7 +66,7 @@ export async function updateReportConfig(
   reportId: string,
   updates: Partial<ReportConfig>
 ): Promise<ReportConfig> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   const doc = await db.collection('report_configs').doc(reportId).get();
   
@@ -94,7 +94,7 @@ export async function updateReportConfig(
 }
 
 export async function deleteReportConfig(reportId: string): Promise<void> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   // Delete config
   await db.collection('report_configs').doc(reportId).delete();
@@ -105,13 +105,13 @@ export async function deleteReportConfig(reportId: string): Promise<void> {
     .where('reportConfigId', '==', reportId)
     .get();
   
-  for (const doc of schedules.docs) {
+  for (const doc of schedules.docs as any[]) {
     await doc.ref.delete();
   }
 }
 
 export async function getReportConfig(reportId: string): Promise<ReportConfig | null> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   const doc = await db.collection('report_configs').doc(reportId).get();
   
@@ -123,7 +123,7 @@ export async function getReportConfig(reportId: string): Promise<ReportConfig | 
 }
 
 export async function listReportConfigs(userId?: string): Promise<ReportConfig[]> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   let query = db.collection('report_configs').orderBy('createdAt', 'desc');
   
@@ -141,7 +141,7 @@ export async function listReportConfigs(userId?: string): Promise<ReportConfig[]
 // ═══════════════════════════════════════════════════════════════
 
 export async function getReportsDashboard(): Promise<ReportsDashboard> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   // Fetch all data in parallel
   const [reportsSnapshot, schedulesSnapshot, executionsSnapshot] = await Promise.all([

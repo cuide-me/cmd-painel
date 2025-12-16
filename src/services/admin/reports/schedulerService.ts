@@ -12,14 +12,14 @@ import type {
 } from './types';
 import { generateReport } from './reportGenerator';
 import { exportReport, generateEmailHTML } from './exportService';
-import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getFirebaseAdmin, getFirestore } from '@/lib/server/firebaseAdmin';
 
 // ═══════════════════════════════════════════════════════════════
 // SCHEDULING
 // ═══════════════════════════════════════════════════════════════
 
 export async function scheduleReport(config: ReportConfig): Promise<ReportSchedule> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   // Calculate next run time
   const nextRun = calculateNextRun(config.frequency, new Date());
@@ -49,7 +49,7 @@ export async function scheduleReport(config: ReportConfig): Promise<ReportSchedu
 }
 
 export async function getScheduledReports(): Promise<ReportSchedule[]> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   const snapshot = await db
     .collection('report_schedules')
@@ -82,7 +82,7 @@ export async function processScheduledReports(): Promise<void> {
 }
 
 async function executeScheduledReport(schedule: ReportSchedule): Promise<void> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   // Get report config
   const configDoc = await db.collection('report_configs').doc(schedule.reportConfigId).get();
@@ -150,7 +150,7 @@ async function updateScheduleStatus(
   status: 'success' | 'failure',
   error?: string
 ): Promise<void> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   await db.collection('report_schedules').doc(scheduleId).update({
     lastStatus: status,
@@ -164,7 +164,7 @@ async function updateScheduleStatus(
 // ═══════════════════════════════════════════════════════════════
 
 export async function executeReport(config: ReportConfig): Promise<ReportExecution> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   const execution: ReportExecution = {
     id: `exec_${Date.now()}`,
@@ -445,7 +445,7 @@ export async function getReportExecutions(
   reportConfigId?: string,
   limit: number = 50
 ): Promise<ReportExecution[]> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   let query = db.collection('report_executions')
     .orderBy('startedAt', 'desc')
@@ -461,7 +461,7 @@ export async function getReportExecutions(
 }
 
 export async function getReportExecution(executionId: string): Promise<ReportExecution | null> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   const doc = await db.collection('report_executions').doc(executionId).get();
   
@@ -477,7 +477,7 @@ export async function getReportExecution(executionId: string): Promise<ReportExe
 // ═══════════════════════════════════════════════════════════════
 
 export async function cleanupOldReports(retentionDays: number = 90): Promise<number> {
-  const db = getFirebaseAdmin().firestore();
+  const db = getFirestore();
   
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
