@@ -12,12 +12,17 @@ export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('[Control Tower] Request received');
+    
     // ═══════════════════════════════════════════════════════════════
     // AUTH
     // ═══════════════════════════════════════════════════════════════
     
     const authResult = await verifyAdminAuth(request);
+    console.log('[Control Tower] Auth result:', authResult);
+    
     if (!authResult || !authResult.authorized) {
+      console.log('[Control Tower] Unauthorized');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -28,7 +33,9 @@ export async function GET(request: NextRequest) {
     // FETCH DATA
     // ═══════════════════════════════════════════════════════════════
     
+    console.log('[Control Tower] Fetching dashboard...');
     const dashboard = await getControlTowerDashboard();
+    console.log('[Control Tower] Dashboard fetched successfully');
     
     // ═══════════════════════════════════════════════════════════════
     // RESPONSE
@@ -44,13 +51,15 @@ export async function GET(request: NextRequest) {
     });
     
   } catch (error: any) {
-    console.error('Control Tower API Error:', error);
+    console.error('[Control Tower] Error:', error);
+    console.error('[Control Tower] Error stack:', error.stack);
     
     return NextResponse.json(
       { 
         success: false,
         error: error.message || 'Internal server error',
-        code: 'CONTROL_TOWER_ERROR'
+        code: 'CONTROL_TOWER_ERROR',
+        details: error.stack
       },
       { status: 500 }
     );

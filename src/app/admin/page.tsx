@@ -10,27 +10,30 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import AdminLayout, { StatCard, Section, Card, Badge, EmptyState, LoadingSkeleton } from '@/components/admin/AdminLayout';
 import type { ControlTowerDashboard } from '@/services/admin/control-tower/types';
 
 export default function TorreControleV2() {
   const router = useRouter();
-  const { authReady } = useFirebaseAuth();
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<ControlTowerDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authReady) return;
+    // Verificar se está logado
+    const isLogged = localStorage.getItem('admin_logged') === 'true';
+    if (!isLogged) {
+      router.push('/admin/login');
+      return;
+    }
     
     fetchDashboard();
     
     // Auto-refresh a cada 60 segundos
     const interval = setInterval(fetchDashboard, 60000);
     return () => clearInterval(interval);
-  }, [authReady]);
+  }, []);
 
   const fetchDashboard = async () => {
     try {
