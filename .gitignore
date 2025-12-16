@@ -42,3 +42,6 @@ Thumbs.db
 
 add-vercel-env.ps1
 firebase_admin_b64.txt
+CORRIGIR_VERCEL.md
+fix-all-firebase-vars.ps1
+fix-vercel-env.ps1
