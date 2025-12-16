@@ -37,3 +37,8 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+.vercel
+
+add-vercel-env.ps1
+firebase_admin_b64.txt
