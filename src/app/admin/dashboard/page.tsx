@@ -62,7 +62,7 @@ export default function AdminDashboardV2() {
     // Verificar autenticação
     const isLoggedIn = localStorage.getItem('admin_logged') === 'true';
     if (!isLoggedIn) {
-      router.push('/admin');
+      router.push('/admin/login');
       return;
     }
 
@@ -81,7 +81,7 @@ export default function AdminDashboardV2() {
 
   const handleLogout = () => {
     localStorage.removeItem('admin_logged');
-    router.push('/admin');
+    router.push('/admin/login');
   };
 
   return (

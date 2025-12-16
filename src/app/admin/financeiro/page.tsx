@@ -60,7 +60,7 @@ export default function AdminFinanceiroPage() {
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('admin_logged') === 'true';
     if (!isLoggedIn) {
-      router.push('/admin');
+      router.push('/admin/login');
       return;
     }
 
