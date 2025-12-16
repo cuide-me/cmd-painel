@@ -11,9 +11,11 @@ import { authFetch } from '@/lib/client/authFetch';
 interface FinanceiroData {
   summary: {
     totalReceived: number;
+    totalRefunded: number;
     totalFees: number;
     netRevenue: number;
     transactionCount: number;
+    refundCount: number;
     averageTicket: number;
   };
   revenueByMonth: Record<string, number>;
@@ -26,6 +28,16 @@ interface FinanceiroData {
     description: string;
     customerEmail: string;
     paymentMethod: string;
+    refunded: boolean;
+    refundedAmount: number;
+    partiallyRefunded: boolean;
+    refunds: Array<{
+      id: string;
+      amount: number;
+      created: number;
+      reason: string | null;
+      status: string;
+    }>;
   }>;
   payouts: Array<{
     id: string;
@@ -166,6 +178,27 @@ export default function AdminFinanceiroPage() {
               </div>
             </div>
 
+            {/* Card de Reembolsos */}
+            {data.summary.refundCount > 0 && (
+              <div className="mb-8 p-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-2xl">↩️</span>
+                  <div>
+                    <div className="text-lg font-bold text-black">Reembolsos</div>
+                    <div className="text-sm text-gray-600">
+                      {data.summary.refundCount} transação(ões) reembolsada(s)
+                    </div>
+                  </div>
+                </div>
+                <div className="text-3xl font-bold text-black mt-3">
+                  {formatCurrency(data.summary.totalRefunded)}
+                </div>
+                <div className="text-sm text-gray-600 mt-1">
+                  Total reembolsado aos clientes
+                </div>
+              </div>
+            )}
+
             {/* Receita por Mês */}
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-black mb-6">
@@ -216,10 +249,34 @@ export default function AdminFinanceiroPage() {
                       {data.transactions.map(tx => (
                         <tr
                           key={tx.id}
-                          className="hover:bg-black hover:text-white transition-colors"
+                          className={`hover:bg-gray-50 transition-colors ${
+                            tx.refunded ? 'bg-yellow-50' : ''
+                          }`}
                         >
                           <td className="px-6 py-4 text-sm text-black">{formatDate(tx.created)}</td>
-                          <td className="px-6 py-4 text-sm text-black">{tx.description}</td>
+                          <td className="px-6 py-4 text-sm">
+                            <div className="text-black">{tx.description}</div>
+                            {tx.refunded && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-yellow-700">
+                                  ↩️ Reembolsado: {formatCurrency(tx.refundedAmount)}
+                                </span>
+                                {tx.partiallyRefunded && (
+                                  <span className="text-xs text-yellow-600">(Parcial)</span>
+                                )}
+                              </div>
+                            )}
+                            {tx.refunds.length > 0 && (
+                              <div className="mt-1 space-y-1">
+                                {tx.refunds.map(refund => (
+                                  <div key={refund.id} className="text-xs text-gray-600">
+                                    • {formatDate(refund.created)} - {formatCurrency(refund.amount)}
+                                    {refund.reason && ` (${refund.reason})`}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </td>
                           <td className="px-6 py-4 text-sm text-black">{tx.customerEmail}</td>
                           <td className="px-6 py-4 text-sm text-black uppercase">
                             {tx.paymentMethod}
@@ -228,9 +285,15 @@ export default function AdminFinanceiroPage() {
                             {formatCurrency(tx.amount)}
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
-                              {tx.status}
-                            </span>
+                            {tx.refunded ? (
+                              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-semibold">
+                                {tx.partiallyRefunded ? 'parcial refund' : 'refunded'}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
+                                succeeded
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}
