@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { authFetch } from '@/lib/client/authFetch';
 import type { AdminUserRow } from '@/services/admin/users';
 
 export default function AdminUsersPage() {
@@ -29,7 +30,7 @@ export default function AdminUsersPage() {
       if (perfilFilter !== 'all') params.set('perfil', perfilFilter);
       if (searchTerm) params.set('search', searchTerm);
 
-      const response = await fetch(`/api/admin/users?${params}`);
+      const response = await authFetch(`/api/admin/users?${params}`);
       if (!response.ok) {
         throw new Error('Erro ao carregar usuários');
       }

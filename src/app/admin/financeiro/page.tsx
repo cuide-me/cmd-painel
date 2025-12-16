@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { authFetch } from '@/lib/client/authFetch';
 
 interface FinanceiroData {
   summary: {
@@ -45,7 +46,7 @@ export default function AdminFinanceiroPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/admin/financeiro');
+      const response = await authFetch('/api/admin/financeiro');
       if (!response.ok) throw new Error('Erro ao carregar dados financeiros');
 
       const result = await response.json();

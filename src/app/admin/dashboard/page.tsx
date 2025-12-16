@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { authFetch } from '@/lib/client/authFetch';
 import DashboardFilters from '@/components/admin/v2/DashboardFilters';
 import FamiliesBlock from '@/components/admin/v2/FamiliesBlock';
 import ProfessionalsBlock from '@/components/admin/v2/ProfessionalsBlock';
@@ -42,7 +43,7 @@ export default function AdminDashboardV2() {
       if (filters.startDate) params.set('startDate', filters.startDate.toISOString());
       if (filters.endDate) params.set('endDate', filters.endDate.toISOString());
 
-      const response = await fetch(`/api/admin/dashboard-v2?${params}`);
+      const response = await authFetch(`/api/admin/dashboard-v2?${params}`);
       if (!response.ok) {
         throw new Error('Erro ao carregar dados do dashboard');
       }

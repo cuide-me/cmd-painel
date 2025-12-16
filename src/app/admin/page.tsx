@@ -17,6 +17,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { authFetch } from '@/lib/client/authFetch';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -90,7 +91,7 @@ export default function TorreControle() {
       if (!background) setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/admin/torre/overview');
+      const response = await authFetch('/api/admin/torre/overview');
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);

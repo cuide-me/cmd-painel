@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { authFetch } from '@/lib/client/authFetch';
 import type { PipelineData } from '@/services/admin/pipeline';
 
 export default function AdminPipelinePage() {
@@ -16,7 +17,7 @@ export default function AdminPipelinePage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/admin/pipeline');
+      const response = await authFetch('/api/admin/pipeline');
       if (!response.ok) throw new Error('Erro ao carregar pipeline');
 
       const result = await response.json();

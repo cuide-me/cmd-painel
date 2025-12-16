@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirebaseApp } from '@/firebase/firebaseApp';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
@@ -15,16 +17,38 @@ export default function AdminLoginPage() {
     setError('');
     setLoading(true);
 
-    // Credenciais hardcoded (apenas admin acessa)
-    if (email === 'cuide-me@cuide-me.com.br' && password === 'cuideme@admin321') {
-      // Salvar token no localStorage
+    try {
+      // Inicializar Firebase
+      const app = getFirebaseApp();
+      const auth = getAuth(app);
+      
+      // Fazer login com Firebase
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Obter ID Token
+      const idToken = await user.getIdToken();
+      
+      // Salvar no localStorage
       localStorage.setItem('admin_logged', 'true');
       localStorage.setItem('admin_email', email);
-
-      // Redirecionar para o dashboard
+      localStorage.setItem('firebase_token', idToken);
+      
+      // Redirecionar para Torre de Controle
       router.push('/admin');
-    } else {
-      setError('Usuário ou senha incorretos');
+    } catch (err: any) {
+      console.error('[Login] Erro:', err);
+      
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Usuário ou senha incorretos');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('E-mail inválido');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Muitas tentativas. Tente novamente mais tarde.');
+      } else {
+        setError('Erro ao fazer login. Tente novamente.');
+      }
+      
       setLoading(false);
     }
   };
