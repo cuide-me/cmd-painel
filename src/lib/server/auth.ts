@@ -190,19 +190,5 @@ export async function requireAdmin(request: NextRequest): Promise<AuthResult | A
     };
   }
 
-  return { uid, decodedToken };
-}
-
-/**
- * Alias for requireUser - verifies admin authentication
- * Returns user object with uid property if authenticated
- */
-export async function verifyAdminAuth(request: NextRequest): Promise<{ uid: string } | null> {
-  const result = await requireUser(request);
-  
-  if ('error' in result) {
-    return null;
-  }
-  
-  return { uid: result.uid };
+  return user;
 }
