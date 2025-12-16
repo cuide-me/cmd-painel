@@ -272,7 +272,7 @@ export default function AlertsCenterPage() {
 // Components
 
 function MetricCard({ title, value, subtitle, icon, color }: any) {
-  const colorClasses = {
+  const colorClasses: Record<string, string> = {
     blue: 'from-blue-500 to-indigo-500',
     red: 'from-red-500 to-rose-500',
     orange: 'from-orange-500 to-amber-500',
@@ -283,7 +283,7 @@ function MetricCard({ title, value, subtitle, icon, color }: any) {
     <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20">
       <div className="flex items-start justify-between mb-2">
         <span className="text-2xl">{icon}</span>
-        <div className={`text-3xl font-bold bg-gradient-to-r ${colorClasses[color]} bg-clip-text text-transparent`}>
+        <div className={`text-3xl font-bold bg-gradient-to-r ${colorClasses[color] || colorClasses.blue} bg-clip-text text-transparent`}>
           {value}
         </div>
       </div>
@@ -294,7 +294,7 @@ function MetricCard({ title, value, subtitle, icon, color }: any) {
 }
 
 function StatCard({ title, value, subtitle, trend }: any) {
-  const trendColors = {
+  const trendColors: Record<string, string> = {
     good: 'text-green-600',
     warning: 'text-orange-600',
     bad: 'text-red-600',
@@ -303,7 +303,7 @@ function StatCard({ title, value, subtitle, trend }: any) {
   return (
     <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-white/20">
       <h3 className="font-semibold text-slate-700 mb-2">{title}</h3>
-      <div className={`text-3xl font-bold mb-1 ${trendColors[trend]}`}>
+      <div className={`text-3xl font-bold mb-1 ${trendColors[trend] || trendColors.good}`}>
         {value}
       </div>
       <p className="text-sm text-slate-500">{subtitle}</p>
@@ -333,7 +333,7 @@ function SeverityBadge({ severity, count }: { severity: AlertSeverity; count: nu
 function CategoryBar({ category, count, total, avgResponseTime }: any) {
   const percentage = (count / total) * 100;
 
-  const categoryLabels: Record<AlertCategory, string> = {
+  const categoryLabels: Record<string, string> = {
     operational: '⚙️ Operacional',
     financial: '💰 Financeiro',
     quality: '⭐ Qualidade',
@@ -346,7 +346,7 @@ function CategoryBar({ category, count, total, avgResponseTime }: any) {
   return (
     <div>
       <div className="flex justify-between items-center mb-1">
-        <span className="font-medium text-slate-700">{categoryLabels[category]}</span>
+        <span className="font-medium text-slate-700">{categoryLabels[category] || category}</span>
         <span className="text-sm text-slate-500">
           {count} alertas • {formatMinutes(avgResponseTime)} resp. média
         </span>
@@ -362,7 +362,7 @@ function CategoryBar({ category, count, total, avgResponseTime }: any) {
 }
 
 function TabButton({ active, onClick, label, count, badge }: any) {
-  const badgeColors = {
+  const badgeColors: Record<string, string> = {
     red: 'bg-red-100 text-red-700',
     orange: 'bg-orange-100 text-orange-700',
     green: 'bg-green-100 text-green-700',
@@ -379,7 +379,7 @@ function TabButton({ active, onClick, label, count, badge }: any) {
     >
       {label}
       {count > 0 && (
-        <span className={`ml-2 px-2 py-0.5 rounded-full text-sm ${badge ? badgeColors[badge] : 'bg-slate-200 text-slate-700'}`}>
+        <span className={`ml-2 px-2 py-0.5 rounded-full text-sm ${badge && badgeColors[badge] ? badgeColors[badge] : 'bg-slate-200 text-slate-700'}`}>
           {count}
         </span>
       )}

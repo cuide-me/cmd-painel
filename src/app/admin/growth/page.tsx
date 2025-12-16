@@ -168,22 +168,22 @@ function PillarCard({ icon, title, score, active, onClick }: any) {
 }
 
 function InsightCard({ insight }: any) {
-  const typeIcons = {
+  const typeIcons: Record<string, string> = {
     opportunity: '🎯',
     warning: '⚠️',
     success: '✅',
   };
 
-  const typeColors = {
+  const typeColors: Record<string, string> = {
     opportunity: 'bg-blue-50 border-blue-200 text-blue-900',
     warning: 'bg-orange-50 border-orange-200 text-orange-900',
     success: 'bg-green-50 border-green-200 text-green-900',
   };
 
   return (
-    <div className={`border rounded-xl p-4 ${typeColors[insight.type]}`}>
+    <div className={`border rounded-xl p-4 ${typeColors[insight.type] || typeColors.opportunity}`}>
       <div className="flex items-start gap-3">
-        <div className="text-2xl">{typeIcons[insight.type]}</div>
+        <div className="text-2xl">{typeIcons[insight.type] || '💡'}</div>
         <div className="flex-1">
           <div className="font-bold mb-1">{insight.title}</div>
           <div className="text-sm mb-2">{insight.description}</div>

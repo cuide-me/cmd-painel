@@ -3,7 +3,8 @@
  * Tracks user acquisition funnel, channels, and conversion metrics
  */
 
-import { firebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getFirestore } from 'firebase-admin/firestore';
 import type {
   AcquisitionMetrics,
   AcquisitionFunnel,
@@ -17,7 +18,8 @@ export async function getAcquisitionMetrics(
   startDate: Date,
   endDate: Date
 ): Promise<AcquisitionMetrics> {
-  const db = firebaseAdmin.firestore();
+  getFirebaseAdmin();
+  const db = getFirestore();
   
   // Query users created in period
   const usersSnapshot = await db
@@ -26,7 +28,7 @@ export async function getAcquisitionMetrics(
     .where('createdAt', '<=', endDate)
     .get();
   
-  const users = usersSnapshot.docs.map(doc => ({
+  const users = usersSnapshot.docs.map((doc: any) => ({
     id: doc.id,
     ...doc.data(),
   })) as any[];

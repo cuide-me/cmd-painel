@@ -3,7 +3,8 @@
  * Tracks user activation, onboarding milestones, and first-week engagement
  */
 
-import { firebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getFirestore } from 'firebase-admin/firestore';
 import type {
   OnboardingMetrics,
   ActivationMilestone,
@@ -17,7 +18,8 @@ export async function getActivationMetrics(
   startDate: Date,
   endDate: Date
 ): Promise<OnboardingMetrics> {
-  const db = firebaseAdmin.firestore();
+  getFirebaseAdmin();
+  const db = getFirestore();
   
   // Get new users in period
   const usersSnapshot = await db
@@ -26,7 +28,7 @@ export async function getActivationMetrics(
     .where('createdAt', '<=', endDate)
     .get();
   
-  const users = usersSnapshot.docs.map(doc => ({
+  const users = usersSnapshot.docs.map((doc: any) => ({
     id: doc.id,
     ...doc.data(),
   })) as any[];
@@ -101,7 +103,8 @@ export async function getActivationHealth(
   startDate: Date,
   endDate: Date
 ): Promise<ActivationHealth> {
-  const db = firebaseAdmin.firestore();
+  getFirebaseAdmin();
+  const db = getFirestore();
   
   // Get users from period
   const usersSnapshot = await db
@@ -110,7 +113,7 @@ export async function getActivationHealth(
     .where('createdAt', '<=', endDate)
     .get();
   
-  const users = usersSnapshot.docs.map(doc => ({
+  const users = usersSnapshot.docs.map((doc: any) => ({
     id: doc.id,
     ...doc.data(),
   })) as any[];

@@ -3,7 +3,8 @@
  * Core service for managing intelligent alerts with actions, SLA tracking, and analytics
  */
 
-import { firebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getFirestore } from 'firebase-admin/firestore';
 import {
   IntelligentAlert,
   AlertAction,
@@ -33,7 +34,8 @@ const ALERT_ACTIONS_COLLECTION = 'alert_actions';
  * Create a new intelligent alert
  */
 export async function createAlert(request: CreateAlertRequest): Promise<IntelligentAlert> {
-  const db = firebaseAdmin.firestore();
+  getFirebaseAdmin();
+  const db = getFirestore();
   
   // Calculate priority and impact
   const priority = calculatePriority({
@@ -94,7 +96,8 @@ export async function createAlert(request: CreateAlertRequest): Promise<Intellig
  * Perform an action on an alert (acknowledge, assign, resolve, etc.)
  */
 export async function performAlertAction(request: AlertActionRequest): Promise<IntelligentAlert> {
-  const db = firebaseAdmin.firestore();
+  getFirebaseAdmin();
+  const db = getFirestore();
   const alertRef = db.collection(ALERTS_COLLECTION).doc(request.alertId);
   const alertDoc = await alertRef.get();
   
@@ -177,7 +180,8 @@ export async function performAlertAction(request: AlertActionRequest): Promise<I
  * Get all alerts with optional filtering
  */
 export async function getAlerts(filters?: AlertFilters): Promise<IntelligentAlert[]> {
-  const db = firebaseAdmin.firestore();
+  getFirebaseAdmin();
+  const db = getFirestore();
   let query: FirebaseFirestore.Query = db.collection(ALERTS_COLLECTION);
   
   // Apply filters
@@ -504,7 +508,8 @@ export async function autoEscalateAlerts(): Promise<number> {
  * Get a single alert by ID
  */
 export async function getAlertById(alertId: string): Promise<IntelligentAlert | null> {
-  const db = firebaseAdmin.firestore();
+  getFirebaseAdmin();
+  const db = getFirestore();
   const doc = await db.collection(ALERTS_COLLECTION).doc(alertId).get();
   
   if (!doc.exists) {
