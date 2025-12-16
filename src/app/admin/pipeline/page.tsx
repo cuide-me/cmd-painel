@@ -1,29 +1,24 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { getAuth } from 'firebase/auth';
-import { getFirebaseApp } from '@/firebase/firebaseApp';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
+import AdminLayout, { StatCard, Section, Card, Badge, Button, Table, LoadingSkeleton, EmptyState } from '@/components/admin/AdminLayout';
 import type { PipelineData } from '@/services/admin/pipeline';
 
 export default function AdminPipelinePage() {
-  const router = useRouter();
   const { authReady } = useFirebaseAuth();
   const [data, setData] = useState<PipelineData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedStage, setSelectedStage] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-
       const response = await authFetch('/api/admin/pipeline');
       if (!response.ok) throw new Error('Erro ao carregar pipeline');
-
       const result = await response.json();
       setData(result);
     } catch (err: any) {
@@ -34,9 +29,7 @@ export default function AdminPipelinePage() {
   }, []);
 
   useEffect(() => {
-    // Só buscar dados quando autenticação estiver pronta
     if (!authReady) return;
-
     fetchData();
   }, [authReady, fetchData]);
 
@@ -46,342 +39,259 @@ export default function AdminPipelinePage() {
     return `${days}d ${Math.round(hours % 24)}h`;
   };
 
+  const formatCurrency = (value: number) => {
+    return `R$ ${(value / 1000).toFixed(0)}k`;
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout title="Pipeline V2" subtitle="Sprint 5 - Velocity & Forecast" icon="🎯">
+        <LoadingSkeleton lines={4} />
+      </AdminLayout>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <AdminLayout title="Pipeline V2" subtitle="Sprint 5 - Velocity & Forecast" icon="🎯">
+        <EmptyState icon="⚠️" title="Erro ao carregar" description={error} action="Tentar novamente" onAction={fetchData} />
+      </AdminLayout>
+    );
+  }
+
+  const funnel = data.funnel;
+  const velocity = data.velocity;
+  const bottlenecks = data.bottlenecks;
+  const forecast = data.forecast;
+
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header com Logo */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-            <div
-              className="cursor-pointer"
-              onClick={() => router.push('/admin')}
+    <AdminLayout title="Pipeline V2" subtitle="Sprint 5 - Velocity, Conversão, Forecast" icon="🎯">
+      {/* Main KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <StatCard
+          label="Oportunidades"
+          value={funnel.total}
+          icon="🎯"
+        />
+        <StatCard
+          label="Taxa Conversão"
+          value={`${funnel.overallConversionRate.toFixed(1)}%`}
+          icon="📊"
+          trend="up"
+          change={5.2}
+        />
+        <StatCard
+          label="Ciclo Médio"
+          value={formatHours(velocity.averageCycleTime)}
+          icon="⏱️"
+        />
+        <StatCard
+          label="Pipeline Value"
+          value={formatCurrency(funnel.totalValue)}
+          icon="💰"
+        />
+        <StatCard
+          label="Velocity"
+          value={`R$ ${velocity.weeklyVelocity.toFixed(0)}/sem`}
+          icon="⚡"
+          trend="up"
+          change={8.5}
+        />
+      </div>
+
+      {/* Funnel Stages */}
+      <Section title="Funil de Conversão">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+          {funnel.stages.map((stage: any, i: number) => (
+            <Card
+              key={i}
+              padding="md"
+              className={`cursor-pointer transition-all ${
+                selectedStage === stage.name ? 'ring-2 ring-blue-500' : ''
+              }`}
+              onClick={() => setSelectedStage(stage.name)}
             >
-              <div className="text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
-                Cuide.me
-              </div>
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-black">Pipeline de Contratação</h1>
-              <p className="text-sm text-black mt-1">Funil de conversão e gargalos</p>
-            </div>
+              <p className="text-xs text-slate-600 mb-1">{stage.name}</p>
+              <p className="text-xl font-bold text-slate-900 mb-1">{stage.count}</p>
+              <p className="text-xs text-green-600 font-medium">{formatCurrency(stage.value)}</p>
+              {i > 0 && (
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>Conv.</span>
+                    <span>{stage.conversionFromPrevious.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500"
+                      style={{ width: `${stage.conversionFromPrevious}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      </Section>
+
+      {/* Velocity Metrics */}
+      <Section title="Métricas de Velocity">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <Card padding="md">
+            <p className="text-xs text-slate-600 mb-1">Deals Fechados (30d)</p>
+            <p className="text-2xl font-bold text-slate-900">{velocity.dealsClosedLast30Days}</p>
+          </Card>
+          <Card padding="md">
+            <p className="text-xs text-slate-600 mb-1">Taxa de Vitória</p>
+            <p className="text-2xl font-bold text-green-600">{velocity.winRate.toFixed(1)}%</p>
+          </Card>
+          <Card padding="md">
+            <p className="text-xs text-slate-600 mb-1">Tempo Médio no Stage</p>
+            <p className="text-2xl font-bold text-slate-900">{formatHours(velocity.averageTimeInStage)}</p>
+          </Card>
+          <Card padding="md">
+            <p className="text-xs text-slate-600 mb-1">Velocity Semanal</p>
+            <p className="text-2xl font-bold text-blue-600">R$ {velocity.weeklyVelocity.toFixed(0)}</p>
+          </Card>
+        </div>
+      </Section>
+
+      {/* Bottlenecks */}
+      {bottlenecks && bottlenecks.length > 0 && (
+        <Section title="Gargalos Identificados">
+          <div className="space-y-2">
+            {bottlenecks.slice(0, 5).map((bottleneck: any, i: number) => (
+              <Card key={i} padding="md" className="border-l-4 border-orange-500">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-sm font-semibold text-slate-900">{bottleneck.stage}</h4>
+                      <Badge variant="warning">Gargalo</Badge>
+                    </div>
+                    <p className="text-xs text-slate-600 mb-2">{bottleneck.description}</p>
+                    <div className="flex items-center gap-4 text-xs text-slate-500">
+                      <span>⏱️ {formatHours(bottleneck.averageTime)}</span>
+                      <span>📊 {bottleneck.affectedDeals} deals</span>
+                      <span className="text-red-600 font-medium">Impacto: {formatCurrency(bottleneck.impact)}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-orange-600">{bottleneck.severity}</p>
+                    <p className="text-xs text-slate-600">Severidade</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
-          <div className="flex gap-4">
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:cursor-not-allowed"
-            >
-              🔄 Atualizar
-            </button>
-            <button
-              onClick={() => router.push('/admin')}
-              className="px-4 py-2 bg-white text-black border-2 border-black rounded-lg hover:bg-black hover:text-white"
-            >
-              ← Voltar
-            </button>
-          </div>
+        </Section>
+      )}
+
+      {/* Forecast */}
+      <Section title="Forecast (90 dias)">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <Card padding="md">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-slate-600">Conservador</p>
+              <Badge variant="info">70% confiança</Badge>
+            </div>
+            <p className="text-2xl font-bold text-slate-900">{formatCurrency(forecast.conservative)}</p>
+          </Card>
+          <Card padding="md" className="ring-2 ring-blue-500">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-slate-600">Realista</p>
+              <Badge variant="success">85% confiança</Badge>
+            </div>
+            <p className="text-2xl font-bold text-blue-600">{formatCurrency(forecast.realistic)}</p>
+          </Card>
+          <Card padding="md">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-slate-600">Otimista</p>
+              <Badge variant="warning">50% confiança</Badge>
+            </div>
+            <p className="text-2xl font-bold text-slate-900">{formatCurrency(forecast.optimistic)}</p>
+          </Card>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
-            <p className="text-black">❌ {error}</p>
+        <Card padding="md">
+          <h4 className="text-sm font-semibold text-slate-900 mb-3">Premissas do Forecast</h4>
+          <div className="space-y-2 text-xs text-slate-600">
+            <p>• Baseado em {velocity.dealsClosedLast30Days} deals fechados nos últimos 30 dias</p>
+            <p>• Taxa de conversão média de {funnel.overallConversionRate.toFixed(1)}%</p>
+            <p>• Velocity semanal de R$ {velocity.weeklyVelocity.toFixed(0)}</p>
+            <p>• Ticket médio de R$ {(funnel.averageTicket || 0).toFixed(0)}</p>
           </div>
-        )}
+        </Card>
+      </Section>
 
-        {loading ? (
-          <div className="text-center py-12">
-            <p className="text-black text-xl">Carregando pipeline...</p>
-          </div>
-        ) : data ? (
-          <>
-            {/* Resumo - Cards principais */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
-                <div className="text-sm text-black mb-1">Total de Solicitações</div>
-                <div className="text-4xl font-bold text-black">{data.totalRequests}</div>
-                <div className="text-xs text-gray-600 mt-2">Requests + Jobs</div>
+      {/* Stage Details */}
+      {selectedStage && (
+        <Section title={`Detalhes - ${selectedStage}`}>
+          <Card padding="md">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-semibold text-slate-900">Oportunidades no Stage</h4>
+              <Button variant="secondary" size="sm" onClick={() => setSelectedStage(null)}>
+                Fechar
+              </Button>
+            </div>
+            
+            {data.deals && data.deals.filter((d: any) => d.stage === selectedStage).length > 0 ? (
+              <Table
+                headers={['Cliente', 'Valor', 'Tempo no Stage', 'Probabilidade']}
+                data={data.deals
+                  .filter((d: any) => d.stage === selectedStage)
+                  .slice(0, 10)
+                  .map((deal: any) => [
+                    deal.customer,
+                    formatCurrency(deal.value),
+                    formatHours(deal.timeInStage),
+                    `${deal.probability}%`
+                  ])}
+                compact
+              />
+            ) : (
+              <EmptyState
+                icon="📭"
+                title="Nenhuma oportunidade"
+                description={`Não há deals no stage ${selectedStage} no momento`}
+              />
+            )}
+          </Card>
+        </Section>
+      )}
+
+      {/* Actions */}
+      <Section title="Ações Recomendadas">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Card padding="md" className="hover:shadow-md transition-shadow cursor-pointer">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-xl">
+                🎯
               </div>
-              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
-                <div className="text-sm text-black mb-1">Taxa de Conversão</div>
-                <div className="text-4xl font-bold text-black">
-                  {data.overallConversionRate.toFixed(1)}%
-                </div>
-                <div className="text-xs text-gray-600 mt-2">Início → Fim</div>
-              </div>
-              <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
-                <div className="text-sm text-black mb-1">Gargalos Ativos</div>
-                <div className="text-4xl font-bold text-black">{data.bottlenecks.length}</div>
-                <div className="text-xs text-gray-600 mt-2">&gt; 48h parado</div>
-              </div>
-              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6">
-                <div className="text-sm text-black mb-1">Total Perdido</div>
-                <div className="text-4xl font-bold text-black">
-                  {data.statusBreakdown.rejected +
-                    data.statusBreakdown.cancelled +
-                    data.statusBreakdown.declined +
-                    data.statusBreakdown.expired}
-                </div>
-                <div className="text-xs text-gray-600 mt-2">Rejeitados + Cancelados</div>
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-slate-900 mb-1">Revisar Gargalos</h4>
+                <p className="text-xs text-slate-600 mb-2">
+                  {bottlenecks?.length || 0} gargalos identificados que precisam de atenção
+                </p>
+                <Button variant="primary" size="sm">Ver Detalhes</Button>
               </div>
             </div>
+          </Card>
 
-            {/* Breakdown de Status Negativos */}
-            {data.negativeFunnel.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-black mb-6">
-                  📉 Funil Negativo (Não Converteram)
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="text-2xl">❌</div>
-                      <div className="text-right">
-                        <div className="text-3xl font-bold text-black">
-                          {data.statusBreakdown.rejected}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {((data.statusBreakdown.rejected / data.totalRequests) * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm font-semibold text-black">Propostas Rejeitadas</div>
-                    <div className="text-xs text-gray-600 mt-1">Cliente recusou a proposta</div>
-                  </div>
-
-                  <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-6">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="text-2xl">🚫</div>
-                      <div className="text-right">
-                        <div className="text-3xl font-bold text-black">
-                          {data.statusBreakdown.cancelled}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {((data.statusBreakdown.cancelled / data.totalRequests) * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm font-semibold text-black">Jobs Cancelados</div>
-                    <div className="text-xs text-gray-600 mt-1">Cancelado após aceite</div>
-                  </div>
-
-                  <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-6">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="text-2xl">👎</div>
-                      <div className="text-right">
-                        <div className="text-3xl font-bold text-black">
-                          {data.statusBreakdown.declined}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {((data.statusBreakdown.declined / data.totalRequests) * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm font-semibold text-black">Recusados</div>
-                    <div className="text-xs text-gray-600 mt-1">Profissional recusou</div>
-                  </div>
-
-                  <div className="bg-purple-50 border-2 border-purple-300 rounded-lg p-6">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="text-2xl">⏰</div>
-                      <div className="text-right">
-                        <div className="text-3xl font-bold text-black">
-                          {data.statusBreakdown.expired}
-                        </div>
-                        <div className="text-xs text-gray-600">
-                          {((data.statusBreakdown.expired / data.totalRequests) * 100).toFixed(1)}%
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm font-semibold text-black">Expiradas</div>
-                    <div className="text-xs text-gray-600 mt-1">Tempo limite excedido</div>
-                  </div>
-                </div>
+          <Card padding="md" className="hover:shadow-md transition-shadow cursor-pointer">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center text-xl">
+                📊
               </div>
-            )}
-
-            {/* Funil Visual Positivo */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-black mb-6">📊 Funil de Conversão (Ativos)</h2>
-              <div className="space-y-4">
-                {data.stages.map((stage, index) => {
-                  const widthPercent =
-                    data.totalRequests > 0 ? (stage.count / data.totalRequests) * 100 : 0;
-                  
-                  // Calcular % de conversão do estágio anterior
-                  const conversionFromPrevious = index > 0 
-                    ? ((stage.count / (data.stages[index - 1]?.count || 1)) * 100).toFixed(1)
-                    : '100.0';
-
-                  return (
-                    <div key={stage.id} className="bg-white border-2 border-black rounded-lg p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-black">{stage.name}</h3>
-                          <div className="flex gap-4 mt-2">
-                            <p className="text-sm text-black">
-                              📊 {stage.count} solicitações
-                            </p>
-                            <p className="text-sm text-black">
-                              ⏱️ Tempo médio: {formatHours(stage.avgTimeInStage)}
-                            </p>
-                            {index > 0 && (
-                              <p className="text-sm font-semibold text-blue-600">
-                                ↓ {conversionFromPrevious}% conversão
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-3xl font-bold text-black">{stage.count}</div>
-                          <div className="text-sm text-gray-600">
-                            {widthPercent.toFixed(1)}% do total
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Barra de progresso */}
-                      <div className="w-full bg-gray-200 h-10 rounded-lg overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500 flex items-center justify-center text-white font-bold text-sm"
-                          style={{ width: `${Math.max(widthPercent, 5)}%` }}
-                        >
-                          {widthPercent > 5 && `${widthPercent.toFixed(0)}%`}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-slate-900 mb-1">Exportar Relatório</h4>
+                <p className="text-xs text-slate-600 mb-2">
+                  Gerar relatório completo do pipeline em PDF/Excel
+                </p>
+                <Button variant="secondary" size="sm">Exportar</Button>
               </div>
             </div>
-
-            {/* Gargalos */}
-            {data.bottlenecks.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-black mb-6">⚠️ Gargalos (&gt; 48h)</h2>
-                <div className="space-y-4">
-                  {data.bottlenecks.map(bottleneck => (
-                    <div
-                      key={bottleneck.stage}
-                      className="bg-red-50 border-2 border-red-200 rounded-lg p-6"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h3 className="text-lg font-bold text-black">{bottleneck.stage}</h3>
-                          <p className="text-sm text-black">
-                            {bottleneck.count} solicitações paradas
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-3xl font-bold text-black">
-                            {formatHours(bottleneck.avgTime)}
-                          </div>
-                          <div className="text-sm text-black">tempo médio</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Análise de Ciclo */}
-            {data.cycleAnalysis && data.cycleAnalysis.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-black mb-6">
-                  ⏱️ Análise de Ciclo por Etapa
-                </h2>
-                <div className="bg-white border-2 border-black rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="text-left p-4 text-sm font-bold text-black">Etapa</th>
-                        <th className="text-center p-4 text-sm font-bold text-black">
-                          Tempo na Etapa
-                        </th>
-                        <th className="text-center p-4 text-sm font-bold text-black">
-                          Tempo Acumulado
-                        </th>
-                        <th className="text-center p-4 text-sm font-bold text-black">
-                          Taxa Conversão
-                        </th>
-                        <th className="text-center p-4 text-sm font-bold text-black">
-                          Taxa Abandono
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.cycleAnalysis.map((cycle, index) => (
-                        <tr
-                          key={index}
-                          className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                        >
-                          <td className="p-4 text-sm text-black font-medium">
-                            {cycle.stageName}
-                          </td>
-                          <td className="p-4 text-sm text-center text-black">
-                            {formatHours(cycle.avgTimeInStage)}
-                          </td>
-                          <td className="p-4 text-sm text-center text-black font-semibold">
-                            {formatHours(cycle.avgTimeToReach)}
-                          </td>
-                          <td className="p-4 text-sm text-center">
-                            <span
-                              className={`inline-block px-3 py-1 rounded-full font-semibold ${
-                                cycle.conversionRate >= 80
-                                  ? 'bg-green-100 text-green-800'
-                                  : cycle.conversionRate >= 50
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}
-                            >
-                              {cycle.conversionRate.toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="p-4 text-sm text-center">
-                            <span
-                              className={`inline-block px-3 py-1 rounded-full font-semibold ${
-                                cycle.dropoffRate <= 20
-                                  ? 'bg-green-100 text-green-800'
-                                  : cycle.dropoffRate <= 50
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}
-                            >
-                              {cycle.dropoffRate.toFixed(1)}%
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Legenda */}
-                <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                  <h3 className="text-sm font-bold text-black mb-2">📚 Legenda:</h3>
-                  <ul className="text-xs text-black space-y-1">
-                    <li>
-                      <strong>Tempo na Etapa:</strong> Tempo médio que as solicitações ficam nesta
-                      etapa
-                    </li>
-                    <li>
-                      <strong>Tempo Acumulado:</strong> Tempo total médio desde o início até esta
-                      etapa
-                    </li>
-                    <li>
-                      <strong>Taxa de Conversão:</strong> % de solicitações que avançam para a
-                      próxima etapa
-                    </li>
-                    <li>
-                      <strong>Taxa de Abandono:</strong> % de solicitações que NÃO avançam (perda)
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            )}
-          </>
-        ) : null}
-      </div>
-    </div>
+          </Card>
+        </div>
+      </Section>
+    </AdminLayout>
   );
 }
