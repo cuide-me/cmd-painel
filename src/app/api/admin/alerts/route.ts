@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireUser } from '@/lib/server/auth';
+import { verifyAdminAuth } from '@/lib/server/auth';
 import {
   getAlertsOverview,
   getAlerts,
@@ -22,7 +22,10 @@ import type { AlertFilters, CreateAlertRequest, AlertActionRequest } from '@/ser
  */
 export async function GET(request: NextRequest) {
   try {
-    await requireUser(request);
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get('mode'); // 'overview' | 'list' | 'statistics' | 'single'
@@ -125,7 +128,10 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    await requireUser(request);
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     const body = await request.json();
     const action = body.action; // 'create' | 'perform_action' | 'auto_escalate'

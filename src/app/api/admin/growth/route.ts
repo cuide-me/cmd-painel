@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireUser } from '@/lib/server/auth';
+import { verifyAdminAuth } from '@/lib/server/auth';
 import { getGrowthDashboard } from '@/services/admin/growth';
 import type { GrowthFilters } from '@/services/admin/growth/types';
 
@@ -14,7 +14,10 @@ import type { GrowthFilters } from '@/services/admin/growth/types';
  */
 export async function GET(request: NextRequest) {
   try {
-    await requireUser(request);
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     const { searchParams } = new URL(request.url);
     

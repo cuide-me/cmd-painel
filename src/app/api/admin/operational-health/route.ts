@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireUser } from '@/lib/server/auth';
+import { verifyAdminAuth } from '@/lib/server/auth';
 import { getOperationalHealthDashboard } from '@/services/admin/operational-health';
 
 /**
@@ -9,8 +9,10 @@ import { getOperationalHealthDashboard } from '@/services/admin/operational-heal
 export async function GET(request: NextRequest) {
   try {
     // Autenticação
-    const auth = await requireUser(request);
-    if ('error' in auth) return auth.error;
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     // Buscar dados
     const dashboard = await getOperationalHealthDashboard();
