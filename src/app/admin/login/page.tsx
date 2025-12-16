@@ -2,11 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirebaseApp } from '@/firebase/firebaseApp';
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,37 +15,23 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // Inicializar Firebase
-      const app = getFirebaseApp();
-      const auth = getAuth(app);
+      // Senha simples - sem Firebase, sem complicação!
+      const ADMIN_PASSWORD = 'admin123'; // Mude para o que você quiser
       
-      // Fazer login com Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      // Obter ID Token
-      const idToken = await user.getIdToken();
-      
-      // Salvar no localStorage
-      localStorage.setItem('admin_logged', 'true');
-      localStorage.setItem('admin_email', email);
-      localStorage.setItem('firebase_token', idToken);
-      
-      // Redirecionar para Torre de Controle
-      router.push('/admin');
+      if (password === ADMIN_PASSWORD) {
+        // Salva autenticação simples
+        localStorage.setItem('admin_logged', 'true');
+        localStorage.setItem('admin_email', 'admin@cuide-me.com');
+        
+        console.log('[Login] Acesso concedido');
+        router.push('/admin');
+      } else {
+        setError('Senha incorreta');
+      }
     } catch (err: any) {
       console.error('[Login] Erro:', err);
-      
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError('Usuário ou senha incorretos');
-      } else if (err.code === 'auth/invalid-email') {
-        setError('E-mail inválido');
-      } else if (err.code === 'auth/too-many-requests') {
-        setError('Muitas tentativas. Tente novamente mais tarde.');
-      } else {
-        setError('Erro ao fazer login. Tente novamente.');
-      }
-      
+      setError('Erro ao fazer login');
+    } finally {
       setLoading(false);
     }
   };
@@ -74,22 +57,6 @@ export default function AdminLoginPage() {
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-black mb-2">
-              Usuário (E-mail)
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="cuide-me@cuide-me.com.br"
-              className="w-full px-4 py-3 border border-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-              required
-              autoComplete="username"
-            />
-          </div>
-
-          <div>
             <label htmlFor="password" className="block text-sm font-medium text-black mb-2">
               Senha
             </label>
@@ -98,7 +65,7 @@ export default function AdminLoginPage() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••••••"
+              placeholder="Digite: admin123"
               className="w-full px-4 py-3 border border-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               required
               autoComplete="current-password"
@@ -124,6 +91,7 @@ export default function AdminLoginPage() {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-black">© 2025 Cuide-me - Sistema Administrativo</p>
+          <p className="text-xs text-gray-500 mt-2">Senha padrão: admin123</p>
         </div>
       </div>
     </div>

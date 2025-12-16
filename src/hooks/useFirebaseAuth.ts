@@ -1,12 +1,10 @@
 /**
- * Hook para verificar autenticação Firebase
+ * Hook para verificar autenticação simples
  * Redireciona para login se não autenticado
  */
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirebaseApp } from '@/firebase/firebaseApp';
 
 export function useFirebaseAuth() {
   const router = useRouter();
@@ -14,22 +12,17 @@ export function useFirebaseAuth() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const app = getFirebaseApp();
-    const auth = getAuth(app);
+    // Verificação simples no localStorage
+    const isLogged = localStorage.getItem('admin_logged') === 'true';
     
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (!currentUser) {
-        // Não autenticado, redirecionar para login
-        router.push('/admin/login');
-        return;
-      }
-      
-      // Usuário autenticado
-      setUser(currentUser);
-      setAuthReady(true);
-    });
-
-    return () => unsubscribe();
+    if (!isLogged) {
+      router.push('/admin/login');
+      return;
+    }
+    
+    // Usuário autenticado
+    setUser({ email: 'admin@cuide-me.com' });
+    setAuthReady(true);
   }, [router]);
 
   return { authReady, user };

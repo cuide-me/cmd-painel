@@ -1,37 +1,26 @@
 /**
  * Authenticated fetch wrapper for admin routes
- * Automatically adds Firebase ID token to Authorization header
+ * Simple authentication without Firebase
  */
 
-import { getAuth } from 'firebase/auth';
-import { getFirebaseApp } from '@/firebase/firebaseApp';
-
 /**
- * Fetch with Firebase authentication
+ * Fetch with simple authentication
  * @param url - API endpoint
  * @param options - Fetch options
  * @returns Promise<Response>
  */
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   try {
-    // Get current user and token
-    const app = getFirebaseApp();
-    const auth = getAuth(app);
-    const user = auth.currentUser;
+    // Verificação simples
+    const isLogged = localStorage.getItem('admin_logged') === 'true';
 
-    if (!user) {
+    if (!isLogged) {
       throw new Error('User not authenticated');
     }
 
-    // Get fresh token (Firebase handles refresh automatically)
-    const idToken = await user.getIdToken();
-
-    // Update localStorage with fresh token
-    localStorage.setItem('firebase_token', idToken);
-
-    // Add Authorization header
+    // Add simple auth header
     const headers = new Headers(options.headers);
-    headers.set('Authorization', `Bearer ${idToken}`);
+    headers.set('X-Admin-Auth', 'authenticated');
 
     // Make request
     return fetch(url, {
@@ -40,12 +29,6 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
     });
   } catch (error) {
     console.error('[authFetch] Error:', error);
-    
-    // If token refresh fails, redirect to login
-    if ((error as any).code === 'auth/network-request-failed') {
-      throw new Error('Network error. Please check your connection.');
-    }
-    
     throw error;
   }
 }
