@@ -26,7 +26,7 @@ let db: Firestore | null = null;
 /**
  * Inicializa Firebase App (singleton)
  */
-function getFirebaseApp(): FirebaseApp {
+export function getFirebaseApp(): FirebaseApp {
   if (app) {
     return app;
   }
