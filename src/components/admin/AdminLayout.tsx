@@ -141,6 +141,7 @@ interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
+  fullWidth?: boolean;
   className?: string;
 }
 
@@ -150,6 +151,7 @@ export function Button({
   variant = 'primary', 
   size = 'md', 
   disabled = false,
+  fullWidth = false,
   className = '' 
 }: ButtonProps) {
   const baseClasses = 'font-medium rounded-lg transition-all inline-flex items-center justify-center';
@@ -170,7 +172,7 @@ export function Button({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
     >
       {children}
     </button>
@@ -294,16 +296,24 @@ interface EmptyStateProps {
   icon?: string;
   title: string;
   description?: string;
-  action?: ReactNode;
+  action?: string;
+  onAction?: () => void;
 }
 
-export function EmptyState({ icon = '📭', title, description, action }: EmptyStateProps) {
+export function EmptyState({ icon = '📭', title, description, action, onAction }: EmptyStateProps) {
   return (
     <div className="text-center py-12">
       <div className="text-5xl mb-3">{icon}</div>
       <h3 className="text-base font-semibold text-slate-900 mb-1">{title}</h3>
       {description && <p className="text-sm text-slate-600 mb-4">{description}</p>}
-      {action}
+      {action && (
+        <button 
+          onClick={onAction}
+          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          {action}
+        </button>
+      )}
     </div>
   );
 }

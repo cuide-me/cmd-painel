@@ -154,7 +154,7 @@ export default function ReportsPage() {
         <Section title="Agendamentos Ativos">
           <Table
             headers={['Report', 'Frequência', 'Próxima Execução', 'Destino', 'Status']}
-            data={dashboard.schedules.map(schedule => [
+            rows={dashboard.schedules.map(schedule => [
               schedule.reportId,
               schedule.frequency,
               new Date(schedule.nextRun).toLocaleString('pt-BR'),
@@ -179,7 +179,7 @@ export default function ReportsPage() {
         <Section title="Histórico de Execuções">
           <Table
             headers={['Report', 'Data', 'Duração', 'Status', 'Ação']}
-            data={dashboard.recentExecutions.slice(0, 20).map(exec => [
+            rows={dashboard.recentExecutions.slice(0, 20).map(exec => [
               exec.reportId,
               new Date(exec.startTime).toLocaleString('pt-BR'),
               `${exec.duration || 0}s`,

@@ -81,16 +81,20 @@ export interface ReportSection {
 export interface ReportExecution {
   id: string;
   reportConfigId: string;
+  reportId: string;  // Added for compatibility
   reportName: string;
   
   // Status
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'success';
   startedAt: Date;
+  startTime: Date;  // Added for compatibility
   completedAt?: Date;
+  endTime?: Date;  // Added for compatibility
   duration?: number; // milliseconds
   
   // Result
   fileUrl?: string;
+  outputUrl?: string;  // Added for compatibility
   fileSize?: number; // bytes
   format: ReportFormat;
   
@@ -285,6 +289,7 @@ export interface ExportOptions {
 export interface ReportSchedule {
   id: string;
   reportConfigId: string;
+  reportId: string;  // Added for compatibility
   
   frequency: ReportFrequency;
   
@@ -301,6 +306,9 @@ export interface ReportSchedule {
   // Status
   enabled: boolean;
   paused: boolean;
+  
+  // Delivery
+  deliveryChannels: string[];  // Added for compatibility
   
   // History
   executionCount: number;
@@ -388,6 +396,12 @@ export interface ReportsDashboard {
   
   // Recent executions
   recentExecutions: ReportExecution[];
+  
+  // Schedules
+  schedules: ReportSchedule[];
+  
+  // Templates
+  templates: ReportTemplate[];
   
   // Statistics
   stats: {
