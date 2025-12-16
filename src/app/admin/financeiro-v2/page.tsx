@@ -137,35 +137,17 @@ export default function FinanceiroV2Page() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Card padding="md">
                 <p className="text-xs text-slate-600 mb-1">Clientes Ativos</p>
-                <p className="text-2xl font-bold text-slate-900">{dashboard.activeCustomers}</p>
+                <p className="text-2xl font-bold text-slate-900">{dashboard.summary.customerCount}</p>
               </Card>
               <Card padding="md">
-                <p className="text-xs text-slate-600 mb-1">Receita Total (30d)</p>
-                <p className="text-2xl font-bold text-slate-900">R$ {(dashboard.totalRevenue / 1000).toFixed(0)}k</p>
+                <p className="text-xs text-slate-600 mb-1">MRR</p>
+                <p className="text-2xl font-bold text-slate-900">R$ {(dashboard.summary.mrr / 1000).toFixed(0)}k</p>
               </Card>
               <Card padding="md">
-                <p className="text-xs text-slate-600 mb-1">Ticket Médio</p>
-                <p className="text-2xl font-bold text-slate-900">R$ {dashboard.averageTicket.toFixed(0)}</p>
+                <p className="text-xs text-slate-600 mb-1">ARPU</p>
+                <p className="text-2xl font-bold text-slate-900">R$ {dashboard.summary.arpu.toFixed(0)}</p>
               </Card>
             </div>
-          </Section>
-
-          <Section title="Tendências">
-            <Card padding="md">
-              <div className="space-y-3">
-                {forecast.trends.map((trend: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between pb-3 border-b border-slate-100 last:border-0">
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">{trend.metric}</p>
-                      <p className="text-xs text-slate-600">{trend.description}</p>
-                    </div>
-                    <Badge variant={trend.status === 'positive' ? 'success' : trend.status === 'negative' ? 'error' : 'warning'}>
-                      {trend.value}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </Card>
           </Section>
         </>
       )}
@@ -177,37 +159,21 @@ export default function FinanceiroV2Page() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Card padding="md">
                 <p className="text-xs text-slate-600 mb-1">Novo MRR</p>
-                <p className="text-xl font-bold text-green-600">+R$ {(mrr.new / 1000).toFixed(1)}k</p>
+                <p className="text-xl font-bold text-green-600">+R$ {(mrr.newMRR / 1000).toFixed(1)}k</p>
               </Card>
               <Card padding="md">
                 <p className="text-xs text-slate-600 mb-1">Expansion MRR</p>
-                <p className="text-xl font-bold text-blue-600">+R$ {(mrr.expansion / 1000).toFixed(1)}k</p>
+                <p className="text-xl font-bold text-blue-600">+R$ {(mrr.expansionMRR / 1000).toFixed(1)}k</p>
               </Card>
               <Card padding="md">
                 <p className="text-xs text-slate-600 mb-1">Contraction MRR</p>
-                <p className="text-xl font-bold text-orange-600">-R$ {(mrr.contraction / 1000).toFixed(1)}k</p>
+                <p className="text-xl font-bold text-orange-600">-R$ {(mrr.contractionMRR / 1000).toFixed(1)}k</p>
               </Card>
               <Card padding="md">
                 <p className="text-xs text-slate-600 mb-1">Churned MRR</p>
-                <p className="text-xl font-bold text-red-600">-R$ {(mrr.churned / 1000).toFixed(1)}k</p>
+                <p className="text-xl font-bold text-red-600">-R$ {(mrr.churnedMRR / 1000).toFixed(1)}k</p>
               </Card>
             </div>
-          </Section>
-
-          <Section title="Movimentação Mensal">
-            <Table
-              headers={['Mês', 'Início', 'Novo', 'Expansion', 'Churn', 'Final', 'Growth']}
-              data={mrr.monthlyData?.slice(0, 12).map((m: any) => [
-                m.month,
-                `R$ ${(m.start / 1000).toFixed(0)}k`,
-                `R$ ${(m.new / 1000).toFixed(0)}k`,
-                `R$ ${(m.expansion / 1000).toFixed(0)}k`,
-                `R$ ${(m.churn / 1000).toFixed(0)}k`,
-                `R$ ${(m.end / 1000).toFixed(0)}k`,
-                `${m.growth > 0 ? '+' : ''}${m.growth.toFixed(1)}%`
-              ]) || []}
-              compact
-            />
           </Section>
         </>
       )}
