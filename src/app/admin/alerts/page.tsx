@@ -81,25 +81,27 @@ export default function AlertsCenterPage() {
   }
 
   const allAlerts = [
-    ...(overview.criticalAlerts || []),
-    ...(overview.highPriorityAlerts || []),
-    ...(overview.requiresAttentionAlerts || []),
+    ...(overview.highPriority || []),
+    ...(overview.requiresAttention || []),
+    ...(overview.recentlyResolved || []),
   ];
 
   const filteredAlerts = activeTab === 'all' 
     ? allAlerts
-    : activeTab === 'resolved'
-    ? []
-    : allAlerts.filter(a => a.severity === activeTab);
+    : activeTab === 'critical'
+    ? overview.highPriority || []
+    : activeTab === 'high'
+    ? overview.requiresAttention || []
+    : overview.recentlyResolved || [];
 
   return (
     <AdminLayout title="Central de Alertas" subtitle="Sprint 2 - SLA & Priorização" icon="🚨">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard label="Total Alertas" value={statistics?.totalAlerts || 0} icon="📋" />
-        <StatCard label="Críticos" value={statistics?.criticalCount || 0} icon="🔴" />
-        <StatCard label="Alta Prioridade" value={statistics?.highPriorityCount || 0} icon="🟠" />
-        <StatCard label="Resolvidos Hoje" value={statistics?.resolvedToday || 0} icon="✅" />
+        <StatCard label="Ativos" value={statistics?.activeAlerts || 0} icon="🔴" />
+        <StatCard label="Resolvidos" value={statistics?.resolvedAlerts || 0} icon="✅" />
+        <StatCard label="SLA Breaches" value={statistics?.slaBreaches || 0} icon="⚠️" />
       </div>
 
       {/* SLA Overview */}
@@ -108,15 +110,15 @@ export default function AlertsCenterPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Card padding="md">
               <p className="text-xs text-slate-600 mb-1">Tempo Médio de Resposta</p>
-              <p className="text-2xl font-bold text-slate-900">{statistics.averageResponseTime}h</p>
+              <p className="text-2xl font-bold text-slate-900">{(statistics.avgTimeToAcknowledge / 60).toFixed(1)}h</p>
             </Card>
             <Card padding="md">
               <p className="text-xs text-slate-600 mb-1">Tempo Médio de Resolução</p>
-              <p className="text-2xl font-bold text-slate-900">{statistics.averageResolutionTime}h</p>
+              <p className="text-2xl font-bold text-slate-900">{(statistics.avgTimeToResolve / 60).toFixed(1)}h</p>
             </Card>
             <Card padding="md">
               <p className="text-xs text-slate-600 mb-1">Taxa de Aderência SLA</p>
-              <p className="text-2xl font-bold text-green-600">{statistics.slaComplianceRate}%</p>
+              <p className="text-2xl font-bold text-green-600">{statistics.slaComplianceRate.toFixed(1)}%</p>
             </Card>
           </div>
         </Section>
@@ -127,9 +129,9 @@ export default function AlertsCenterPage() {
         <div className="flex border-b border-slate-200">
           {[
             { id: 'all', label: 'Todos', count: allAlerts.length },
-            { id: 'critical', label: 'Críticos', count: overview.criticalAlerts?.length || 0 },
-            { id: 'high', label: 'Alta', count: overview.highPriorityAlerts?.length || 0 },
-            { id: 'resolved', label: 'Resolvidos', count: statistics?.resolvedToday || 0 }
+            { id: 'critical', label: 'Críticos', count: overview.highPriority?.length || 0 },
+            { id: 'high', label: 'Alta', count: overview.requiresAttention?.length || 0 },
+            { id: 'resolved', label: 'Resolvidos', count: overview.recentlyResolved?.length || 0 }
           ].map(tab => (
             <button
               key={tab.id}
@@ -165,15 +167,15 @@ export default function AlertsCenterPage() {
                   </div>
                   
                   <h4 className="text-sm font-semibold text-slate-900 mb-1">{alert.title}</h4>
-                  <p className="text-xs text-slate-600 mb-2">{alert.description}</p>
+                  <p className="text-xs text-slate-600 mb-2">{alert.message}</p>
                   
                   <div className="flex items-center gap-4 text-xs text-slate-500">
-                    <span>⏱️ {new Date(alert.timestamp).toLocaleString('pt-BR')}</span>
+                    <span>⏱️ {new Date(alert.detectedAt).toLocaleString('pt-BR')}</span>
                     {alert.affectedUsers && <span>👥 {alert.affectedUsers} usuários</span>}
                   </div>
 
-                  {alert.suggestedAction && (
-                    <p className="text-xs text-blue-600 font-medium mt-2">→ {alert.suggestedAction}</p>
+                  {alert.recommendedActions && alert.recommendedActions.length > 0 && (
+                    <p className="text-xs text-blue-600 font-medium mt-2">→ {alert.recommendedActions[0]}</p>
                   )}
                 </div>
 
