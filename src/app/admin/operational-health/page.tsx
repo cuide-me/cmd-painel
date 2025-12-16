@@ -157,7 +157,7 @@ export default function OperationalHealthPage() {
             <h3 className="text-sm font-semibold text-slate-900 mb-3">Especialidades</h3>
             <Table
               headers={['Especialidade', 'Total', 'Disponíveis', 'Taxa']}
-              data={prof.specialties?.map((s: any) => [
+              rows={prof.specialties?.map((s: any) => [
                 s.name,
                 s.total,
                 s.available,
@@ -190,7 +190,7 @@ export default function OperationalHealthPage() {
             <h3 className="text-sm font-semibold text-slate-900 mb-3">Necessidades</h3>
             <Table
               headers={['Necessidade', 'Famílias', 'Urgência']}
-              data={fam.needs?.map((n: any) => [
+              rows={fam.needs?.map((n: any) => [
                 n.type,
                 n.count,
                 n.urgency

@@ -190,5 +190,5 @@ export async function requireAdmin(request: NextRequest): Promise<AuthResult | A
     };
   }
 
-  return user;
+  return authResult;
 }

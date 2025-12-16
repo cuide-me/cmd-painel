@@ -63,18 +63,18 @@ export default function ServiceDeskPage() {
     }
   };
 
-  const getPriorityBadge = (priority: TicketPriority) => {
-    const variants = { urgent: 'error', high: 'error', normal: 'warning', low: 'info' };
+  const getPriorityBadge = (priority: TicketPriority): "info" | "error" | "warning" => {
+    const variants = { urgent: 'error' as const, high: 'error' as const, normal: 'warning' as const, low: 'info' as const };
     return variants[priority];
   };
 
-  const getStatusBadge = (status: TicketStatus) => {
+  const getStatusBadge = (status: TicketStatus): "info" | "error" | "neutral" | "warning" | "success" => {
     const variants = {
-      open: 'error',
-      in_progress: 'warning',
-      waiting_user: 'info',
-      resolved: 'success',
-      closed: 'neutral'
+      open: 'error' as const,
+      in_progress: 'warning' as const,
+      waiting_user: 'info' as const,
+      resolved: 'success' as const,
+      closed: 'neutral' as const
     };
     return variants[status];
   };

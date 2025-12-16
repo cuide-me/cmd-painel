@@ -151,7 +151,7 @@ export default function AdminUsersPage() {
       <Section title={`Usuários (${searchedUsers.length})`}>
         <Table
           headers={['Nome', 'Especialidade', 'Email', 'Telefone', 'Perfil', '% Perfil', 'Stripe']}
-          data={paginatedUsers.map(user => [
+          rows={paginatedUsers.map(user => [
             user.nome,
             user.especialidade || '-',
             user.email,
