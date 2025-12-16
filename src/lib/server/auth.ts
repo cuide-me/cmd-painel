@@ -31,8 +31,22 @@ export interface AdminAuthResult {
 /**
  * Verifies admin authentication and returns result with authorized flag
  * Returns null if authentication fails
+ * Supports both Firebase auth and simple password auth
  */
 export async function verifyAdminAuth(request: NextRequest): Promise<AdminAuthResult | null> {
+  // Check for simple password auth first
+  const simpleAuth = request.headers.get('x-admin-password');
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'cuideme@admin321';
+  
+  if (simpleAuth === ADMIN_PASSWORD) {
+    return {
+      authorized: true,
+      uid: 'admin',
+      decodedToken: undefined
+    };
+  }
+  
+  // Fallback to Firebase auth
   const auth = await requireAdmin(request);
   
   if ('error' in auth) {

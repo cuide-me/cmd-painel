@@ -18,9 +18,10 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
       throw new Error('User not authenticated');
     }
 
-    // Add simple auth header
+    // Add simple auth header with password
     const headers = new Headers(options.headers);
     headers.set('X-Admin-Auth', 'authenticated');
+    headers.set('x-admin-password', 'cuideme@admin321'); // Senha simples
 
     // Make request
     return fetch(url, {
