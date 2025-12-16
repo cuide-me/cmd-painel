@@ -113,87 +113,38 @@ export default function AdminDashboardV2() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard
           label="Famílias Ativas"
-          value={data.families.metrics.totalActive}
+          value={data.families.activeFamilies.total}
           icon="👨‍👩‍👧‍👦"
-          trend={data.families.metrics.growthRate > 0 ? 'up' : 'down'}
-          change={data.families.metrics.growthRate}
         />
         <StatCard
-          label="Profissionais Ativos"
-          value={data.professionals.metrics.totalActive}
+          label="Profissionais Disponíveis"
+          value={data.professionals.availableToday}
           icon="👨‍⚕️"
-          trend={data.professionals.metrics.growthRate > 0 ? 'up' : 'down'}
-          change={data.professionals.metrics.growthRate}
         />
         <StatCard
-          label="MRR Total"
-          value={`R$ ${(data.finance.metrics.mrr / 1000).toFixed(0)}k`}
+          label="Receita do Mês"
+          value={`R$ ${(data.finance.totalReceivedThisMonth / 1000).toFixed(0)}k`}
           icon="💰"
-          trend={data.finance.metrics.mrrGrowthRate > 0 ? 'up' : 'down'}
-          change={data.finance.metrics.mrrGrowthRate}
         />
         <StatCard
-          label="Churn Rate"
-          value={`${data.finance.metrics.churnRate.toFixed(1)}%`}
-          icon="📉"
-          trend={data.finance.metrics.churnRate < 5 ? 'up' : 'down'}
-          change={-data.finance.metrics.churnRate}
+          label="Novas Famílias (Mês)"
+          value={data.families.newFamilies.month}
+          icon="✨"
         />
       </div>
 
       {/* Main Content Blocks */}
       <Section title="Famílias">
-        <FamiliesBlock data={data.families} />
+        <FamiliesBlock data={data.families} loading={false} />
       </Section>
 
       <Section title="Profissionais">
-        <ProfessionalsBlock data={data.professionals} />
+        <ProfessionalsBlock data={data.professionals} loading={false} />
       </Section>
 
       <Section title="Financeiro">
-        <FinanceBlock data={data.finance} />
+        <FinanceBlock data={data.finance} loading={false} />
       </Section>
-
-      {/* Demanda & Oferta */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Section title="Demanda">
-          <Card padding="md">
-            <div className="space-y-3">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-600">Solicitações Ativas:</span>
-                <span className="font-semibold text-slate-900">{data.demand.activeRequests}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-600">Taxa de Match:</span>
-                <span className="font-semibold text-slate-900">{data.demand.matchRate.toFixed(1)}%</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-600">Tempo Médio:</span>
-                <span className="font-semibold text-slate-900">{data.demand.averageMatchTime}h</span>
-              </div>
-            </div>
-          </Card>
-        </Section>
-
-        <Section title="Oferta">
-          <Card padding="md">
-            <div className="space-y-3">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-600">Disponibilidade:</span>
-                <span className="font-semibold text-slate-900">{data.supply.availability.toFixed(1)}%</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-600">Utilização:</span>
-                <span className="font-semibold text-slate-900">{data.supply.utilizationRate.toFixed(1)}%</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-600">Capacidade:</span>
-                <span className="font-semibold text-slate-900">{data.supply.capacity} slots</span>
-              </div>
-            </div>
-          </Card>
-        </Section>
-      </div>
     </AdminLayout>
   );
 }

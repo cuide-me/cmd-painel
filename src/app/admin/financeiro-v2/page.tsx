@@ -43,7 +43,7 @@ export default function FinanceiroV2Page() {
   if (error || !dashboard) {
     return (
       <AdminLayout title="Financeiro V2" subtitle="Sprint 4 - MRR, LTV, Churn" icon="💰">
-        <EmptyState icon="⚠️" title="Erro ao carregar" description={error} action="Tentar novamente" onAction={fetchDashboard} />
+        <EmptyState icon="⚠️" title="Erro ao carregar" description={error || 'Erro desconhecido'} action="Tentar novamente" onAction={fetchDashboard} />
       </AdminLayout>
     );
   }
@@ -59,29 +59,27 @@ export default function FinanceiroV2Page() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard
           label="MRR"
-          value={`R$ ${(mrr.current / 1000).toFixed(0)}k`}
+          value={`R$ ${(mrr.currentMRR / 1000).toFixed(0)}k`}
           icon="💵"
-          trend={mrr.growth > 0 ? 'up' : 'down'}
-          change={mrr.growth}
+          trend={mrr.mrrGrowthRate > 0 ? 'up' : 'down'}
+          change={mrr.mrrGrowthRate}
         />
         <StatCard
           label="ARR"
-          value={`R$ ${(mrr.arr / 1000).toFixed(0)}k`}
+          value={`R$ ${(mrr.currentMRR * 12 / 1000).toFixed(0)}k`}
           icon="📊"
-          trend="up"
-          change={mrr.growth * 12}
+          trend={mrr.mrrGrowthRate > 0 ? 'up' : 'down'}
+          change={mrr.mrrGrowthRate}
         />
         <StatCard
-          label="LTV Médio"
-          value={`R$ ${(ltv.average / 1000).toFixed(1)}k`}
-          icon="💎"
+          label="Quick Ratio"
+          value={mrr.quickRatio.toFixed(1)}
+          icon="⚡"
         />
         <StatCard
-          label="Churn Rate"
-          value={`${churn.rate.toFixed(1)}%`}
-          icon="📉"
-          trend={churn.rate < 5 ? 'up' : 'down'}
-          change={-churn.rate}
+          label="NRR"
+          value={`${mrr.netRevenueRetention.toFixed(0)}%`}
+          icon="🔄"
         />
       </div>
 
