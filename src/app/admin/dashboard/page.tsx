@@ -90,11 +90,7 @@ export default function AdminDashboardV2() {
       {/* Filters */}
       <Card padding="md" className="mb-6">
         <DashboardFilters
-          preset={filters.preset}
-          grouping={filters.grouping}
-          onPresetChange={(preset) => setFilters(f => ({ ...f, preset }))}
-          onGroupingChange={(grouping) => setFilters(f => ({ ...f, grouping }))}
-          onCustomRangeChange={(start, end) => setFilters(f => ({ ...f, startDate: start, endDate: end }))}
+          onFilterChange={(newFilters) => setFilters(f => ({ ...f, ...newFilters }))}
         />
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200">
           <div className="flex items-center gap-2 text-xs text-slate-600">
