@@ -30,12 +30,12 @@ export async function getFamilyHealth(): Promise<FamilyHealth> {
     const totalRegistered = families.length;
 
     // 2. Buscar requests (agendamentos)
-    const requestsSnap = await db.collection('requests').get();
+    const requestsSnap = await db.collection('requests').limit(500).get();
     const appointments = requestsSnap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      completedAt: doc.data().completedAt?.toDate(),
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().dataCriacao?.toDate?.() || new Date(0),
+      completedAt: doc.data().completedAt?.toDate?.() || doc.data().dataFinalizacao?.toDate?.(),
     }));
 
     // 3. Atividade recente (30 dias)

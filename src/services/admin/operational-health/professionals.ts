@@ -26,22 +26,24 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
       ...doc.data(),
     }));
 
-    // 2. Buscar requests (agendamentos) dos últimos 30 dias
+    // 2. Buscar requests (agendamentos) e filtrar no código
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const requestsSnap = await db
       .collection('requests')
-      .where('createdAt', '>=', thirtyDaysAgo)
+      .limit(500)
       .get();
 
-    const appointments = requestsSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      scheduledAt: doc.data().scheduledAt?.toDate(),
-      cancelledAt: doc.data().cancelledAt?.toDate(),
-    }));
+    const appointments = requestsSnap.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || doc.data().dataCriacao?.toDate?.() || new Date(0),
+        scheduledAt: doc.data().scheduledAt?.toDate?.() || doc.data().dataAgendamento?.toDate?.(),
+        cancelledAt: doc.data().cancelledAt?.toDate?.() || doc.data().dataCancelamento?.toDate?.(),
+      }))
+      .filter((a: any) => a.createdAt >= thirtyDaysAgo);
 
     // 3. Calcular métricas gerais
     const sevenDaysAgo = new Date();

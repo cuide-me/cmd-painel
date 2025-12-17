@@ -15,23 +15,30 @@ export async function getMatchQuality(): Promise<MatchQuality> {
   const db = getFirestore();
 
   try {
-    // 1. Buscar matches (requests aceitos) dos últimos 30 dias
+    // 1. Buscar matches (requests aceitos) e filtrar no código
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const matchesSnap = await db
       .collection('requests')
-      .where('createdAt', '>=', thirtyDaysAgo)
-      .where('status', 'in', ['accepted', 'match_accepted', 'in_progress', 'completed'])
+      .limit(500)
       .get();
 
-    const matches = matchesSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
-      acceptedAt: doc.data().acceptedAt?.toDate() || doc.data().updatedAt?.toDate(),
-      declinedAt: doc.data().declinedAt?.toDate(),
-    }));
+    const acceptedStatuses = ['accepted', 'match_accepted', 'in_progress', 'completed', 'agendado', 'em_andamento', 'concluido'];
+
+    const matches = matchesSnap.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || doc.data().dataCriacao?.toDate?.() || new Date(0),
+        acceptedAt: doc.data().acceptedAt?.toDate?.() || doc.data().dataAceite?.toDate?.() || doc.data().updatedAt?.toDate?.(),
+        declinedAt: doc.data().declinedAt?.toDate?.() || doc.data().dataRecusa?.toDate?.(),
+      }))
+      .filter((m: any) => {
+        const isAccepted = acceptedStatuses.includes(m.status);
+        const isRecent = m.createdAt >= thirtyDaysAgo;
+        return isAccepted && isRecent;
+      });
 
     const totalMatches = matches.length;
 

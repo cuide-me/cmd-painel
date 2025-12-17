@@ -64,6 +64,7 @@ export default function FinanceiroV2Page() {
           icon="💵"
           trend={mrr.mrrGrowthRate > 0 ? 'up' : 'down'}
           change={mrr.mrrGrowthRate}
+          tooltip="Monthly Recurring Revenue - Receita recorrente mensal de todas assinaturas ativas do Stripe"
         />
         <StatCard
           label="ARR"
@@ -71,16 +72,19 @@ export default function FinanceiroV2Page() {
           icon="📊"
           trend={mrr.mrrGrowthRate > 0 ? 'up' : 'down'}
           change={mrr.mrrGrowthRate}
+          tooltip="Annual Recurring Revenue - Projeção anualizada do MRR (MRR × 12 meses)"
         />
         <StatCard
           label="Quick Ratio"
           value={mrr.quickRatio.toFixed(1)}
           icon="⚡"
+          tooltip="Razão entre MRR ganho (novo + expansão) e MRR perdido (contração + churn). Acima de 4 é excelente!"
         />
         <StatCard
           label="NRR"
           value={`${mrr.netRevenueRetention.toFixed(0)}%`}
           icon="🔄"
+          tooltip="Net Revenue Retention - Percentual de receita retida incluindo expansões. Acima de 100% indica crescimento na base existente"
         />
       </div>
 
