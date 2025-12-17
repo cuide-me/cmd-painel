@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
     console.log('[SimpleTest] Iniciando teste...');
     
     const admin = getFirebaseAdmin();
-    const db = admin.firestore();
+    const { getFirestore } = await import('firebase-admin/firestore');
+    const db = getFirestore(admin);
     
     console.log('[SimpleTest] Firestore obtido, tentando listar collections...');
     
