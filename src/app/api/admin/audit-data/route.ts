@@ -20,15 +20,12 @@ export async function GET(request: NextRequest) {
       collections: {},
     };
 
-    // Auditar USERS - buscar TODOS os documentos (limite razoável para análise)
+    // Auditar USERS - buscar amostra e contar profissionais/clientes
     console.log('[Audit] Analisando collection users...');
     
-    // Contar total de documentos
-    const totalUsersQuery = await db.collection('users').count().get();
-    const totalUsers = totalUsersQuery.data().count;
-    
-    // Buscar amostra para análise (primeiros 500)
+    // Buscar amostra para análise
     const usersSnap = await db.collection('users').limit(500).get();
+    const totalUsers = usersSnap.size; // Apenas amostra, não total real
     
     const perfis: Record<string, number> = {};
     const userTypes: Record<string, number> = {};
@@ -45,13 +42,6 @@ export async function GET(request: NextRequest) {
         userTypes[data.userType] = (userTypes[data.userType] || 0) + 1;
       }
     });
-
-    // Contar profissionais e clientes separadamente
-    const profCount = await db.collection('users').where('perfil', '==', 'profissional').count().get();
-    const clienteCount = await db.collection('users').where('perfil', '==', 'cliente').count().get();
-    
-    perfis['profissional'] = profCount.data().count;
-    perfis['cliente'] = clienteCount.data().count;
 
     // Exemplo de profissional
     const profSnap = await db.collection('users').where('perfil', '==', 'profissional').limit(1).get();
@@ -79,13 +69,12 @@ export async function GET(request: NextRequest) {
       familiaExemplo,
     };
 
-    // Auditar JOBS (ao invés de requests) - contar total e buscar amostra
+    // Auditar JOBS - buscar amostra
     console.log('[Audit] Analisando collection jobs...');
     
-    const totalJobsQuery = await db.collection('jobs').count().get();
-    const totalJobs = totalJobsQuery.data().count;
+    const jobsSnap = await db.collection('jobs').limit(500).get();
+    const totalJobs = jobsSnap.size;
     
-    const jobsSnap = await db.collection('jobs').limit(100).get();
     const camposJobs = new Set<string>();
     const statusJobs: Record<string, number> = {};
     
