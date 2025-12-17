@@ -20,9 +20,15 @@ export async function GET(request: NextRequest) {
       collections: {},
     };
 
-    // Auditar USERS - buscar TODOS os documentos
+    // Auditar USERS - buscar TODOS os documentos (limite razoável para análise)
     console.log('[Audit] Analisando collection users...');
-    const usersSnap = await db.collection('users').get();
+    
+    // Contar total de documentos
+    const totalUsersQuery = await db.collection('users').count().get();
+    const totalUsers = totalUsersQuery.data().count;
+    
+    // Buscar amostra para análise (primeiros 500)
+    const usersSnap = await db.collection('users').limit(500).get();
     
     const perfis: Record<string, number> = {};
     const userTypes: Record<string, number> = {};
@@ -40,6 +46,13 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Contar profissionais e clientes separadamente
+    const profCount = await db.collection('users').where('perfil', '==', 'profissional').count().get();
+    const clienteCount = await db.collection('users').where('perfil', '==', 'cliente').count().get();
+    
+    perfis['profissional'] = profCount.data().count;
+    perfis['cliente'] = clienteCount.data().count;
+
     // Exemplo de profissional
     const profSnap = await db.collection('users').where('perfil', '==', 'profissional').limit(1).get();
     const profissionalExemplo = profSnap.empty ? null : {
@@ -55,7 +68,8 @@ export async function GET(request: NextRequest) {
     };
 
     audit.collections.users = {
-      total: usersSnap.size,
+      total: totalUsers,
+      amostra: usersSnap.size,
       camposDetectados: Array.from(camposUsuarios).sort(),
       distribuicaoPorPerfil: perfis,
       distribuicaoPorUserType: userTypes,
@@ -65,9 +79,13 @@ export async function GET(request: NextRequest) {
       familiaExemplo,
     };
 
-    // Auditar REQUESTS - buscar TODOS
+    // Auditar REQUESTS - contar total e buscar amostra
     console.log('[Audit] Analisando collection requests...');
-    const requestsSnap = await db.collection('requests').get();
+    
+    const totalRequestsQuery = await db.collection('requests').count().get();
+    const totalRequests = totalRequestsQuery.data().count;
+    
+    const requestsSnap = await db.collection('requests').limit(100).get();
     const camposRequests = new Set<string>();
     const statusRequests: Record<string, number> = {};
     
@@ -83,6 +101,14 @@ export async function GET(request: NextRequest) {
     const requestExemplo = requestsSnap.empty ? null : {
       campos: Object.keys(requestsSnap.docs[0].data()),
       exemplo: requestsSnap.docs[0].data(),
+    };
+
+    audit.collections.requests = {
+      total: totalRequests,
+      amostra: requestsSnap.size,
+      camposDetectados: Array.from(camposRequests).sort(),
+      distribuicaoPorStatus: statusRequests,
+      exemplo: requestExemplo,
     };
 
     audit.collections.requests = {
