@@ -5,6 +5,7 @@
 
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getFirestore } from 'firebase-admin/firestore';
+import { fetchGoogleAnalyticsMetrics } from '../analyticsService';
 import type {
   AcquisitionMetrics,
   AcquisitionFunnel,
@@ -13,6 +14,7 @@ import type {
 
 /**
  * Get acquisition metrics for a given period
+ * Combina dados do GA4 (visitantes) com Firebase (cadastros e conversões)
  */
 export async function getAcquisitionMetrics(
   startDate: Date,
@@ -21,11 +23,24 @@ export async function getAcquisitionMetrics(
   getFirebaseAdmin();
   const db = getFirestore();
   
-  // Query users created in period
+  // Buscar visitantes do GA4
+  let totalVisitors = 0;
+  let newUsersGA4 = 0;
+  
+  try {
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const ga4Data = await fetchGoogleAnalyticsMetrics(`${daysDiff}daysAgo`, 'today');
+    totalVisitors = ga4Data.activeUsers;
+    newUsersGA4 = ga4Data.newUsers;
+  } catch (error) {
+    console.warn('[Acquisition] GA4 não disponível, usando apenas Firebase');
+  }
+  
+  // Query users created in period (do Firebase)
   const usersSnapshot = await db
     .collection('users')
-    .where('createdAt', '>=', startDate)
-    .where('createdAt', '<=', endDate)
+    .where('createdAt', '>=', startDate.toISOString())
+    .where('createdAt', '<=', endDate.toISOString())
     .get();
   
   const users = usersSnapshot.docs.map((doc: any) => ({
@@ -33,8 +48,8 @@ export async function getAcquisitionMetrics(
     ...doc.data(),
   })) as any[];
   
-  // Calculate funnel stages
-  const funnel = calculateAcquisitionFunnel(users);
+  // Calculate funnel stages (usando visitantes do GA4)
+  const funnel = calculateAcquisitionFunnel(users, totalVisitors > 0 ? totalVisitors : newUsersGA4);
   
   // Calculate channel breakdown
   const byChannel = calculateChannelMetrics(users);
@@ -46,11 +61,10 @@ export async function getAcquisitionMetrics(
   const topLandingPages = calculateTopLandingPages(users);
   
   // Calculate overall metrics
-  const totalVisitors = funnel.stage1_visitors;
   const totalSignups = funnel.stage2_signups;
   const totalConversions = funnel.stage6_firstAction;
-  const conversionRate = totalVisitors > 0 
-    ? (totalConversions / totalVisitors) * 100 
+  const conversionRate = funnel.stage1_visitors > 0 
+    ? (totalConversions / funnel.stage1_visitors) * 100 
     : 0;
   
   // Calculate average time to convert
@@ -83,9 +97,14 @@ export async function getAcquisitionMetrics(
 
 /**
  * Calculate acquisition funnel stages
+ * @param users - Usuários cadastrados (do Firebase)
+ * @param totalVisitors - Total de visitantes (do GA4)
  */
-function calculateAcquisitionFunnel(users: any[]): AcquisitionFunnel {
-  const stage1_visitors = users.length; // All users who started
+function calculateAcquisitionFunnel(users: any[], totalVisitors: number): AcquisitionFunnel {
+  // Stage 1: Visitantes (do GA4, não do Firebase)
+  const stage1_visitors = totalVisitors > 0 ? totalVisitors : users.length;
+  
+  // Stages 2-6: Do Firebase (apenas cadastrados)
   const stage2_signups = users.filter(u => u.email).length; // Provided email
   const stage3_completed = users.filter(u => u.profileComplete >= 50).length; // Basic info
   const stage4_verified = users.filter(u => u.emailVerified || u.phoneVerified).length;
