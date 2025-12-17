@@ -13,12 +13,21 @@ import { useRouter } from 'next/navigation';
 import { authFetch } from '@/lib/client/authFetch';
 import AdminLayout, { StatCard, Section, Card, Badge, EmptyState, LoadingSkeleton } from '@/components/admin/AdminLayout';
 import type { ControlTowerDashboard } from '@/services/admin/control-tower/types';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+
+interface DailyMetric {
+  date: string;
+  signups: number;
+  views: number;
+}
 
 export default function TorreControleV2() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<ControlTowerDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([]);
+  const [metricsLoading, setMetricsLoading] = useState(true);
 
   useEffect(() => {
     // Verificar se está logado
@@ -29,9 +38,13 @@ export default function TorreControleV2() {
     }
     
     fetchDashboard();
+    fetchDailyMetrics();
     
     // Auto-refresh a cada 60 segundos
-    const interval = setInterval(fetchDashboard, 60000);
+    const interval = setInterval(() => {
+      fetchDashboard();
+      fetchDailyMetrics();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -51,6 +64,21 @@ export default function TorreControleV2() {
       setError('Erro de conexão');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDailyMetrics = async () => {
+    try {
+      const response = await authFetch('/api/admin/daily-metrics');
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDailyMetrics(data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar métricas diárias:', err);
+    } finally {
+      setMetricsLoading(false);
     }
   };
 
@@ -241,6 +269,109 @@ export default function TorreControleV2() {
               value={dashboard.analytics.pageViews.toString()}
               tooltip="Total de visualizações de página nos últimos 7 dias"
             />
+          </div>
+        </Section>
+      )}
+
+      {/* GRÁFICOS DIÁRIOS */}
+      {!metricsLoading && dailyMetrics.length > 0 && (
+        <Section title="📈 Métricas Diárias (Últimos 30 dias)">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Gráfico de Visualizações */}
+            <Card padding="md">
+              <h3 className="text-sm font-semibold text-slate-900 mb-4">Visualizações do Site (Dia a Dia)</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={dailyMetrics}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(value) => {
+                      const date = new Date(value);
+                      return `${date.getDate()}/${date.getMonth() + 1}`;
+                    }}
+                  />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <RechartsTooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }}
+                    labelFormatter={(value) => {
+                      const date = new Date(value);
+                      return date.toLocaleDateString('pt-BR');
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="views" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    name="Visualizações"
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="mt-3 pt-3 border-t border-slate-200">
+                <div className="text-xs text-slate-600">
+                  Total: <span className="font-semibold text-slate-900">
+                    {dailyMetrics.reduce((sum, d) => sum + d.views, 0).toLocaleString('pt-BR')}
+                  </span> visualizações
+                </div>
+              </div>
+            </Card>
+
+            {/* Gráfico de Cadastros */}
+            <Card padding="md">
+              <h3 className="text-sm font-semibold text-slate-900 mb-4">Cadastros na Plataforma (Dia a Dia)</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={dailyMetrics}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(value) => {
+                      const date = new Date(value);
+                      return `${date.getDate()}/${date.getMonth() + 1}`;
+                    }}
+                  />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <RechartsTooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }}
+                    labelFormatter={(value) => {
+                      const date = new Date(value);
+                      return date.toLocaleDateString('pt-BR');
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="signups" 
+                    stroke="#10b981" 
+                    strokeWidth={2}
+                    name="Cadastros"
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="mt-3 pt-3 border-t border-slate-200">
+                <div className="text-xs text-slate-600">
+                  Total: <span className="font-semibold text-slate-900">
+                    {dailyMetrics.reduce((sum, d) => sum + d.signups, 0).toLocaleString('pt-BR')}
+                  </span> novos usuários
+                </div>
+              </div>
+            </Card>
           </div>
         </Section>
       )}
