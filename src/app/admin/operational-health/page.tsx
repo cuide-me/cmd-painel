@@ -92,7 +92,10 @@ export default function OperationalHealthPage() {
       <Card padding="md" className="mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 mb-1">Health Score Geral</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-slate-600 mb-1">Health Score Geral</p>
+              <span className="text-xs text-slate-400" title="Score calculado com base na saúde de profissionais, famílias e qualidade dos matches">ⓘ</span>
+            </div>
             <p className="text-3xl font-bold text-slate-900">{data.overallHealthScore}/100</p>
           </div>
           <div className="w-20 h-20 rounded-full border-8 border-green-500 flex items-center justify-center text-2xl">
@@ -103,12 +106,12 @@ export default function OperationalHealthPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        <StatCard label="Profissionais" value={prof.total} icon="👨‍⚕️" />
-        <StatCard label="Ativos" value={prof.active} icon="✅" trend="up" change={5.2} />
-        <StatCard label="Famílias" value={fam.total} icon="👨‍👩‍👧‍👦" />
-        <StatCard label="Ativas" value={fam.active} icon="✅" trend="up" change={3.8} />
-        <StatCard label="Matches" value={match.total} icon="🤝" />
-        <StatCard label="Taxa Sucesso" value={`${match.successRate}%`} icon="📊" />
+        <StatCard label="Profissionais" value={prof.total} icon="👨‍⚕️" tooltip="Total de profissionais cadastrados na plataforma" />
+        <StatCard label="Ativos" value={prof.active} icon="✅" trend="up" change={5.2} tooltip="Profissionais que atenderam nos últimos 30 dias" />
+        <StatCard label="Famílias" value={fam.total} icon="👨‍👩‍👧‍👦" tooltip="Total de famílias/clientes cadastrados" />
+        <StatCard label="Ativas" value={fam.active} icon="✅" trend="up" change={3.8} tooltip="Famílias com atendimentos ativos" />
+        <StatCard label="Matches" value={match.total} icon="🤝" tooltip="Total de combinações profissional-família realizadas" />
+        <StatCard label="Taxa Sucesso" value={`${match.successRate}%`} icon="📊" tooltip="Percentual de matches que resultam em contratação" />
       </div>
 
       {/* Tabs */}
@@ -137,7 +140,7 @@ export default function OperationalHealthPage() {
 
       {/* Content */}
       {activeTab === 'professionals' && (
-        <Section title="Profissionais">
+        <Section title="Profissionais" tooltip="Estatísticas detalhadas sobre o corpo de profissionais">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
             <Card padding="md">
               <p className="text-xs text-slate-600 mb-1">Disponíveis</p>
@@ -170,7 +173,7 @@ export default function OperationalHealthPage() {
       )}
 
       {activeTab === 'families' && (
-        <Section title="Famílias">
+        <Section title="Famílias" tooltip="Estatísticas sobre demanda e satisfação das famílias">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
             <Card padding="md">
               <p className="text-xs text-slate-600 mb-1">Aguardando Match</p>
@@ -202,7 +205,7 @@ export default function OperationalHealthPage() {
       )}
 
       {activeTab === 'matches' && (
-        <Section title="Matches">
+        <Section title="Matches" tooltip="Métricas de qualidade e performance das combinações">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
             <Card padding="md">
               <p className="text-xs text-slate-600 mb-1">Tempo Médio</p>
@@ -226,7 +229,7 @@ export default function OperationalHealthPage() {
 
       {/* Alerts */}
       {data.alerts.length > 0 && (
-        <Section title="Alertas Críticos">
+        <Section title="Alertas Críticos" tooltip="Problemas operacionais que exigem atenção imediata">
           <div className="space-y-2">
             {data.alerts.slice(0, 5).map(alert => (
               <Card key={alert.id} padding="md" className="hover:shadow-md transition-shadow">

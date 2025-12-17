@@ -130,13 +130,17 @@ interface SectionProps {
   title: string;
   children: ReactNode;
   action?: ReactNode;
+  tooltip?: string;
 }
 
-export function Section({ title, children, action }: SectionProps) {
+export function Section({ title, children, action, tooltip }: SectionProps) {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          {tooltip && <Tooltip content={tooltip} />}
+        </div>
         {action}
       </div>
       {children}

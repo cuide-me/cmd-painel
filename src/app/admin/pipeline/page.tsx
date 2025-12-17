@@ -62,26 +62,35 @@ export default function AdminPipelinePage() {
   return (
     <AdminLayout title="Pipeline V2" subtitle="Sprint 5 - Velocity, Conversão, Forecast" icon="🎯">
       {/* Main KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard
-          label="Oportunidades"
-          value={data.totalRequests}
+          label="Oportunidades Ativas"
+          value={data.stages.reduce((sum, s) => sum + s.count, 0)}
           icon="🎯"
+          tooltip="Total de solicitações em andamento no pipeline (não inclui rejeitadas/canceladas)"
+        />
+        <StatCard
+          label="Total Geral"
+          value={data.totalRequests}
+          icon="📋"
+          tooltip="Todas as oportunidades incluindo ativas e pipeline negativa"
         />
         <StatCard
           label="Taxa Conversão"
           value={`${data.overallConversionRate.toFixed(1)}%`}
           icon="📊"
+          tooltip="Percentual de oportunidades que chegam até o final do funil"
         />
         <StatCard
-          label="Etapas"
-          value={data.stages.length}
-          icon="⏱️"
+          label="Pipeline Negativa"
+          value={data.negativeFunnel.reduce((sum, n) => sum + n.count, 0)}
+          icon="❌"
+          tooltip="Total de oportunidades rejeitadas, canceladas, recusadas ou expiradas"
         />
       </div>
 
       {/* Stages */}
-      <Section title="Etapas do Pipeline">
+      <Section title="Etapas do Pipeline" tooltip="Oportunidades ativas em cada etapa do funil de vendas">
         <div className="space-y-3">
           {data.stages.map(stage => (
             <Card key={stage.id} padding="md">
@@ -98,12 +107,34 @@ export default function AdminPipelinePage() {
         </div>
       </Section>
 
+      {/* Pipeline Negativa */}
+      {data.negativeFunnel && data.negativeFunnel.length > 0 && (
+        <Section title="Pipeline Negativa" tooltip="Oportunidades que saíram do funil: rejeitadas, canceladas, recusadas ou expiradas">
+          <div className="space-y-3">
+            {data.negativeFunnel.map(item => (
+              <Card key={item.id} padding="md" className="border-l-4 border-red-500">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-slate-900">{item.name}</h3>
+                  <Badge variant="error">{item.count}</Badge>
+                </div>
+                <div className="flex gap-4 text-sm text-slate-600">
+                  <span>{item.percentage.toFixed(1)}% do total</span>
+                  {item.requests.length > 0 && (
+                    <span className="text-slate-400">Últimas {item.requests.length}</span>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {/* Bottlenecks */}
       {data.bottlenecks.length > 0 && (
-        <Section title="Gargalos">
+        <Section title="Gargalos" tooltip="Etapas onde oportunidades ficam presas por mais de 48 horas">
           <div className="space-y-2">
             {data.bottlenecks.map((b, i) => (
-              <Card key={i} padding="md" className="border-l-4 border-red-500">
+              <Card key={i} padding="md" className="border-l-4 border-yellow-500">
                 <div className="flex justify-between">
                   <span className="font-medium">{b.stage}</span>
                   <span className="text-slate-600">{b.count} itens - {(b.avgTime / 24).toFixed(1)} dias</span>

@@ -1,42 +1,40 @@
 import { getFirestore } from 'firebase-admin/firestore';
+import { getStripeClient } from '@/lib/server/stripe';
 import type { AdminUserRow, ListUsersParams, ListUsersResult } from './types';
 
 /**
- * Normaliza o status da conta Stripe
+ * Busca status REAL da conta Stripe Connect via API
  */
-function normalizeStripeStatus(data: any): string {
-  // Prioridade: stripeStatus.accountStatus > stripe_status > accountStatusConsolidado > accountStatus
-  if (data.stripeStatus?.accountStatus) {
-    return data.stripeStatus.accountStatus;
+async function getStripeAccountStatus(stripeAccountId: string): Promise<string> {
+  if (!stripeAccountId) {
+    return 'Desconhecida';
   }
-  if (data.stripe_status) {
-    return data.stripe_status;
-  }
-  if (data.accountStatusConsolidado) {
-    return data.accountStatusConsolidado;
-  }
-  if (data.accountStatus) {
-    return data.accountStatus;
-  }
-  return 'unknown';
-}
 
-/**
- * Converte status Stripe em texto amigável
- */
-function friendlyStripeStatus(status: string): string {
-  const statusMap: Record<string, string> = {
-    complete: 'Ativada',
-    enabled: 'Ativada',
-    verified: 'Ativada',
-    pending: 'Pendente',
-    restricted: 'Restrita',
-    restricted_soon: 'Restrita',
-    incomplete: 'Pendente',
-    rejected: 'Rejeitada',
-    unknown: 'Desconhecida',
-  };
-  return statusMap[status] || status;
+  try {
+    const stripe = getStripeClient();
+    const account = await stripe.accounts.retrieve(stripeAccountId);
+
+    // Verifica se a conta pode receber pagamentos
+    if (account.charges_enabled && account.payouts_enabled) {
+      return 'Ativada';
+    }
+
+    // Verifica se está pendente de informações
+    if (account.requirements?.currently_due?.length && account.requirements.currently_due.length > 0) {
+      return 'Pendente';
+    }
+
+    // Verifica se está restrita
+    if (account.requirements?.disabled_reason) {
+      return 'Restrita';
+    }
+
+    // Padrão: incompleta
+    return 'Incompleta';
+  } catch (error) {
+    console.warn(`[Stripe] Erro ao buscar conta ${stripeAccountId}:`, error);
+    return 'Erro';
+  }
 }
 
 /**
@@ -73,7 +71,7 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
   const snapshot = await query.get();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let users = snapshot.docs.map((doc: any) => {
+  const usersPromises = snapshot.docs.map(async (doc: any) => {
     const data = doc.data();
     const nome =
       data.nome && data.sobrenome
@@ -85,6 +83,17 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
       ? (data.especialidade || data.category || data.categoria || '-')
       : '-';
 
+    // Buscar status REAL do Stripe API (não do Firebase)
+    let stripeAccountStatus = 'Não vinculada';
+    const stripeAccountId = 
+      data.stripeAccountId || 
+      data.stripeStatus?.accountId || 
+      data.stripe_account_id;
+    
+    if (stripeAccountId) {
+      stripeAccountStatus = await getStripeAccountStatus(stripeAccountId);
+    }
+
     return {
       id: doc.id,
       nome,
@@ -93,9 +102,12 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
       telefone: data.telefone || data.phone || '',
       perfil: data.perfil === 'profissional' ? 'profissional' : 'cliente',
       porcentagemPerfil: data.porcentagemPerfil || 0,
-      stripeAccountStatus: friendlyStripeStatus(normalizeStripeStatus(data)),
+      stripeAccountStatus,
     } as AdminUserRow;
   });
+
+  // Aguardar todas as promessas do Stripe
+  let users = await Promise.all(usersPromises);
 
   // Filtro client-side por searchTerm
   if (searchTerm) {

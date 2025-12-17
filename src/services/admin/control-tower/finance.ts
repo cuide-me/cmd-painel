@@ -6,18 +6,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getMRRMetrics } from '../financeiro-v2/mrrService';
-
-// ═══════════════════════════════════════════════════════════════
-// MOCK DATA - AGUARDANDO INTEGRAÇÃO COM SISTEMA FINANCEIRO
-// ═══════════════════════════════════════════════════════════════
-// ⚠️ Estes valores são simulados até integração com:
-// - Stripe Dashboard (para despesas reais)
-// - Sistema de contabilidade externo
-// - Planilha de caixa/runway
-const MOCK_FINANCIAL_DATA = {
-  monthlyExpenses: 50000, // R$ 50k despesas mensais (SIMULADO)
-  cashBalance: 600000,    // R$ 600k em caixa (SIMULADO)
-};
+import { getStripeClient } from '@/lib/server/stripe';
 
 // ═══════════════════════════════════════════════════════════════
 // RECEITA DO MÊS
@@ -57,52 +46,108 @@ export async function getMonthRevenue() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BURN RATE
+// BURN RATE (REAL - baseado em Stripe Payouts)
 // ═══════════════════════════════════════════════════════════════
 
 export async function getBurnRate() {
-  const revenue = await getMonthRevenue();
-  
-  const expenses = MOCK_FINANCIAL_DATA.monthlyExpenses;
-  const netBurn = revenue.current - expenses;
-  
-  let status: 'profit' | 'neutral' | 'burning' = 'neutral';
-  if (netBurn > 10000) status = 'profit';
-  else if (netBurn < -10000) status = 'burning';
-  
-  return {
-    amount: expenses,
-    netBurn,
-    status,
-    isMock: true // ⚠️ Flag indicando dados simulados
-  };
+  try {
+    const stripe = getStripeClient();
+    const revenue = await getMonthRevenue();
+    
+    // Buscar payouts (transferências para profissionais) do mês atual
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startTimestamp = Math.floor(startOfMonth.getTime() / 1000);
+    
+    const payouts = await stripe.payouts.list({
+      created: { gte: startTimestamp },
+      limit: 100,
+    });
+    
+    // Somar total pago aos profissionais este mês (em centavos)
+    const totalPayouts = payouts.data.reduce((sum, payout) => {
+      return sum + (payout.amount / 100); // Converter centavos para reais
+    }, 0);
+    
+    // Calcular net burn (receita - despesas)
+    const netBurn = revenue.current - totalPayouts;
+    
+    let status: 'profit' | 'neutral' | 'burning' = 'neutral';
+    if (netBurn > 10000) status = 'profit';
+    else if (netBurn < -10000) status = 'burning';
+    
+    return {
+      amount: totalPayouts,
+      netBurn,
+      status,
+      isMock: false // ✅ Dados REAIS do Stripe
+    };
+  } catch (error) {
+    console.error('[getBurnRate] Erro ao buscar Stripe payouts:', error);
+    
+    // Fallback: estimar com base em 70% do MRR (comissão típica)
+    const revenue = await getMonthRevenue();
+    const estimatedExpenses = revenue.current * 0.7;
+    const netBurn = revenue.current - estimatedExpenses;
+    
+    let status: 'profit' | 'neutral' | 'burning' = 'neutral';
+    if (netBurn > 10000) status = 'profit';
+    else if (netBurn < -10000) status = 'burning';
+    
+    return {
+      amount: estimatedExpenses,
+      netBurn,
+      status,
+      isMock: true // ⚠️ Fallback estimado (70% do MRR)
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// RUNWAY
+// RUNWAY (baseado em Stripe Balance)
 // ═══════════════════════════════════════════════════════════════
 
 export async function getRunway() {
-  const burnRate = await getBurnRate();
-  const cashBalance = MOCK_FINANCIAL_DATA.cashBalance;
-  
-  // Se está lucrando, runway é "infinito" (representado como 999)
-  let months = 999;
-  if (burnRate.netBurn < 0) {
-    const monthlyBurn = Math.abs(burnRate.netBurn);
-    months = cashBalance / monthlyBurn;
+  try {
+    const stripe = getStripeClient();
+    const burnRate = await getBurnRate();
+    
+    // Buscar saldo disponível no Stripe
+    const balance = await stripe.balance.retrieve();
+    
+    // Somar available + pending (em centavos)
+    const totalAvailable = balance.available.reduce((sum, b) => sum + b.amount, 0);
+    const totalPending = balance.pending.reduce((sum, b) => sum + b.amount, 0);
+    const cashBalance = (totalAvailable + totalPending) / 100; // Converter para reais
+    
+    // Se está lucrando, runway é "infinito" (representado como 999)
+    let months = 999;
+    if (burnRate.netBurn < 0) {
+      const monthlyBurn = Math.abs(burnRate.netBurn);
+      months = cashBalance / monthlyBurn;
+    }
+    
+    let status: 'healthy' | 'warning' | 'critical' = 'healthy';
+    if (months < 6) status = 'critical';
+    else if (months < 12) status = 'warning';
+    
+    return {
+      months: months === 999 ? 999 : Math.floor(months),
+      status,
+      cashBalance,
+      isMock: false // ✅ Dados REAIS do Stripe Balance
+    };
+  } catch (error) {
+    console.error('[getRunway] Erro ao buscar Stripe balance:', error);
+    
+    // Fallback: assumir 6 meses de runway
+    return {
+      months: 6,
+      status: 'warning' as const,
+      cashBalance: 0,
+      isMock: true // ⚠️ Fallback estimado
+    };
   }
-  
-  let status: 'healthy' | 'warning' | 'critical' = 'healthy';
-  if (months < 6) status = 'critical';
-  else if (months < 12) status = 'warning';
-  
-  return {
-    months: months === 999 ? 999 : Math.floor(months),
-    status,
-    cashBalance,
-    isMock: true // ⚠️ Flag indicando dados simulados
-  };
 }
 
 // ═══════════════════════════════════════════════════════════════

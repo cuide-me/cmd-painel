@@ -48,11 +48,11 @@ export default function GrowthPage() {
   }
 
   const tabs = [
-    { id: 'acquisition', label: 'Aquisição', icon: '🎯', data: data.acquisition },
-    { id: 'activation', label: 'Ativação', icon: '⚡', data: data.activation },
-    { id: 'retention', label: 'Retenção', icon: '🔄', data: data.retention },
-    { id: 'revenue', label: 'Receita', icon: '💰', data: data.revenue },
-    { id: 'referral', label: 'Referral', icon: '📣', data: data.referral },
+    { id: 'acquisition', label: 'Aquisição', icon: '🎯', data: data.acquisition, tooltip: 'Como os usuários chegam até nós: canais de tráfego, fontes de leads e eficácia de marketing' },
+    { id: 'activation', label: 'Ativação', icon: '⚡', data: data.activation, tooltip: 'Primeiras impressões: taxa de ativação, onboarding completo, primeira experiencia bem-sucedida' },
+    { id: 'retention', label: 'Retenção', icon: '🔄', data: data.retention, tooltip: 'Usuários voltam? Taxa de retenção, churn rate, engajamento recorrente' },
+    { id: 'revenue', label: 'Receita', icon: '💰', data: data.revenue, tooltip: 'Monetização: MRR, LTV, ARPU, taxa de conversão para pagante' },
+    { id: 'referral', label: 'Referral', icon: '📣', data: data.referral, tooltip: 'Crescimento orgânico: NPS, indicações, virality coefficient' },
   ];
 
   const currentData = tabs.find(t => t.id === activeTab)?.data;
@@ -63,7 +63,10 @@ export default function GrowthPage() {
       <Card padding="md" className="mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-600 mb-1">Saúde Geral do Crescimento</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-slate-600 mb-1">Saúde Geral do Crescimento</p>
+              <span className="text-xs text-slate-400" title="Score ponderado calculado a partir dos 5 pilares do framework AARRR (Aquisição, Ativação, Retenção, Receita, Referral)">ⓘ</span>
+            </div>
             <p className="text-sm text-slate-500">Score ponderado de todos os pilares AARRR</p>
           </div>
           <div className="text-right">
@@ -89,6 +92,7 @@ export default function GrowthPage() {
             label={tab.label}
             value={tab.data.score}
             icon={tab.icon}
+            tooltip={tab.tooltip}
           />
         ))}
       </div>
