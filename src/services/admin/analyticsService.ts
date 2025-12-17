@@ -33,12 +33,20 @@ export async function fetchGoogleAnalyticsMetrics(
   const propertyId = process.env.GA4_PROPERTY_ID;
 
   if (!propertyId) {
-    console.warn('GA4_PROPERTY_ID não configurado');
+    console.warn('[GA4] GA4_PROPERTY_ID não configurado - retornando zeros');
     return getDefaultMetrics();
   }
 
   try {
-    const analyticsDataClient = new BetaAnalyticsDataClient();
+    // GA4 usa as mesmas credenciais do Firebase Admin
+    const analyticsDataClient = new BetaAnalyticsDataClient({
+      credentials: JSON.parse(
+        Buffer.from(
+          process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT || '',
+          'base64'
+        ).toString('utf-8')
+      )
+    });
 
     const [response] = await analyticsDataClient.runReport({
       property: `properties/${propertyId}`,
@@ -122,8 +130,8 @@ export async function fetchGoogleAnalyticsMetrics(
     }
 
     return metrics;
-  } catch (error) {
-    console.error('Erro ao buscar métricas do GA4:', error);
+  } catch (error: any) {
+    console.warn('[GA4] Erro ao buscar métricas (retornando zeros):', error.message);
     return getDefaultMetrics();
   }
 }

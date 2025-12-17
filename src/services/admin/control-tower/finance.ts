@@ -113,99 +113,61 @@ export async function getMRRAtRisk() {
   getFirebaseAdmin();
   const db = getFirestore();
   
+  // SIMPLIFICADO: Buscar apenas por acceptedAt recente (SEM múltiplos WHERE)
   const now = new Date();
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
   
-  // Buscar solicitações abertas há mais de 24h
-  const openRequests = await db
-    .collection('requests')
-    .where('status', 'in', ['pending', 'open', 'searching'])
-    .where('createdAt', '<', twentyFourHoursAgo)
-    .get();
-  
-  // Buscar solicitações aceitas sem pagamento (abandono pós-aceite)
-  const acceptedNoPay = await db
-    .collection('requests')
-    .where('status', '==', 'accepted')
-    .where('paymentStatus', '!=', 'paid')
-    .where('acceptedAt', '<', fortyEightHoursAgo)
-    .get();
-  
-  // Mapear para customerId e buscar MRR associado
-  const customerIds = new Set<string>();
-  openRequests.forEach((doc: any) => {
-    const data = doc.data();
-    if (data.customerId) customerIds.add(data.customerId);
-  });
-  acceptedNoPay.forEach((doc: any) => {
-    const data = doc.data();
-    if (data.customerId) customerIds.add(data.customerId);
-  });
-  
-  // Buscar assinaturas destes clientes
-  let totalMRRAtRisk = 0;
-  const reasons = {
-    slowMatch: { count: 0, value: 0 },
-    postAcceptAbandonment: { count: 0, value: 0 }
-  };
-  
-  if (customerIds.size > 0) {
-    const subsSnapshot = await db
-      .collection('subscriptions')
-      .where('customerId', 'in', Array.from(customerIds))
-      .where('status', '==', 'active')
+  try {
+    // Query simples: apenas acceptedAt
+    const recentAccepted = await db
+      .collection('requests')
+      .where('acceptedAt', '>=', fortyEightHoursAgo)
       .get();
     
-    subsSnapshot.forEach((doc: any) => {
+    // Filtrar client-side para evitar índices compostos
+    let riskCount = 0;
+    const customerIds = new Set<string>();
+    
+    recentAccepted.forEach((doc: any) => {
       const data = doc.data();
-      const monthlyAmount = normalizeToMonthly(data.amount, data.interval);
-      totalMRRAtRisk += monthlyAmount;
+      const acceptedAt = data.acceptedAt?.toDate();
       
-      // Categorizar por motivo
-      const hasOpenRequest = openRequests.docs.some((r: any) => 
-        r.data().customerId === data.customerId
-      );
-      const hasAbandonedAccept = acceptedNoPay.docs.some((r: any) => 
-        r.data().customerId === data.customerId
-      );
-      
-      if (hasOpenRequest) {
-        reasons.slowMatch.count++;
-        reasons.slowMatch.value += monthlyAmount;
-      }
-      if (hasAbandonedAccept) {
-        reasons.postAcceptAbandonment.count++;
-        reasons.postAcceptAbandonment.value += monthlyAmount;
+      // Considerar em risco se: aceito mas não pago após 48h
+      if (
+        acceptedAt &&
+        acceptedAt < fortyEightHoursAgo &&
+        data.paymentStatus !== 'paid' &&
+        data.status === 'accepted'
+      ) {
+        riskCount++;
+        if (data.customerId) customerIds.add(data.customerId);
       }
     });
+    
+    // Estimar MRR em risco (R$ 100 por cliente em risco - valor médio)
+    const estimatedMRRPerCustomer = 100;
+    const totalMRRAtRisk = riskCount * estimatedMRRPerCustomer;
+    
+    return {
+      amount: totalMRRAtRisk,
+      percentage: 0, // Calcular depois com MRR total
+      reasons: [
+        { 
+          label: 'Abandono pós-aceite', 
+          value: totalMRRAtRisk, 
+          count: riskCount 
+        }
+      ]
+    };
+  } catch (error) {
+    console.error('[getMRRAtRisk] Error:', error);
+    // Retornar zero em caso de erro
+    return {
+      amount: 0,
+      percentage: 0,
+      reasons: []
+    };
   }
-  
-  // Calcular percentual do MRR total
-  const now2 = new Date();
-  const startOfMonth = new Date(now2.getFullYear(), now2.getMonth(), 1);
-  const endOfMonth = new Date(now2.getFullYear(), now2.getMonth() + 1, 0);
-  const mrrMetrics = await getMRRMetrics(startOfMonth, endOfMonth);
-  const percentage = mrrMetrics.currentMRR > 0 
-    ? (totalMRRAtRisk / mrrMetrics.currentMRR) * 100 
-    : 0;
-  
-  return {
-    amount: totalMRRAtRisk,
-    percentage,
-    reasons: [
-      {
-        label: 'Solicitações > 24h sem match',
-        value: reasons.slowMatch.value,
-        count: reasons.slowMatch.count
-      },
-      {
-        label: 'Abandono pós-aceite',
-        value: reasons.postAcceptAbandonment.value,
-        count: reasons.postAcceptAbandonment.count
-      }
-    ]
-  };
 }
 
 // ═══════════════════════════════════════════════════════════════

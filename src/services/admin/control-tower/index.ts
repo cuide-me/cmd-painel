@@ -43,8 +43,7 @@ export async function getControlTowerDashboard(): Promise<ControlTowerDashboard>
       averageTimeToMatch,
       conversionFunnel,
       availableProfessionals,
-      postAcceptAbandonment,
-      gaMetrics
+      postAcceptAbandonment
     ] = await Promise.all([
       getMonthRevenue(),
       getBurnRate(),
@@ -54,9 +53,26 @@ export async function getControlTowerDashboard(): Promise<ControlTowerDashboard>
       getAverageTimeToMatch(),
       getConversionFunnel(),
       getAvailableProfessionals(),
-      getPostAcceptAbandonment(),
-      fetchGoogleAnalyticsMetrics('7daysAgo', 'today')
+      getPostAcceptAbandonment()
     ]);
+    
+    // GA4 separado com fallback (não pode quebrar o resto)
+    let gaMetrics;
+    try {
+      gaMetrics = await fetchGoogleAnalyticsMetrics('7daysAgo', 'today');
+    } catch (error) {
+      console.warn('[Control Tower] GA4 failed, using zeros:', error);
+      gaMetrics = {
+        activeUsers: 0,
+        newUsers: 0,
+        sessions: 0,
+        pageViews: 0,
+        bounceRate: 0,
+        averageSessionDuration: 0,
+        topPages: [],
+        usersByDevice: { desktop: 0, mobile: 0, tablet: 0 }
+      };
+    }
     
     // Calcular saúde do sistema
     const systemHealth = calculateSystemHealth({
