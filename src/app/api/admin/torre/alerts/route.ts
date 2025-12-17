@@ -7,7 +7,8 @@
  * Retorna alertas e riscos ativos
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getAuth } from 'firebase-admin/auth';
 import { getAlertsData } from '@/services/admin/torre';
@@ -15,28 +16,11 @@ import { getAlertsData } from '@/services/admin/torre';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    const admin = getFirebaseAdmin();
-    const auth = getAuth(admin);
-
-    try {
-      await auth.verifyIdToken(token);
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      );
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const alerts = await getAlertsData();

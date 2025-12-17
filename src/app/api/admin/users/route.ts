@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { listUsers } from '@/services/admin/users';
 
 export async function GET(request: NextRequest) {
   try {
-    // Inicializar Firebase Admin
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     getFirebaseAdmin();
 
     // Pegar parâmetros da query

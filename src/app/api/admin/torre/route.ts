@@ -7,7 +7,8 @@
  * Retorna dados completos da Torre de Controle
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getAuth } from 'firebase-admin/auth';
 import { getTorreData } from '@/services/admin/torre';
@@ -15,8 +16,12 @@ import { getTorreData } from '@/services/admin/torre';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     // Verificar autenticação
     const authHeader = request.headers.get('authorization');
     

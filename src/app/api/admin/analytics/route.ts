@@ -7,7 +7,8 @@
  * Retorna métricas do Google Analytics 4
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/server/auth';
 import { getAnalyticsMetrics, getConversionMetrics } from '@/services/admin/analytics';
 
 export const dynamic = 'force-dynamic';
@@ -20,8 +21,13 @@ export const runtime = 'nodejs';
  * - endDate (opcional): data final (default: today)
  * - propertyId (opcional): GA4 property ID (default: env var)
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
     // Parse query params
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate') || '30daysAgo';

@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/server/auth';
 import { getFinanceOverview } from '@/services/admin/finance';
 import { getStripeClient } from '@/lib/server/stripe';
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const stripe = getStripeClient();
     if (!stripe) {
       return NextResponse.json({ error: 'Stripe não configurado' }, { status: 500 });

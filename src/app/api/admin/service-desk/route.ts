@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestore } from 'firebase-admin/firestore';
-import { requireUser } from '@/lib/server/auth';
+import { verifyAdminAuth } from '@/lib/server/auth';
 
 /**
  * GET /api/admin/service-desk
@@ -8,8 +8,10 @@ import { requireUser } from '@/lib/server/auth';
  */
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireUser(request);
-    if ('error' in auth) return auth.error;
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -97,8 +99,10 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await requireUser(request);
-    if ('error' in auth) return auth.error;
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const body = await request.json();
     const { ticketId, status, assignedTo, priority, notes } = body;
@@ -172,8 +176,10 @@ export async function PATCH(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireUser(request);
-    if ('error' in auth) return auth.error;
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const body = await request.json();
     const { userId, userName, userType, source, priority, subject, description } = body;
