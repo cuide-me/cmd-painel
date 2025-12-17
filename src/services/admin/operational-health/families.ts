@@ -18,7 +18,7 @@ export async function getFamilyHealth(): Promise<FamilyHealth> {
     // 1. Buscar todas as famílias
     const familiesSnap = await db
       .collection('users')
-      .where('userType', '==', 'family')
+      .where('perfil', '==', 'cliente')
       .get();
 
     const families = familiesSnap.docs.map(doc => ({
@@ -29,9 +29,9 @@ export async function getFamilyHealth(): Promise<FamilyHealth> {
 
     const totalRegistered = families.length;
 
-    // 2. Buscar agendamentos
-    const appointmentsSnap = await db.collection('appointments').get();
-    const appointments = appointmentsSnap.docs.map(doc => ({
+    // 2. Buscar requests (agendamentos)
+    const requestsSnap = await db.collection('requests').get();
+    const appointments = requestsSnap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate(),

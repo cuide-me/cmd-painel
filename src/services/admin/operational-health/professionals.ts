@@ -18,7 +18,7 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
     // 1. Buscar todos os profissionais
     const professionalsSnap = await db
       .collection('users')
-      .where('userType', '==', 'professional')
+      .where('perfil', '==', 'profissional')
       .get();
 
     const professionals = professionalsSnap.docs.map(doc => ({
@@ -26,16 +26,16 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
       ...doc.data(),
     }));
 
-    // 2. Buscar agendamentos dos últimos 30 dias
+    // 2. Buscar requests (agendamentos) dos últimos 30 dias
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const appointmentsSnap = await db
-      .collection('appointments')
+    const requestsSnap = await db
+      .collection('requests')
       .where('createdAt', '>=', thirtyDaysAgo)
       .get();
 
-    const appointments = appointmentsSnap.docs.map(doc => ({
+    const appointments = requestsSnap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate(),
