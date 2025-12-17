@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getFirestore } from 'firebase-admin/firestore';
+import { BetaAnalyticsDataClient } from '@google-analytics/data';
 
 /**
  * GET /api/admin/daily-metrics
  * Retorna métricas diárias para gráficos
- * - Cadastros por dia (últimos 30 dias)
- * - Visualizações por dia (via events ou GA4)
+ * - Cadastros por dia (últimos 30 dias) - Firebase
+ * - Visualizações por dia (últimos 30 dias) - Google Analytics 4
  */
 export async function GET(request: NextRequest) {
   try {
@@ -23,41 +24,89 @@ export async function GET(request: NextRequest) {
     // Data de 30 dias atrás
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoTimestamp = thirtyDaysAgo.getTime();
 
     // CADASTROS POR DIA
-    const usersSnap = await db
-      .collection('users')
-      .where('createdAt', '>=', thirtyDaysAgo.toISOString())
-      .get();
-
-    const signupsByDay: Record<string, number> = {};
+    let signupsByDay: Record<string, number> = {};
     
-    usersSnap.forEach(doc => {
-      const data = doc.data();
-      if (data.createdAt) {
-        const date = new Date(data.createdAt);
-        const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
-        signupsByDay[dateKey] = (signupsByDay[dateKey] || 0) + 1;
-      }
-    });
+    try {
+      // Buscar últimos 500 users (sem filtro de data para evitar erro de índice)
+      const usersSnap = await db
+        .collection('users')
+        .orderBy('createdAt', 'desc')
+        .limit(500)
+        .get();
 
-    // VISUALIZAÇÕES POR DIA (via events)
-    const eventsSnap = await db
-      .collection('events')
-      .where('timestamp', '>=', thirtyDaysAgo.toISOString())
-      .where('eventType', '==', 'page_view')
-      .get();
+      usersSnap.forEach(doc => {
+        const data = doc.data();
+        if (data.createdAt) {
+          const createdDate = new Date(data.createdAt);
+          // Filtrar últimos 30 dias manualmente
+          if (createdDate.getTime() >= thirtyDaysAgoTimestamp) {
+            const dateKey = createdDate.toISOString().split('T')[0];
+            signupsByDay[dateKey] = (signupsByDay[dateKey] || 0) + 1;
+          }
+        }
+      });
+    } catch (error) {
+      console.error('[DailyMetrics] Error fetching users:', error);
+    }
 
-    const viewsByDay: Record<string, number> = {};
+    // VISUALIZAÇÕES POR DIA (via Google Analytics 4)
+    let viewsByDay: Record<string, number> = {};
     
-    eventsSnap.forEach(doc => {
-      const data = doc.data();
-      if (data.timestamp) {
-        const date = new Date(data.timestamp);
-        const dateKey = date.toISOString().split('T')[0];
-        viewsByDay[dateKey] = (viewsByDay[dateKey] || 0) + 1;
+    try {
+      const propertyId = process.env.GA4_PROPERTY_ID;
+      
+      if (propertyId) {
+        const analyticsDataClient = new BetaAnalyticsDataClient({
+          credentials: JSON.parse(
+            Buffer.from(
+              process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT || '',
+              'base64'
+            ).toString('utf-8')
+          )
+        });
+
+        const [response] = await analyticsDataClient.runReport({
+          property: `properties/${propertyId}`,
+          dateRanges: [
+            {
+              startDate: '30daysAgo',
+              endDate: 'today',
+            },
+          ],
+          dimensions: [
+            {
+              name: 'date',
+            },
+          ],
+          metrics: [
+            {
+              name: 'screenPageViews',
+            },
+          ],
+        });
+
+        // Processar resposta do GA4
+        if (response.rows) {
+          response.rows.forEach((row) => {
+            if (row.dimensionValues && row.metricValues) {
+              const dateStr = row.dimensionValues[0]?.value || '';
+              // GA4 retorna data no formato YYYYMMDD, converter para YYYY-MM-DD
+              const dateKey = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+              const views = parseInt(row.metricValues[0]?.value || '0', 10);
+              viewsByDay[dateKey] = views;
+            }
+          });
+        }
+      } else {
+        console.warn('[DailyMetrics] GA4_PROPERTY_ID não configurado');
       }
-    });
+    } catch (error) {
+      console.error('[DailyMetrics] Erro ao buscar dados do GA4:', error);
+      // Continuar sem dados de visualizações
+    }
 
     // Preencher gaps (dias sem dados)
     const dailyData: Array<{
