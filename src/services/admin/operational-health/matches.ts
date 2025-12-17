@@ -52,7 +52,10 @@ export async function getMatchQuality(): Promise<MatchQuality> {
     // 3. Taxa de rematch (famílias que solicitaram outro profissional)
     const familyMatchCounts = new Map<string, number>();
     matches.forEach((m: any) => {
-      familyMatchCounts.set(m.familyId, (familyMatchCounts.get(m.familyId) || 0) + 1);
+      const clientId = m.clientId || m.familyId;
+      if (clientId) {
+        familyMatchCounts.set(clientId, (familyMatchCounts.get(clientId) || 0) + 1);
+      }
     });
     
     const familiesWithRematch = Array.from(familyMatchCounts.values()).filter(count => count > 1).length;
@@ -132,15 +135,22 @@ export async function getMatchQuality(): Promise<MatchQuality> {
     });
 
     // 8. Matches recentes com detalhes
-    const recentMatches: MatchSummary[] = await Promise.all(
+    const recentMatchesWithNulls = await Promise.all(
       matches
         .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 20)
         .map(async (m: any) => {
           try {
+            const clientId = m.clientId || m.familyId;
+            const specialistId = m.specialistId || m.professionalId;
+            
+            if (!clientId || !specialistId) {
+              return null;
+            }
+            
             const [familyDoc, profDoc] = await Promise.all([
-              db.collection('users').doc(m.familyId).get(),
-              db.collection('users').doc(m.professionalId).get(),
+              db.collection('users').doc(clientId).get(),
+              db.collection('users').doc(specialistId).get(),
             ]);
 
             const matchTimeMinutes = m.acceptedAt && m.createdAt
@@ -149,11 +159,11 @@ export async function getMatchQuality(): Promise<MatchQuality> {
 
             return {
               id: m.id,
-              familyId: m.familyId,
-              familyName: familyDoc.data()?.name || familyDoc.data()?.displayName || 'Sem nome',
-              professionalId: m.professionalId,
-              professionalName: profDoc.data()?.name || profDoc.data()?.displayName || 'Sem nome',
-              specialty: profDoc.data()?.specialty || 'Não especificado',
+              familyId: clientId,
+              familyName: familyDoc.data()?.name || familyDoc.data()?.displayName || familyDoc.data()?.nome || 'Sem nome',
+              professionalId: specialistId,
+              professionalName: profDoc.data()?.name || profDoc.data()?.displayName || profDoc.data()?.nome || 'Sem nome',
+              specialty: profDoc.data()?.specialty || profDoc.data()?.especialidade || 'Não especificado',
               createdAt: new Date(m.createdAt).toISOString(),
               acceptedAt: m.acceptedAt ? new Date(m.acceptedAt).toISOString() : undefined,
               declinedAt: m.declinedAt ? new Date(m.declinedAt).toISOString() : undefined,
@@ -176,6 +186,8 @@ export async function getMatchQuality(): Promise<MatchQuality> {
           }
         })
     );
+    
+    const recentMatches: MatchSummary[] = recentMatchesWithNulls.filter((m): m is MatchSummary => m !== null);
 
     return {
       totalMatches,

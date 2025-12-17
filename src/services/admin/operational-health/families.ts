@@ -45,14 +45,17 @@ export async function getFamilyHealth(): Promise<FamilyHealth> {
     const activeFamilies = new Set(
       appointments
         .filter((a: any) => new Date(a.createdAt) >= thirtyDaysAgo)
-        .map((a: any) => a.familyId)
+        .map((a: any) => a.clientId || a.familyId)
+        .filter(id => id)
     );
 
     const totalActive = activeFamilies.size;
     const totalDormant = totalRegistered - totalActive;
 
     // 4. Taxa de conversão (cadastro → 1º agendamento)
-    const familiesWithAppointment = new Set(appointments.map((a: any) => a.familyId));
+    const familiesWithAppointment = new Set(
+      appointments.map((a: any) => a.clientId || a.familyId).filter(id => id)
+    );
     const conversionRate = totalRegistered > 0 
       ? (familiesWithAppointment.size / totalRegistered) * 100 
       : 0;
@@ -60,9 +63,11 @@ export async function getFamilyHealth(): Promise<FamilyHealth> {
     // 5. Tempo médio até 1ª consulta
     const firstAppointments = new Map<string, any>();
     appointments.forEach((apt: any) => {
-      if (!firstAppointments.has(apt.familyId) || 
-          new Date(apt.createdAt) < new Date(firstAppointments.get(apt.familyId).createdAt)) {
-        firstAppointments.set(apt.familyId, apt);
+      const clientId = apt.clientId || apt.familyId;
+      if (!clientId) return;
+      if (!firstAppointments.has(clientId) || 
+          new Date(apt.createdAt) < new Date(firstAppointments.get(clientId).createdAt)) {
+        firstAppointments.set(clientId, apt);
       }
     });
 
@@ -87,10 +92,12 @@ export async function getFamilyHealth(): Promise<FamilyHealth> {
     // 6. Retenção D30 (% que fazem 2ª consulta em 30 dias)
     const familyAppointmentCounts = new Map<string, any[]>();
     appointments.forEach((apt: any) => {
-      if (!familyAppointmentCounts.has(apt.familyId)) {
-        familyAppointmentCounts.set(apt.familyId, []);
+      const clientId = apt.clientId || apt.familyId;
+      if (!clientId) return;
+      if (!familyAppointmentCounts.has(clientId)) {
+        familyAppointmentCounts.set(clientId, []);
       }
-      familyAppointmentCounts.get(apt.familyId)!.push(apt);
+      familyAppointmentCounts.get(clientId)!.push(apt);
     });
 
     let familiesWith2Plus = 0;

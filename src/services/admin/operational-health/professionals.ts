@@ -52,7 +52,8 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
     const professionalsWithActivity = new Set(
       appointments
         .filter((a: any) => new Date(a.createdAt) >= sevenDaysAgo)
-        .map((a: any) => a.professionalId)
+        .map((a: any) => a.specialistId || a.professionalId)
+        .filter(id => id)
     );
 
     const totalActive = professionalsWithActivity.size;
@@ -98,7 +99,7 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
     const specialtyMap = new Map<string, any>();
     
     professionals.forEach((prof: any) => {
-      const specialty = prof.specialty || 'Não especificado';
+      const specialty = prof.specialty || prof.especialidade || prof.especialidades?.[0] || 'Não especificado';
       if (!specialtyMap.has(specialty)) {
         specialtyMap.set(specialty, {
           specialty,
@@ -111,9 +112,10 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
     });
 
     appointments.forEach((apt: any) => {
-      const prof = professionals.find((p: any) => p.id === apt.professionalId);
+      const profId = apt.specialistId || apt.professionalId;
+      const prof = professionals.find((p: any) => p.id === profId);
       if (prof) {
-        const specialty = (prof as any).specialty || 'Não especificado';
+        const specialty = (prof as any).specialty || (prof as any).especialidade || 'Não especificado';
         if (specialtyMap.has(specialty)) {
           specialtyMap.get(specialty).appointments.push(apt);
         }
@@ -147,7 +149,9 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
 
     // 11. Top performers (maior taxa de aceitação e rating)
     const profWithMetrics = professionals.map((prof: any) => {
-      const profAppointments = appointments.filter((a: any) => a.professionalId === prof.id);
+      const profAppointments = appointments.filter((a: any) => 
+        (a.specialistId === prof.id) || (a.professionalId === prof.id)
+      );
       const profAccepted = profAppointments.filter((a: any) => 
         a.status === 'scheduled' || a.status === 'completed'
       ).length;
