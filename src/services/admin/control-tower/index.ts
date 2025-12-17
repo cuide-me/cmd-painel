@@ -23,6 +23,7 @@ import {
   calculateSystemHealth,
   generateUrgentActions
 } from './risk';
+import { fetchGoogleAnalyticsMetrics } from '../analyticsService';
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN DASHBOARD
@@ -42,7 +43,8 @@ export async function getControlTowerDashboard(): Promise<ControlTowerDashboard>
       averageTimeToMatch,
       conversionFunnel,
       availableProfessionals,
-      postAcceptAbandonment
+      postAcceptAbandonment,
+      gaMetrics
     ] = await Promise.all([
       getMonthRevenue(),
       getBurnRate(),
@@ -52,7 +54,8 @@ export async function getControlTowerDashboard(): Promise<ControlTowerDashboard>
       getAverageTimeToMatch(),
       getConversionFunnel(),
       getAvailableProfessionals(),
-      getPostAcceptAbandonment()
+      getPostAcceptAbandonment(),
+      fetchGoogleAnalyticsMetrics('7daysAgo', 'today')
     ]);
     
     // Calcular saúde do sistema
@@ -86,6 +89,16 @@ export async function getControlTowerDashboard(): Promise<ControlTowerDashboard>
       marketplace: {
         availableProfessionals,
         postAcceptAbandonment
+      },
+      analytics: {
+        activeUsers: gaMetrics.activeUsers,
+        newUsers: gaMetrics.newUsers,
+        sessions: gaMetrics.sessions,
+        pageViews: gaMetrics.pageViews,
+        conversionRate: gaMetrics.activeUsers > 0 
+          ? (gaMetrics.newUsers / gaMetrics.activeUsers) * 100 
+          : 0,
+        topPages: gaMetrics.topPages
       },
       urgentActions: []
     };

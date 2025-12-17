@@ -214,6 +214,37 @@ export default function TorreControleV2() {
         </div>
       </Section>
 
+      {/* BLOCO 4: ANALYTICS (GA4) */}
+      {dashboard.analytics && (
+        <Section title="📊 Analytics - Tráfego (GA4)">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard
+              label="Usuários Ativos (7d)"
+              value={dashboard.analytics.activeUsers.toString()}
+              tooltip="Total de usuários únicos que visitaram o site nos últimos 7 dias (dados do Google Analytics 4)"
+            />
+
+            <StatCard
+              label="Novos Usuários (7d)"
+              value={dashboard.analytics.newUsers.toString()}
+              tooltip="Usuários visitando pela primeira vez nos últimos 7 dias"
+            />
+
+            <StatCard
+              label="Sessões (7d)"
+              value={dashboard.analytics.sessions.toString()}
+              tooltip="Total de sessões/visitas nos últimos 7 dias"
+            />
+
+            <StatCard
+              label="Pageviews (7d)"
+              value={dashboard.analytics.pageViews.toString()}
+              tooltip="Total de visualizações de página nos últimos 7 dias"
+            />
+          </div>
+        </Section>
+      )}
+
       {/* AÇÕES URGENTES */}
       {urgentActions.length > 0 && (
         <Section title="🚨 Ações Urgentes">

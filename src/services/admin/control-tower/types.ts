@@ -112,6 +112,22 @@ export interface MarketplaceHealth {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// ANALYTICS (GA4)
+// ═══════════════════════════════════════════════════════════════
+
+export interface AnalyticsMetrics {
+  activeUsers: number;
+  newUsers: number;
+  sessions: number;
+  pageViews: number;
+  conversionRate: number; // (newUsers / activeUsers) * 100
+  topPages: Array<{
+    page: string;
+    views: number;
+  }>;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // DASHBOARD COMPLETE
 // ═══════════════════════════════════════════════════════════════
 
@@ -120,6 +136,7 @@ export interface ControlTowerDashboard {
   businessHealth: BusinessHealthMetrics;
   operations: OperationalBottlenecks;
   marketplace: MarketplaceHealth;
+  analytics: AnalyticsMetrics;
   
   // Quick Actions (próximas ações prioritárias)
   urgentActions: {
