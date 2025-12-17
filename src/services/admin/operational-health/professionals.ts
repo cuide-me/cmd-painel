@@ -71,15 +71,22 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
     const noShows = appointments.filter((a: any) => a.noShow && a.noShowBy === 'professional').length;
     const noShowRate = totalCreated > 0 ? (noShows / totalCreated) * 100 : 0;
 
-    // 7. Rating médio
+    // 7. Rating médio - buscar todos e filtrar
     const ratingsSnap = await db
       .collection('ratings')
-      .where('ratedType', '==', 'professional')
-      .where('createdAt', '>=', thirtyDaysAgo)
+      .limit(200)
       .get();
 
-    const ratings = ratingsSnap.docs.map(doc => doc.data().score || 0);
-    const avgRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+    const relevantRatings = ratingsSnap.docs
+      .map(doc => ({...doc.data(), createdAt: doc.data().createdAt?.toDate?.() || new Date(0)}))
+      .filter((r: any) => {
+        const isRecent = r.createdAt >= thirtyDaysAgo;
+        const isProfessional = r.ratedType === 'professional' || r.targetType === 'professional';
+        return isRecent && isProfessional;
+      });
+
+    const ratings = relevantRatings.map((r: any) => r.score || r.rating || 0).filter(s => s > 0);
+    const avgRating = ratings.length > 0 ? ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length : 0;
 
     // 8. Tempo médio de resposta (simulado - precisa implementar tracking real)
     const avgResponseTimeHours = 12; // TODO: implementar tracking real
