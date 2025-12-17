@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout, { StatCard, Section, Card, Badge, Button, Table, LoadingSkeleton, EmptyState } from '@/components/admin/AdminLayout';
 import type { AlertsOverview, IntelligentAlert, AlertStatistics } from '@/services/admin/alerts/types';
+import { authFetch } from '@/lib/client/authFetch';
 
 export default function AlertsCenterPage() {
   const [overview, setOverview] = useState<AlertsOverview | null>(null);
@@ -21,8 +22,8 @@ export default function AlertsCenterPage() {
   async function loadData() {
     try {
       const [overviewRes, statsRes] = await Promise.all([
-        fetch('/api/admin/alerts?mode=overview'),
-        fetch('/api/admin/alerts?mode=statistics'),
+        authFetch('/api/admin/alerts?mode=overview'),
+        authFetch('/api/admin/alerts?mode=statistics'),
       ]);
       if (overviewRes.ok && statsRes.ok) {
         setOverview(await overviewRes.json());
@@ -38,7 +39,7 @@ export default function AlertsCenterPage() {
   async function performAction(alertId: string, actionType: string, notes?: string) {
     setActionLoading(true);
     try {
-      const response = await fetch('/api/admin/alerts', {
+      const response = await authFetch('/api/admin/alerts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'perform_action', data: { alertId, actionType, performedBy: 'admin', notes } }),

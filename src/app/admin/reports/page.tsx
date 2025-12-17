@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout, { StatCard, Section, Card, Button, Badge, Table, EmptyState, LoadingSkeleton } from '@/components/admin/AdminLayout';
 import type { ReportsDashboard, ReportConfig } from '@/services/admin/reports/types';
+import { authFetch } from '@/lib/client/authFetch';
 
 export default function ReportsPage() {
   const [dashboard, setDashboard] = useState<ReportsDashboard | null>(null);
@@ -15,7 +16,7 @@ export default function ReportsPage() {
 
   const fetchDashboard = async () => {
     try {
-      const res = await fetch('/api/admin/reports');
+      const res = await authFetch('/api/admin/reports');
       const data = await res.json();
       if (data.success) setDashboard(data.data);
     } catch (error) {
@@ -27,7 +28,7 @@ export default function ReportsPage() {
 
   const executeReport = async (reportId: string) => {
     try {
-      await fetch('/api/admin/reports', {
+      await authFetch('/api/admin/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'execute', reportId })

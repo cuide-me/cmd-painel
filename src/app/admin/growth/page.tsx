@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout, { StatCard, Section, Card, Badge, Button, LoadingSkeleton, EmptyState } from '@/components/admin/AdminLayout';
 import type { GrowthDashboard } from '@/services/admin/growth/types';
+import { authFetch } from '@/lib/client/authFetch';
 
 export default function GrowthPage() {
   const [data, setData] = useState<GrowthDashboard | null>(null);
@@ -15,7 +16,7 @@ export default function GrowthPage() {
 
   async function loadData() {
     try {
-      const res = await fetch('/api/admin/growth');
+      const res = await authFetch('/api/admin/growth');
       if (res.ok) setData(await res.json());
     } catch (error) {
       console.error('Error:', error);

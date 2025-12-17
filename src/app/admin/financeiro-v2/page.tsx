@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout, { StatCard, Section, Card, Badge, Button, Table, LoadingSkeleton, EmptyState } from '@/components/admin/AdminLayout';
 import { FinanceiroDashboard } from '@/services/admin/financeiro-v2/types';
+import { authFetch } from '@/lib/client/authFetch';
 
 export default function FinanceiroV2Page() {
   const [dashboard, setDashboard] = useState<FinanceiroDashboard | null>(null);
@@ -21,7 +22,7 @@ export default function FinanceiroV2Page() {
       setError(null);
       const params = new URLSearchParams();
       if (segment !== 'all') params.append('segment', segment);
-      const response = await fetch(`/api/admin/financeiro-v2?${params}`);
+      const response = await authFetch(`/api/admin/financeiro-v2?${params}`);
       const result = await response.json();
       if (!result.success) throw new Error(result.error || 'Erro ao carregar');
       setDashboard(result.data);

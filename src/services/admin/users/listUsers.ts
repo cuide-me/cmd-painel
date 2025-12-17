@@ -42,10 +42,7 @@ function friendlyStripeStatus(status: string): string {
 /**
  * Lista usuários com paginação e filtros
  *
- * NOTA: Se precisar de índice composto para filtro + paginação,
- * criar no Firestore Console:
- * - Collection: users
- * - Fields: perfil (ASC), email (ASC)
+ * NOTA: Filtro client-side para evitar necessidade de índices compostos no Firestore
  */
 export async function listUsers(params?: ListUsersParams): Promise<ListUsersResult> {
   const db = getFirestore();
@@ -53,11 +50,19 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
   const perfilFilter = params?.perfilFilter || 'all';
   const searchTerm = params?.searchTerm?.toLowerCase();
 
-  let query = db.collection('users').orderBy('email').limit(pageSize);
-
-  // Filtrar por perfil
+  // Query simples sem WHERE + ORDER BY em campos diferentes
+  // Para evitar erro de índice composto, fazemos filtro client-side
+  let query;
+  
   if (perfilFilter !== 'all') {
-    query = query.where('perfil', '==', perfilFilter) as any;
+    // Se filtrar por perfil, usa WHERE no perfil (sem orderBy)
+    query = db.collection('users')
+      .where('perfil', '==', perfilFilter)
+      .limit(pageSize * 2); // Busca mais documentos para compensar filtros client-side
+  } else {
+    // Sem filtro, apenas limit
+    query = db.collection('users')
+      .limit(pageSize);
   }
 
   // Cursor de paginação
@@ -67,7 +72,8 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
 
   const snapshot = await query.get();
 
-  let users = snapshot.docs.map(doc => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let users = snapshot.docs.map((doc: any) => {
     const data = doc.data();
     const nome =
       data.nome && data.sobrenome
@@ -94,9 +100,15 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
   // Filtro client-side por searchTerm
   if (searchTerm) {
     users = users.filter(
-      u => u.nome.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm)
+      (u: AdminUserRow) => u.nome.toLowerCase().includes(searchTerm) || u.email.toLowerCase().includes(searchTerm)
     );
   }
+
+  // Ordenar por email client-side (evita índice composto no Firestore)
+  users.sort((a: AdminUserRow, b: AdminUserRow) => a.email.localeCompare(b.email));
+
+  // Limitar ao pageSize após filtros e ordenação
+  users = users.slice(0, pageSize);
 
   const nextCursor =
     snapshot.docs.length === pageSize ? snapshot.docs[snapshot.docs.length - 1] : undefined;
