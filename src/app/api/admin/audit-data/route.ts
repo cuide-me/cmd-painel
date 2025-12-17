@@ -79,43 +79,36 @@ export async function GET(request: NextRequest) {
       familiaExemplo,
     };
 
-    // Auditar REQUESTS - contar total e buscar amostra
-    console.log('[Audit] Analisando collection requests...');
+    // Auditar JOBS (ao invés de requests) - contar total e buscar amostra
+    console.log('[Audit] Analisando collection jobs...');
     
-    const totalRequestsQuery = await db.collection('requests').count().get();
-    const totalRequests = totalRequestsQuery.data().count;
+    const totalJobsQuery = await db.collection('jobs').count().get();
+    const totalJobs = totalJobsQuery.data().count;
     
-    const requestsSnap = await db.collection('requests').limit(100).get();
-    const camposRequests = new Set<string>();
-    const statusRequests: Record<string, number> = {};
+    const jobsSnap = await db.collection('jobs').limit(100).get();
+    const camposJobs = new Set<string>();
+    const statusJobs: Record<string, number> = {};
     
-    requestsSnap.docs.forEach(doc => {
+    jobsSnap.docs.forEach(doc => {
       const data = doc.data();
-      Object.keys(data).forEach(key => camposRequests.add(key));
+      Object.keys(data).forEach(key => camposJobs.add(key));
       
       if (data.status) {
-        statusRequests[data.status] = (statusRequests[data.status] || 0) + 1;
+        statusJobs[data.status] = (statusJobs[data.status] || 0) + 1;
       }
     });
 
-    const requestExemplo = requestsSnap.empty ? null : {
-      campos: Object.keys(requestsSnap.docs[0].data()),
-      exemplo: requestsSnap.docs[0].data(),
+    const jobExemplo = jobsSnap.empty ? null : {
+      campos: Object.keys(jobsSnap.docs[0].data()),
+      exemplo: jobsSnap.docs[0].data(),
     };
 
-    audit.collections.requests = {
-      total: totalRequests,
-      amostra: requestsSnap.size,
-      camposDetectados: Array.from(camposRequests).sort(),
-      distribuicaoPorStatus: statusRequests,
-      exemplo: requestExemplo,
-    };
-
-    audit.collections.requests = {
-      total: requestsSnap.size,
-      camposDetectados: Array.from(camposRequests).sort(),
-      distribuicaoPorStatus: statusRequests,
-      exemplo: requestExemplo,
+    audit.collections.jobs = {
+      total: totalJobs,
+      amostra: jobsSnap.size,
+      camposDetectados: Array.from(camposJobs).sort(),
+      distribuicaoPorStatus: statusJobs,
+      exemplo: jobExemplo,
     };
 
     // Auditar APPOINTMENTS (se existir)

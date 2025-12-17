@@ -15,12 +15,12 @@ export async function getMatchQuality(): Promise<MatchQuality> {
   const db = getFirestore();
 
   try {
-    // 1. Buscar matches (requests aceitos) e filtrar no código
+    // 1. Buscar matches (jobs aceitos) e filtrar no código
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const matchesSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .limit(500)
       .get();
 

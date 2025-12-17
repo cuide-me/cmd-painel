@@ -26,12 +26,12 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
       ...doc.data(),
     }));
 
-    // 2. Buscar requests (agendamentos) e filtrar no código
+    // 2. Buscar jobs (agendamentos) e filtrar no código
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const requestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .limit(500)
       .get();
 

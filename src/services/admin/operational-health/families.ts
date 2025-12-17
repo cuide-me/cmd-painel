@@ -29,8 +29,8 @@ export async function getFamilyHealth(): Promise<FamilyHealth> {
 
     const totalRegistered = families.length;
 
-    // 2. Buscar requests (agendamentos)
-    const requestsSnap = await db.collection('requests').limit(500).get();
+    // 2. Buscar jobs (agendamentos)
+    const requestsSnap = await db.collection('jobs').limit(500).get();
     const appointments = requestsSnap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
