@@ -77,10 +77,9 @@ export async function getAverageTimeToMatch() {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   
-  // Buscar solicitações com match nos últimos 7 dias
+  // Query simples: buscar requests com matchedAt recente (sem WHERE status + matchedAt)
   const matchedRequests = await db
     .collection('requests')
-    .where('status', 'in', ['matched', 'accepted', 'in_progress', 'completed'])
     .where('matchedAt', '>=', sevenDaysAgo)
     .get();
   

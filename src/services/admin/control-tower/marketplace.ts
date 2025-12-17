@@ -61,54 +61,48 @@ export async function getPostAcceptAbandonment() {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
   
-  // Solicitações aceitas nos últimos 30 dias
-  const acceptedRequests = await db
+  // Query simples: buscar requests recentes e filtrar no código (evita índice composto)
+  const recentRequests = await db
     .collection('requests')
-    .where('status', 'in', ['accepted', 'in_progress', 'completed', 'canceled'])
-    .where('acceptedAt', '>=', thirtyDaysAgo)
-    .get();
-  
-  // Solicitações aceitas 30-60 dias atrás (para comparação de tendência)
-  const previousAcceptedRequests = await db
-    .collection('requests')
-    .where('status', 'in', ['accepted', 'in_progress', 'completed', 'canceled'])
     .where('acceptedAt', '>=', sixtyDaysAgo)
-    .where('acceptedAt', '<', thirtyDaysAgo)
     .get();
   
   let totalAccepted = 0;
   let abandoned = 0;
+  let previousTotal = 0;
+  let previousAbandoned = 0;
   
-  acceptedRequests.forEach((doc: any) => {
+  const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+  
+  recentRequests.forEach((doc: any) => {
     const data = doc.data();
-    totalAccepted++;
-    
-    // Considerar abandono se:
-    // 1. Status = canceled após aceite
-    // 2. Aceito há mais de 48h sem pagamento e sem progresso
     const acceptedAt = data.acceptedAt?.toDate();
-    const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
     
-    if (
+    if (!acceptedAt) return;
+    
+    // Separar por período (últimos 30 dias vs 30-60 dias atrás)
+    const isRecent = acceptedAt >= thirtyDaysAgo;
+    const isPrevious = acceptedAt >= sixtyDaysAgo && acceptedAt < thirtyDaysAgo;
+    
+    // Verificar se foi abandonado
+    const isAbandoned = (
       data.status === 'canceled' ||
       (
         acceptedAt < fortyEightHoursAgo &&
         data.paymentStatus !== 'paid' &&
         data.status === 'accepted'
       )
-    ) {
-      abandoned++;
+    );
+    
+    if (isRecent) {
+      totalAccepted++;
+      if (isAbandoned) abandoned++;
     }
-  });
-  
-  // Calcular taxa anterior para tendência
-  let previousTotal = 0;
-  let previousAbandoned = 0;
-  
-  previousAcceptedRequests.forEach((doc: any) => {
-    const data = doc.data();
-    previousTotal++;
-    if (data.status === 'canceled') previousAbandoned++;
+    
+    if (isPrevious) {
+      previousTotal++;
+      if (isAbandoned) previousAbandoned++;
+    }
   });
   
   const rate = totalAccepted > 0 ? (abandoned / totalAccepted) * 100 : 0;
@@ -126,7 +120,7 @@ export async function getPostAcceptAbandonment() {
   else if (rate > previousRate * 1.1) trend = 'worsening';
   
   return {
-    rate,
+    rate: Number(rate.toFixed(1)),
     count: abandoned,
     acceptableLimit,
     status,
