@@ -73,7 +73,10 @@ export default function TorreControleV2() {
       
       if (response.ok) {
         const data = await response.json();
+        console.log('[Admin] Daily metrics loaded:', data);
         setDailyMetrics(data.data || []);
+      } else {
+        console.error('[Admin] Failed to load daily metrics:', response.status);
       }
     } catch (err) {
       console.error('Erro ao carregar métricas diárias:', err);
@@ -274,9 +277,18 @@ export default function TorreControleV2() {
       )}
 
       {/* GRÁFICOS DIÁRIOS */}
-      {!metricsLoading && dailyMetrics.length > 0 && (
+      {!metricsLoading && (
         <Section title="📈 Métricas Diárias (Últimos 30 dias)">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {dailyMetrics.length === 0 ? (
+            <Card padding="md">
+              <EmptyState
+                icon="📊"
+                title="Sem dados de métricas"
+                description="Nenhum dado encontrado para os últimos 30 dias. Verifique se há eventos registrados no Firebase."
+              />
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Gráfico de Visualizações */}
             <Card padding="md">
               <h3 className="text-sm font-semibold text-slate-900 mb-4">Visualizações do Site (Dia a Dia)</h3>
@@ -373,6 +385,7 @@ export default function TorreControleV2() {
               </div>
             </Card>
           </div>
+          )}
         </Section>
       )}
 
