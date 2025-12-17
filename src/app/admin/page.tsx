@@ -301,6 +301,7 @@ export default function TorreControleV2() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { title: 'Saúde Operacional', icon: '🏥', path: '/admin/operational-health' },
+            { title: 'Service Desk', icon: '🎫', path: '/admin/service-desk' },
             { title: 'Central de Alertas', icon: '🚨', path: '/admin/alerts' },
             { title: 'Growth & Ativação', icon: '📈', path: '/admin/growth' },
             { title: 'Financeiro V2', icon: '💰', path: '/admin/financeiro-v2' },
