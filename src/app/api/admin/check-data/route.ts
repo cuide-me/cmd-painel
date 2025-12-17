@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getFirestore } from 'firebase-admin/firestore';
 
 /**
@@ -7,6 +8,8 @@ import { getFirestore } from 'firebase-admin/firestore';
  */
 export async function GET() {
   try {
+    // Inicializar Firebase Admin
+    getFirebaseAdmin();
     const db = getFirestore();
     
     // Contar users
