@@ -17,17 +17,20 @@ let adminApp: App | null = null;
  * Lazy-loaded to avoid build-time initialization
  */
 export function getFirebaseAdmin(): App {
+  console.log('[Firebase Admin] 🔄 getFirebaseAdmin() called');
+  
   if (adminApp) {
+    console.log('[Firebase Admin] ✅ Returning cached app');
     return adminApp;
   }
 
   // Check if already initialized
   const existingApps = getApps();
+  console.log('[Firebase Admin] Existing apps count:', existingApps.length);
+  
   if (existingApps.length > 0) {
     adminApp = existingApps[0];
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn('[Firebase Admin] ✅ Using existing initialized app');
-    }
+    console.log('[Firebase Admin] ✅ Using existing initialized app');
     return adminApp;
   }
 
@@ -40,21 +43,28 @@ export function getFirebaseAdmin(): App {
   let clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
   // Tentar usar FIREBASE_ADMIN_SERVICE_ACCOUNT primeiro
+  console.log('[Firebase Admin] 🔐 Checking credentials...');
+  console.log('[Firebase Admin] Has SERVICE_ACCOUNT:', !!process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT);
+  console.log('[Firebase Admin] Has PROJECT_ID:', !!process.env.FIREBASE_PROJECT_ID);
+  
   if (process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT) {
     try {
       console.log('[Firebase Admin] Usando FIREBASE_ADMIN_SERVICE_ACCOUNT (base64)');
+      console.log('[Firebase Admin] Length:', process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT.length);
+      
       const serviceAccount = JSON.parse(
         Buffer.from(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT, 'base64').toString('utf-8')
       );
       projectId = serviceAccount.project_id;
       privateKey = serviceAccount.private_key;
       clientEmail = serviceAccount.client_email;
-      console.log('[Firebase Admin] ✅ Service account parseado com sucesso');
+      
+      console.log('[Firebase Admin] ✅ Service account parseado');
+      console.log('[Firebase Admin] Project ID:', projectId);
+      console.log('[Firebase Admin] Client Email:', clientEmail?.substring(0, 20) + '...');
     } catch (error: any) {
-      console.error(
-        '[Firebase Admin] ❌ Erro ao parsear FIREBASE_ADMIN_SERVICE_ACCOUNT:',
-        error.message
-      );
+      console.error('[Firebase Admin] ❌ ERRO AO PARSEAR:', error.message);
+      console.error('[Firebase Admin] Stack:', error.stack);
       throw new Error(`Failed to parse FIREBASE_ADMIN_SERVICE_ACCOUNT: ${error.message}`);
     }
   }
