@@ -1,5 +1,129 @@
 # Auditoria de Fontes de Dados - CMD Painel
 
+## 📊 Mapeamento COMPLETO por Página/API
+
+### ✅ **Página Principal (`/admin`)**
+**APIs Consumidas:**
+- `/api/admin/control-tower` → Stripe (MRR, Burn, Runway) + Firebase (operacional) + GA4 (analytics)
+- `/api/admin/daily-metrics` → GA4 (visualizações) + Firebase (cadastros)
+
+**Status:** ✅ CORRETO
+
+---
+
+### ✅ **Operational Health (`/admin/operational-health`)**
+**APIs Consumidas:**
+- `/api/admin/operational-health`
+
+**Fonte de Dados:**
+- Firebase: jobs (SLA, matches), users (profissionais, famílias), feedbacks
+
+**Status:** ✅ CORRETO (100% Firebase - dados operacionais)
+
+---
+
+### ✅ **Growth (`/admin/growth`)**
+**APIs Consumidas:**
+- `/api/admin/growth`
+
+**Fonte de Dados:**
+- GA4: Visitantes, tráfego, sessões (via analyticsService)
+- Firebase: Cadastros, conversões, ativação de usuários
+
+**Status:** ✅ CORRETO (GA4 para tráfego + Firebase para conversões)
+
+---
+
+### ✅ **Financeiro V2 (`/admin/financeiro-v2`)**
+**APIs Consumidas:**
+- `/api/admin/financeiro-v2`
+
+**Fonte de Dados:**
+- Stripe: MRR, ARR, assinaturas, Quick Ratio, NRR, churn
+
+**Status:** ✅ CORRETO (100% Stripe - dados financeiros)
+
+---
+
+### ✅ **Financeiro V1 (`/admin/financeiro`)**
+**APIs Consumidas:**
+- `/api/admin/financeiro`
+
+**Fonte de Dados:**
+- Stripe: charges, payouts, balance transactions, refunds
+
+**Status:** ✅ CORRETO (100% Stripe)
+
+---
+
+### ✅ **Dashboard V2 (`/admin/dashboard`)**
+**APIs Consumidas:**
+- `/api/admin/dashboard-v2`
+
+**Fonte de Dados:**
+- Firebase: demanda (jobs), oferta (profissionais), famílias
+
+**Status:** ✅ CORRETO (100% Firebase - dados operacionais)
+
+---
+
+### ✅ **Pipeline (`/admin/pipeline`)**
+**APIs Consumidas:**
+- `/api/admin/pipeline` ou `/api/admin/pipeline-v2`
+
+**Fonte de Dados:**
+- Firebase: deals, stages, conversões
+
+**Status:** ✅ CORRETO (100% Firebase - pipeline de vendas)
+
+---
+
+### ✅ **Users (`/admin/users`)**
+**APIs Consumidas:**
+- `/api/admin/users`
+
+**Fonte de Dados:**
+- Firebase: users collection
+- Stripe: Status de contas Stripe Connect (quando usuário tem)
+
+**Status:** ✅ CORRETO (Firebase + Stripe para status de pagamento)
+
+---
+
+### ✅ **Alerts (`/admin/alerts`)**
+**APIs Consumidas:**
+- `/api/admin/alerts`
+
+**Fonte de Dados:**
+- Firebase: alerts collection, qualityAlerts, riskAlerts
+
+**Status:** ✅ CORRETO (100% Firebase)
+
+---
+
+### ✅ **Service Desk (`/admin/service-desk`)**
+**APIs Consumidas:**
+- `/api/admin/service-desk`
+
+**Fonte de Dados:**
+- Firebase: tickets collection
+
+**Status:** ✅ CORRETO (100% Firebase)
+
+---
+
+### ✅ **Reports (`/admin/reports`)**
+**APIs Consumidas:**
+- `/api/admin/reports`
+
+**Fonte de Dados:**
+- Firebase: reportSchedules, reportExecutions
+- Dados agregados de: Stripe + Firebase + GA4
+
+**Status:** ⚠️ MOCK (Implementação temporária - refatoração pendente)
+
+---
+
 ## 📊 Mapeamento Correto por Fonte
 
 ### ✅ STRIPE (Pagamentos e Assinaturas)
