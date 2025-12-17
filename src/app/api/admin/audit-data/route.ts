@@ -20,9 +20,9 @@ export async function GET(request: NextRequest) {
       collections: {},
     };
 
-    // Auditar USERS
+    // Auditar USERS - buscar TODOS os documentos
     console.log('[Audit] Analisando collection users...');
-    const usersSnap = await db.collection('users').limit(100).get();
+    const usersSnap = await db.collection('users').get();
     
     const perfis: Record<string, number> = {};
     const userTypes: Record<string, number> = {};
@@ -65,9 +65,9 @@ export async function GET(request: NextRequest) {
       familiaExemplo,
     };
 
-    // Auditar REQUESTS
+    // Auditar REQUESTS - buscar TODOS
     console.log('[Audit] Analisando collection requests...');
-    const requestsSnap = await db.collection('requests').limit(50).get();
+    const requestsSnap = await db.collection('requests').get();
     const camposRequests = new Set<string>();
     const statusRequests: Record<string, number> = {};
     
