@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     }
     
     logger.info('Authentication successful', {
-      userId: authResult.user?.uid,
+      userId: authResult.uid,
     });
     
     // ═══════════════════════════════════════════════════════════════
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     const dashboard = await getControlTowerDashboard();
     
     const duration = timer.end({
-      userId: authResult.user?.uid,
+      userId: authResult.uid,
       metricsCount: Object.keys(dashboard).length,
     });
     
