@@ -13,11 +13,7 @@ import { useRouter } from 'next/navigation';
 import { authFetch } from '@/lib/client/authFetch';
 import AdminLayout, { StatCard, Section, Card, Badge, EmptyState, LoadingSkeleton } from '@/components/admin/AdminLayout';
 import type { ControlTowerDashboard } from '@/services/admin/control-tower/types';
-import type { TorreV3Dashboard } from '@/services/admin/torre-v3/types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
-import KPIDashboard from '@/components/admin/torre-v3/KPIDashboard';
-import ConversionFunnel from '@/components/admin/torre-v3/ConversionFunnel';
-import AlertPanel from '@/components/admin/torre-v3/AlertPanel';
 
 interface DailyMetric {
   date: string;
@@ -32,11 +28,6 @@ export default function TorreControleV2() {
   const [error, setError] = useState<string | null>(null);
   const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([]);
   const [metricsLoading, setMetricsLoading] = useState(true);
-  
-  // Torre V3 State
-  const [torreV3Data, setTorreV3Data] = useState<TorreV3Dashboard | null>(null);
-  const [torreV3Loading, setTorreV3Loading] = useState(true);
-  const [showV3, setShowV3] = useState(true); // Toggle para mostrar/ocultar V3
 
   useEffect(() => {
     // Verificar se está logado
@@ -48,13 +39,11 @@ export default function TorreControleV2() {
     
     fetchDashboard();
     fetchDailyMetrics();
-    fetchTorreV3Data();
     
     // Auto-refresh a cada 60 segundos
     const interval = setInterval(() => {
       fetchDashboard();
       fetchDailyMetrics();
-      fetchTorreV3Data();
     }, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -93,25 +82,6 @@ export default function TorreControleV2() {
       console.error('Erro ao carregar métricas diárias:', err);
     } finally {
       setMetricsLoading(false);
-    }
-  };
-
-  const fetchTorreV3Data = async () => {
-    try {
-      setTorreV3Loading(true);
-      const response = await authFetch('/api/admin/torre-v3?period=month');
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[Admin] Torre V3 data loaded:', data);
-        setTorreV3Data(data);
-      } else {
-        console.error('[Admin] Failed to load Torre V3:', response.status);
-      }
-    } catch (err) {
-      console.error('Erro ao carregar Torre V3:', err);
-    } finally {
-      setTorreV3Loading(false);
     }
   };
 
@@ -169,57 +139,6 @@ export default function TorreControleV2() {
       subtitle="Dashboard Decisório - Cuide.me" 
       icon="🎯"
     >
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* TORRE V3 - NOVO DASHBOARD CONSOLIDADO */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      
-      {!torreV3Loading && torreV3Data && (
-        <>
-          {/* Header com Toggle */}
-          <div className="mb-6 flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">🚀 Torre de Controle V3</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                KPIs consolidados, Funil de Conversão e Alertas Inteligentes
-              </p>
-            </div>
-            <button
-              onClick={() => setShowV3(!showV3)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-            >
-              {showV3 ? '▲ Ocultar V3' : '▼ Mostrar V3'}
-            </button>
-          </div>
-
-          {showV3 && (
-            <div className="space-y-8 mb-8">
-              {/* Alertas no topo (se existirem críticos) */}
-              {torreV3Data.alerts.filter(a => a.severity === 'critical').length > 0 && (
-                <AlertPanel alerts={torreV3Data.alerts} />
-              )}
-
-              {/* KPIs Dashboard */}
-              <KPIDashboard kpis={torreV3Data.kpis} />
-
-              {/* Funil de Conversão */}
-              <ConversionFunnel funnel={torreV3Data.funnel} />
-
-              {/* Alertas completos (se não mostrados acima) */}
-              {torreV3Data.alerts.filter(a => a.severity === 'critical').length === 0 && torreV3Data.alerts.length > 0 && (
-                <AlertPanel alerts={torreV3Data.alerts} />
-              )}
-
-              {/* Separador */}
-              <div className="border-t-4 border-gray-300 my-8"></div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* DASHBOARD V2 ORIGINAL (Mantido para compatibilidade) */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-
       {/* BLOCO 1: REALIDADE DO NEGÓCIO */}
       <Section title="💰 Realidade do Negócio">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

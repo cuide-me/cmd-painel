@@ -6,36 +6,62 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/server/auth';
 import { getControlTowerDashboard } from '@/services/admin/control-tower';
+import { createLogger } from '@/lib/observability/logger';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
+  const correlationId = crypto.randomUUID();
+  const logger = createLogger('control-tower', correlationId);
+  const timer = logger.startTimer('GET /api/admin/control-tower');
+  
   try {
-    console.log('[Control Tower] Request received');
+    logger.info('Control Tower request received', {
+      correlationId,
+      userAgent: request.headers.get('user-agent'),
+    });
     
     // ═══════════════════════════════════════════════════════════════
     // AUTH
     // ═══════════════════════════════════════════════════════════════
     
     const authResult = await verifyAdminAuth(request);
-    console.log('[Control Tower] Auth result:', authResult);
     
     if (!authResult || !authResult.authorized) {
-      console.log('[Control Tower] Unauthorized');
+      logger.warn('Unauthorized access attempt', {
+        correlationId,
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+      });
+      
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
     
+    logger.info('Authentication successful', {
+      userId: authResult.user?.uid,
+    });
+    
     // ═══════════════════════════════════════════════════════════════
     // FETCH DATA
     // ═══════════════════════════════════════════════════════════════
     
-    console.log('[Control Tower] Fetching dashboard...');
     const dashboard = await getControlTowerDashboard();
-    console.log('[Control Tower] Dashboard fetched successfully');
+    
+    const duration = timer.end({
+      userId: authResult.user?.uid,
+      metricsCount: Object.keys(dashboard).length,
+    });
+    
+    logger.info('Dashboard fetched successfully', {
+      duration,
+      hasBusinessHealth: !!dashboard.businessHealth,
+      hasOperations: !!dashboard.operations,
+      hasMarketplace: !!dashboard.marketplace,
+      urgentActionsCount: dashboard.urgentActions?.length || 0,
+    });
     
     // ═══════════════════════════════════════════════════════════════
     // RESPONSE
@@ -46,20 +72,24 @@ export async function GET(request: NextRequest) {
       data: dashboard,
       meta: {
         generatedAt: new Date().toISOString(),
-        version: '2.0'
+        version: '2.0',
+        correlationId,
       }
     });
     
   } catch (error: any) {
-    console.error('[Control Tower] Error:', error);
-    console.error('[Control Tower] Error stack:', error.stack);
+    logger.error('Control Tower error', error, {
+      correlationId,
+      errorName: error.name,
+      errorMessage: error.message,
+    });
     
     return NextResponse.json(
       { 
         success: false,
         error: error.message || 'Internal server error',
         code: 'CONTROL_TOWER_ERROR',
-        details: error.stack
+        correlationId,
       },
       { status: 500 }
     );
