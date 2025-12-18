@@ -79,7 +79,7 @@ async function getFastResponders(
     const data = doc.data();
     const requestedAt = toDate(data.requestedAt);
     const respondedAt = toDate(data.respondedAt);
-    const professionalId = data.professionalId || data.profissionalId;
+    const professionalId = data.specialistId || data.professionalId || data.profissionalId;
 
     if (requestedAt && respondedAt && professionalId) {
       const diffMinutes = (respondedAt.getTime() - requestedAt.getTime()) / (1000 * 60);

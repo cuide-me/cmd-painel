@@ -124,7 +124,7 @@ async function getActiveTickets(db: FirebaseFirestore.Firestore): Promise<Ticket
         id: doc.id,
         userId: data.userId,
         userName: data.userName,
-        userType: data.userType,
+        userType: data.perfil || data.userType,
         source: data.source,
         priority: data.priority,
         status: data.status,
