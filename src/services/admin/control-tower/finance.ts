@@ -6,6 +6,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getStripeClient } from '@/lib/server/stripe';
+import { toDate } from '@/lib/dateUtils';
 
 // ═══════════════════════════════════════════════════════════════
 // RECEITA DO MÊS (SIMPLIFICADO)
@@ -172,7 +173,7 @@ export async function getMRRAtRisk() {
   try {
     // Query simples: apenas acceptedAt
     const recentAccepted = await db
-      .collection('requests')
+      .collection('jobs')
       .where('acceptedAt', '>=', fortyEightHoursAgo)
       .get();
     
@@ -182,7 +183,7 @@ export async function getMRRAtRisk() {
     
     recentAccepted.forEach((doc: any) => {
       const data = doc.data();
-      const acceptedAt = data.acceptedAt?.toDate();
+      const acceptedAt = toDate(data.acceptedAt);
       
       // Considerar em risco se: aceito mas não pago após 48h
       if (

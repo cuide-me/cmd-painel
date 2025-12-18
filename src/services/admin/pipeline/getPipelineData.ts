@@ -1,6 +1,14 @@
-import { getFirestore } from 'firebase-admin/firestore';
-import type { PipelineData, PipelineStage, PipelineRequest, PipelineStatusBreakdown } from './types';
-import { PIPELINE_STAGES, STAGE_NAMES } from './types';
+import { toDate } from '@/lib/dateUtils';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { 
+  PIPELINE_STAGES, 
+  STAGE_NAMES, 
+  type PipelineData, 
+  type PipelineRequest,
+  type PipelineStatusBreakdown,
+  type PipelineStage
+} from './types';
 
 /**
  * Mapeia status do Firestore para estágios do pipeline
@@ -77,7 +85,7 @@ export async function getPipelineData(): Promise<PipelineData> {
   try {
     // Buscar todas as solicitações (requests + jobs)
     const requestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .orderBy('createdAt', 'desc')
       .limit(1000)
       .get();
@@ -108,8 +116,8 @@ export async function getPipelineData(): Promise<PipelineData> {
     // Processar requests
     requestsSnap.docs.forEach(doc => {
       const data = doc.data();
-      const createdAt = data.createdAt?.toDate() || new Date();
-      const updatedAt = data.updatedAt?.toDate() || createdAt;
+      const createdAt = toDate(data.createdAt) || new Date();
+      const updatedAt = toDate(data.updatedAt) || createdAt;
       const originalStatus = data.status || 'pending';
 
       const request: PipelineRequest = {
@@ -142,8 +150,8 @@ export async function getPipelineData(): Promise<PipelineData> {
     // Processar jobs
     jobsSnap.docs.forEach(doc => {
       const data = doc.data();
-      const createdAt = data.createdAt?.toDate() || new Date();
-      const updatedAt = data.updatedAt?.toDate() || createdAt;
+      const createdAt = toDate(data.createdAt) || new Date();
+      const updatedAt = toDate(data.updatedAt) || createdAt;
       const originalStatus = data.status || 'aguardando_proposta';
 
       const request: PipelineRequest = {

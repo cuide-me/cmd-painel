@@ -1,4 +1,6 @@
-import { getFirestore } from 'firebase-admin/firestore';
+import { toDate } from '@/lib/dateUtils';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import type { ResolvedDashboardFilters } from './filters';
 import type { ProfessionalsKpis, DashboardDateGrouping } from './types';
 
@@ -75,8 +77,8 @@ async function getFastResponders(
 
   jobsSnap.docs.forEach(doc => {
     const data = doc.data();
-    const requestedAt = data.requestedAt?.toDate();
-    const respondedAt = data.respondedAt?.toDate();
+    const requestedAt = toDate(data.requestedAt);
+    const respondedAt = toDate(data.respondedAt);
     const professionalId = data.professionalId || data.profissionalId;
 
     if (requestedAt && respondedAt && professionalId) {
@@ -114,7 +116,7 @@ async function getSeriesAvailable(
   const professionals = professionalsSnap.docs.map(doc => {
     const data = doc.data();
     return {
-      createdAt: data.dataCadastro?.toDate() || data.createdAt?.toDate() || new Date(0),
+      createdAt: toDate(data.dataCadastro) || toDate(data.createdAt) || new Date(0),
       available: data.notificationsEnabled === true,
     };
   });

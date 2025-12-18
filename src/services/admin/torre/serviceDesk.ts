@@ -1,3 +1,14 @@
+import { toDate } from '@/lib/dateUtils';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import type { 
+  ServiceDeskSummary, 
+  Ticket, 
+  TicketStatus, 
+  TicketPriority, 
+  TicketSource 
+} from './types';
+
 /**
  * ────────────────────────────────────
  * TORRE DE CONTROLE — SERVICE DESK
@@ -7,8 +18,6 @@
  * REGRA OBRIGATÓRIA: Todo feedback DETRATOR gera ticket automaticamente
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
-import type { ServiceDeskSummary, Ticket, TicketStatus, TicketPriority, TicketSource } from './types';
 
 /**
  * Gera ticket automaticamente a partir de feedback detrator
@@ -58,7 +67,7 @@ async function autoGenerateComplaintTicket(
       status: 'open' as TicketStatus,
       subject: `${feedback.tipo}: ${feedback.titulo || 'Sem título'}`,
       description: feedback.descricao || feedback.mensagem || feedback.comment || 'Sem descrição',
-      createdAt: feedback.createdAt?.toDate() || new Date(),
+      createdAt: toDate(feedback.createdAt) || new Date(),
       updatedAt: new Date(),
     };
 
@@ -86,7 +95,7 @@ async function autoGenerateOpportunityTicket(
       status: 'open' as TicketStatus,
       subject: `Sugestão: ${feedback.titulo || 'Sem título'}`,
       description: feedback.descricao || feedback.mensagem || feedback.comment || 'Sem descrição',
-      createdAt: feedback.createdAt?.toDate() || new Date(),
+      createdAt: toDate(feedback.createdAt) || new Date(),
       updatedAt: new Date(),
     };
 
@@ -122,10 +131,10 @@ async function getActiveTickets(db: FirebaseFirestore.Firestore): Promise<Ticket
         subject: data.subject,
         description: data.description,
         npsScore: data.npsScore,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date(),
-        firstResponseAt: data.firstResponseAt?.toDate(),
-        resolvedAt: data.resolvedAt?.toDate(),
+        createdAt: toDate(data.createdAt) || new Date(),
+        updatedAt: toDate(data.updatedAt) || new Date(),
+        firstResponseAt: toDate(data.firstResponseAt),
+        resolvedAt: toDate(data.resolvedAt),
         assignedTo: data.assignedTo,
       } as Ticket;
     });
@@ -181,7 +190,7 @@ export async function getServiceDeskSummary(): Promise<ServiceDeskSummary> {
         .collection('tickets')
         .where('userId', '==', feedback.userId)
         .where('source', '==', 'complaint')
-        .where('createdAt', '>=', feedback.createdAt?.toDate())
+        .where('createdAt', '>=', toDate(feedback.createdAt))
         .limit(1)
         .get();
 
@@ -203,7 +212,7 @@ export async function getServiceDeskSummary(): Promise<ServiceDeskSummary> {
         .collection('tickets')
         .where('userId', '==', feedback.userId)
         .where('source', '==', 'feature_request')
-        .where('createdAt', '>=', feedback.createdAt?.toDate())
+        .where('createdAt', '>=', toDate(feedback.createdAt))
         .limit(1)
         .get();
 

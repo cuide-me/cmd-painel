@@ -21,12 +21,12 @@ export async function getPipelineOverview() {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Total de requests
-    const totalRequestsSnap = await db.collection('requests').get();
+    const totalRequestsSnap = await db.collection('jobs').get();
     const totalRequests = totalRequestsSnap.size;
 
     // Requests abertas
     const openRequestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', ['open', 'pending'])
       .get();
     const openRequests = openRequestsSnap.size;

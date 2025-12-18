@@ -114,7 +114,7 @@ export async function getQualitySummary(): Promise<QualitySummary> {
     // 4. CANCELAMENTOS (últimos 30 dias)
     // ═══════════════════════════════════════
     const cancellationsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', ['cancelado', 'cancelled', 'canceled'])
       .where('updatedAt', '>=', thirtyDaysAgo)
       .get();
@@ -136,7 +136,7 @@ export async function getQualitySummary(): Promise<QualitySummary> {
     // 6. TRUST SCORE
     // ═══════════════════════════════════════
     const totalRequests = await db
-      .collection('requests')
+      .collection('jobs')
       .where('createdAt', '>=', thirtyDaysAgo)
       .get();
 

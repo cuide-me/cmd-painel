@@ -6,6 +6,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { MarketplaceHealth } from './types';
+import { toDate } from '@/lib/dateUtils';
 
 // ═══════════════════════════════════════════════════════════════
 // PROFISSIONAIS DISPONÍVEIS
@@ -15,38 +16,68 @@ export async function getAvailableProfessionals() {
   getFirebaseAdmin();
   const db = getFirestore();
   
-  // Buscar profissionais disponíveis
-  const professionalsSnap = await db
-    .collection('users')
-    .where('perfil', '==', 'profissional')
-    .where('disponivel', '==', true)
-    .where('status', '==', 'active')
-    .get();
-  
-  const count = professionalsSnap.size;
-  
-  // Buscar demanda aberta (solicitações sem match)
-  const openStatuses = ['pending', 'open', 'searching', 'reviewing'];
-  const openRequestsSnap = await db
-    .collection('requests')
-    .where('status', 'in', openStatuses)
-    .get();
-  
-  const openDemand = openRequestsSnap.size;
-  
-  // Calcular balanço
-  const ratio = openDemand > 0 ? count / openDemand : count;
-  
-  let balance: 'surplus' | 'balanced' | 'deficit' = 'balanced';
-  if (ratio > 1.5) balance = 'surplus';
-  else if (ratio < 0.8) balance = 'deficit';
-  
-  return {
-    count,
-    openDemand,
-    balance,
-    ratio: Number(ratio.toFixed(2))
-  };
+  try {
+    // Buscar todos os profissionais (sem filtro complexo para evitar índices)
+    const professionalsSnap = await db
+      .collection('users')
+      .where('perfil', '==', 'profissional')
+      .get();
+    
+    // Filtrar disponíveis no código (considera disponível se não tiver flag false)
+    const availableProfessionals = professionalsSnap.docs.filter(doc => {
+      const data = doc.data();
+      // Considera disponível se:
+      // - não tem o campo disponivel OU
+      // - disponivel == true OU
+      // - status != 'inactive' / 'suspended'
+      const isNotDisabled = data.disponivel !== false;
+      const isNotInactive = data.status !== 'inactive' && data.status !== 'suspended';
+      return isNotDisabled && isNotInactive;
+    });
+    
+    const count = availableProfessionals.length;
+    
+    // Buscar demanda aberta (solicitações sem match) - collection correta é 'jobs'
+    const openStatuses = ['pending', 'open', 'searching', 'reviewing', 'aguardando_match', 'em_analise'];
+    
+    // Buscar jobs recentes (últimos 90 dias) e filtrar por status
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    
+    const jobsSnap = await db
+      .collection('jobs')
+      .where('createdAt', '>=', ninetyDaysAgo.toISOString())
+      .get();
+    
+    const openJobs = jobsSnap.docs.filter(doc => {
+      const status = doc.data().status;
+      return openStatuses.includes(status);
+    });
+    
+    const openDemand = openJobs.length;
+    
+    // Calcular balanço
+    const ratio = openDemand > 0 ? count / openDemand : count;
+    
+    let balance: 'surplus' | 'balanced' | 'deficit' = 'balanced';
+    if (ratio > 1.5) balance = 'surplus';
+    else if (ratio < 0.8) balance = 'deficit';
+    
+    return {
+      count,
+      openDemand,
+      balance,
+      ratio: Number(ratio.toFixed(2))
+    };
+  } catch (error) {
+    console.error('[Marketplace] Erro ao buscar profissionais disponíveis:', error);
+    return {
+      count: 0,
+      openDemand: 0,
+      balance: 'balanced' as const,
+      ratio: 0
+    };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -61,10 +92,11 @@ export async function getPostAcceptAbandonment() {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
   
-  // Query simples: buscar requests recentes e filtrar no código (evita índice composto)
-  const recentRequests = await db
-    .collection('requests')
-    .where('acceptedAt', '>=', sixtyDaysAgo)
+  // Query simples: buscar jobs recentes e filtrar no código (evita índice composto)
+  const recentJobs = await db
+    .collection('jobs')
+    .orderBy('createdAt', 'desc')
+    .limit(500)
     .get();
   
   let totalAccepted = 0;
@@ -74,9 +106,9 @@ export async function getPostAcceptAbandonment() {
   
   const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
   
-  recentRequests.forEach((doc: any) => {
+  recentJobs.forEach((doc: any) => {
     const data = doc.data();
-    const acceptedAt = data.acceptedAt?.toDate();
+    const acceptedAt = toDate(data.acceptedAt);
     
     if (!acceptedAt) return;
     

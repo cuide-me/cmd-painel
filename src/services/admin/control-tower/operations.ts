@@ -6,6 +6,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { OperationalBottlenecks } from './types';
+import { toDate } from '@/lib/dateUtils';
 
 // ═══════════════════════════════════════════════════════════════
 // SOLICITAÇÕES POR SLA
@@ -22,7 +23,7 @@ export async function getRequestsBySLA() {
   // Buscar todas as solicitações abertas
   const openStatuses = ['pending', 'open', 'searching', 'reviewing'];
   const openRequests = await db
-    .collection('requests')
+    .collection('jobs')
     .where('status', 'in', openStatuses)
     .get();
   
@@ -32,7 +33,7 @@ export async function getRequestsBySLA() {
   
   openRequests.forEach((doc: any) => {
     const data = doc.data();
-    const createdAt = data.createdAt?.toDate() || new Date();
+    const createdAt = toDate(data.createdAt) || new Date();
     
     if (createdAt > twentyFourHoursAgo) {
       underTwentyFour.push(data);
@@ -79,7 +80,7 @@ export async function getAverageTimeToMatch() {
   
   // Query simples: buscar requests com matchedAt recente (sem WHERE status + matchedAt)
   const matchedRequests = await db
-    .collection('requests')
+    .collection('jobs')
     .where('matchedAt', '>=', sevenDaysAgo)
     .get();
   
@@ -97,10 +98,10 @@ export async function getAverageTimeToMatch() {
     
     matchedRequests.forEach((doc: any) => {
       const data = doc.data();
-      const createdAt = data.createdAt?.toDate();
-      const matchedAt = data.matchedAt?.toDate();
+      const createdAt = toDate(data.createdAt);
+      const matchedAt = toDate(data.matchedAt);
       
-      if (matchedAt >= dayStart && matchedAt <= dayEnd && createdAt && matchedAt) {
+      if (createdAt && matchedAt && matchedAt >= dayStart && matchedAt <= dayEnd) {
         const hours = (matchedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
         dayMatches.push(hours);
         timesToMatch.push(hours);
@@ -153,7 +154,7 @@ export async function getConversionFunnel() {
   
   // Buscar todas as solicitações dos últimos 30 dias
   const allRequests = await db
-    .collection('requests')
+    .collection('jobs')
     .where('createdAt', '>=', thirtyDaysAgo)
     .get();
   

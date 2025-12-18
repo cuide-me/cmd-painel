@@ -22,7 +22,7 @@ async function detectStuckRequests(): Promise<Alert[]> {
     twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
     
     const stuckSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', ['pending', 'aguardando_proposta', 'contacted', 'contact_made'])
       .where('createdAt', '<', twelveHoursAgo)
       .get();
@@ -62,7 +62,7 @@ async function detectUnpaidAcceptedProposals(): Promise<Alert[]> {
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
     
     const unpaidSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', ['proposal_accepted', 'proposta_aceita', 'accepted'])
       .where('updatedAt', '<', twoDaysAgo)
       .get();
@@ -167,7 +167,7 @@ async function detectQualityDrop(): Promise<Alert[]> {
     
     // Buscar cancelamentos recentes
     const cancellationsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', ['cancelado', 'cancelled', 'canceled'])
       .where('updatedAt', '>=', thirtyDaysAgo)
       .get();

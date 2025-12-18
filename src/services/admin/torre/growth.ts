@@ -24,11 +24,11 @@ async function calculateFamilySignupConversion(): Promise<number> {
     const totalFamilies = familiesSnap.size;
     
     // Famílias que fizeram pelo menos 1 solicitação
-    const requestsSnap = await db.collection('requests').get();
+    const requestsSnap = await db.collection('jobs').get();
     const uniqueFamiliesWithRequests = new Set();
     
     requestsSnap.docs.forEach(doc => {
-      const userId = doc.data().userId || doc.data().familyId;
+      const userId = doc.data().userId || doc.data().clientId || doc.data().familyId;
       if (userId) uniqueFamiliesWithRequests.add(userId);
     });
     
@@ -89,13 +89,13 @@ async function calculateActiveUsers30d(): Promise<{ families: number; profession
     
     // Famílias ativas (com solicitação recente)
     const requestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('createdAt', '>=', thirtyDaysAgo)
       .get();
     
     const activeFamilies = new Set();
     requestsSnap.docs.forEach(doc => {
-      const userId = doc.data().userId || doc.data().familyId;
+      const userId = doc.data().userId || doc.data().clientId || doc.data().familyId;
       if (userId) activeFamilies.add(userId);
     });
     
@@ -107,7 +107,7 @@ async function calculateActiveUsers30d(): Promise<{ families: number; profession
     
     const activeProfessionals = new Set();
     jobsSnap.docs.forEach(doc => {
-      const professionalId = doc.data().professionalId;
+      const professionalId = (doc.data().specialistId || doc.data().professionalId);
       if (professionalId) activeProfessionals.add(professionalId);
     });
     
@@ -136,26 +136,26 @@ async function calculateRetention30d(): Promise<number> {
     
     // Usuários que criaram solicitação entre 60-30 dias atrás
     const oldRequestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('createdAt', '>=', sixtyDaysAgo)
       .where('createdAt', '<', thirtyDaysAgo)
       .get();
     
     const oldUsers = new Set();
     oldRequestsSnap.docs.forEach(doc => {
-      const userId = doc.data().userId || doc.data().familyId;
+      const userId = doc.data().userId || doc.data().clientId || doc.data().familyId;
       if (userId) oldUsers.add(userId);
     });
     
     // Desses, quantos voltaram nos últimos 30 dias?
     const recentRequestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('createdAt', '>=', thirtyDaysAgo)
       .get();
     
     const recentUsers = new Set();
     recentRequestsSnap.docs.forEach(doc => {
-      const userId = doc.data().userId || doc.data().familyId;
+      const userId = doc.data().userId || doc.data().clientId || doc.data().familyId;
       if (userId) recentUsers.add(userId);
     });
     

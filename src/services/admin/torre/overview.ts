@@ -8,6 +8,7 @@
  */
 
 import { getFirestore } from 'firebase-admin/firestore';
+import { toDate } from '@/lib/dateUtils';
 import type { OverviewData, Kpi, KpiStatus, KpiTrend } from './types';
 
 /**
@@ -25,13 +26,13 @@ async function getActiveFamiliesKpi(): Promise<Kpi> {
     
     // Famílias com alguma interação nos últimos 30 dias
     const requestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('createdAt', '>=', thirtyDaysAgo)
       .get();
     
     const uniqueFamilies = new Set();
     requestsSnap.docs.forEach(doc => {
-      const userId = doc.data().userId || doc.data().familyId;
+      const userId = doc.data().userId || doc.data().clientId || doc.data().familyId;
       if (userId) uniqueFamilies.add(userId);
     });
     
@@ -42,14 +43,14 @@ async function getActiveFamiliesKpi(): Promise<Kpi> {
     const sixtyDaysAgo = new Date();
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
     const previousSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('createdAt', '>=', sixtyDaysAgo)
       .where('createdAt', '<', thirtyDaysAgo)
       .get();
     
     const previousUnique = new Set();
     previousSnap.docs.forEach(doc => {
-      const userId = doc.data().userId || doc.data().familyId;
+      const userId = doc.data().userId || doc.data().clientId || doc.data().familyId;
       if (userId) previousUnique.add(userId);
     });
     
@@ -160,7 +161,7 @@ async function getOpenRequestsKpi(): Promise<Kpi> {
     ];
     
     const requestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', openStatuses)
       .get();
     
@@ -207,7 +208,7 @@ async function getCompletedHiresKpi(): Promise<Kpi> {
     const completedStatuses = ['paid', 'payment_confirmed', 'in_service', 'started'];
     
     const recentSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', completedStatuses)
       .where('createdAt', '>=', sevenDaysAgo)
       .get();
@@ -253,7 +254,7 @@ async function getAvgTimeToMatchKpi(): Promise<Kpi> {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const matchedSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', ['proposal_sent', 'proposta_enviada'])
       .where('createdAt', '>=', thirtyDaysAgo)
       .get();
@@ -261,8 +262,8 @@ async function getAvgTimeToMatchKpi(): Promise<Kpi> {
     const times: number[] = [];
     matchedSnap.docs.forEach(doc => {
       const data = doc.data();
-      const created = data.createdAt?.toDate();
-      const matched = data.proposalSentAt?.toDate() || data.updatedAt?.toDate();
+      const created = toDate(data.createdAt);
+      const matched = toDate(data.proposalSentAt) || toDate(data.updatedAt);
       
       if (created && matched) {
         const hours = (matched.getTime() - created.getTime()) / (1000 * 60 * 60);
@@ -315,7 +316,7 @@ async function getAbandonmentRateKpi(): Promise<Kpi> {
     
     // Propostas aceitas
     const acceptedSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', ['proposal_accepted', 'proposta_aceita', 'accepted'])
       .where('createdAt', '>=', thirtyDaysAgo)
       .get();
@@ -329,7 +330,7 @@ async function getAbandonmentRateKpi(): Promise<Kpi> {
     let abandoned = 0;
     acceptedSnap.docs.forEach(doc => {
       const data = doc.data();
-      const updatedAt = data.updatedAt?.toDate();
+      const updatedAt = toDate(data.updatedAt);
       
       // Se está em accepted há mais de 48h, considera abandono
       if (updatedAt && updatedAt < twoDaysAgo) {

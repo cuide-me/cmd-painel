@@ -1,3 +1,4 @@
+import { toDate } from '@/lib/dateUtils';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 
@@ -76,8 +77,8 @@ export async function getProfissionaisRespostaRapida() {
     const requestId = data.requestId;
 
     // Calcular tempo de resposta (simplificado)
-    const createdAt = data.createdAt?.toDate() || new Date();
-    const requestCreatedAt = data.requestCreatedAt?.toDate() || new Date();
+    const createdAt = toDate(data.createdAt) || new Date();
+    const requestCreatedAt = toDate(data.requestCreatedAt) || new Date();
     const tempoResposta = (createdAt.getTime() - requestCreatedAt.getTime()) / (1000 * 60 * 60); // em horas
 
     if (!respostasPorProfissional.has(profissionalId)) {

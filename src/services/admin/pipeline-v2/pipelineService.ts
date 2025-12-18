@@ -1,11 +1,14 @@
+import { toDate } from '@/lib/dateUtils';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import type { Deal, PipelineMetrics, PipelineStage } from './types';
+import { PIPELINE_STAGES } from './types';
+
 /**
  * Pipeline Data Service
  * Fetches and processes deal data, calculates pipeline metrics
  */
 
-import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
-import { getFirestore } from 'firebase-admin/firestore';
-import { Deal, PipelineMetrics, PipelineStage, PIPELINE_STAGES } from './types';
 
 // ═══════════════════════════════════════════════════════════════
 // GET DEALS
@@ -58,13 +61,14 @@ export async function getDeals(
     const data = doc.data();
     
     // Calculate derived fields
-    const createdAt = data.createdAt?.toDate() || new Date();
-    const lastActivity = data.lastActivity?.toDate() || createdAt;
+    const createdAt = toDate(data.createdAt) || new Date();
+    const lastActivity = toDate(data.lastActivity) || createdAt;
     const now = new Date();
     
     const daysInPipeline = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-    const daysInStage = data.stageChangedAt 
-      ? Math.floor((now.getTime() - data.stageChangedAt.toDate().getTime()) / (1000 * 60 * 60 * 24))
+    const stageChangedDate = toDate(data.stageChangedAt);
+    const daysInStage = stageChangedDate
+      ? Math.floor((now.getTime() - stageChangedDate.getTime()) / (1000 * 60 * 60 * 24))
       : daysInPipeline;
     
     // Weighted value
@@ -89,7 +93,7 @@ export async function getDeals(
       value: data.value,
       stage: data.stage,
       probability,
-      expectedCloseDate: data.expectedCloseDate?.toDate() || new Date(),
+      expectedCloseDate: toDate(data.expectedCloseDate) || new Date(),
       
       product: data.product || 'pro',
       billingCycle: data.billingCycle || 'monthly',
@@ -111,8 +115,8 @@ export async function getDeals(
       weightedValue,
       
       activitiesCount: data.activitiesCount || 0,
-      lastContactDate: data.lastContactDate?.toDate(),
-      nextFollowUp: data.nextFollowUp?.toDate(),
+      lastContactDate: toDate(data.lastContactDate) || undefined,
+      nextFollowUp: toDate(data.nextFollowUp) || undefined,
       
       tags: data.tags || [],
       

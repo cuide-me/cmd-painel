@@ -1,4 +1,6 @@
+import { toDate } from '@/lib/dateUtils';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import type { ResolvedDashboardFilters } from './filters';
 import type { FinanceKpis, DashboardDateGrouping } from './types';
 
@@ -54,7 +56,7 @@ export async function getFinanceKpis(filters: ResolvedDashboardFilters): Promise
     const transactions = transacoesSnap.docs.map(doc => {
       const data = doc.data();
       return {
-        createdAt: data.createdAt?.toDate() || new Date(0),
+        createdAt: toDate(data.createdAt) || new Date(0),
         amount: data.valor || data.amount || 0,
       };
     });

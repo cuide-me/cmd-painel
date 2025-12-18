@@ -1,4 +1,6 @@
+import { toDate } from '@/lib/dateUtils';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import type { ResolvedDashboardFilters } from './filters';
 import type {
   FamiliesKpis,
@@ -55,7 +57,7 @@ async function getNewFamilies(
     const users = usersSnap.docs.map(doc => {
       const data = doc.data();
       return {
-        createdAt: data.dataCadastro?.toDate() || data.createdAt?.toDate() || new Date(0),
+        createdAt: toDate(data.dataCadastro) || toDate(data.createdAt) || new Date(0),
       };
     });
 
@@ -94,7 +96,7 @@ async function getActiveFamilies(db: FirebaseFirestore.Firestore): Promise<Activ
 
     // Tentar collection 'requests' ou 'jobs'
     const requestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', Object.values(ACTIVE_STAGES))
       .get();
 
@@ -135,13 +137,13 @@ async function getProposals(
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const proposalsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', '==', 'proposal_sent')
       .where('createdAt', '>=', Timestamp.fromDate(sevenDaysAgo))
       .get();
 
     const proposals = proposalsSnap.docs.map(doc => ({
-      createdAt: doc.data().createdAt?.toDate() || new Date(0),
+      createdAt: toDate(doc.data().createdAt) || new Date(0),
     }));
 
     const last7Days = proposals.length;
@@ -178,7 +180,7 @@ async function getPayingFamilies(
       const data = doc.data();
       if (data.userId) familyIds.add(data.userId);
       return {
-        createdAt: data.createdAt?.toDate() || new Date(0),
+        createdAt: toDate(data.createdAt) || new Date(0),
       };
     });
 

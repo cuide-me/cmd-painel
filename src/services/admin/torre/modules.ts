@@ -1,3 +1,8 @@
+import { toDate } from '@/lib/dateUtils';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import type { ModuleSummary, TorreModules, KpiStatus } from './types';
+
 /**
  * ────────────────────────────────────
  * TORRE DE CONTROLE — MÓDULOS
@@ -5,8 +10,6 @@
  * Gera caixas-resumo de cada módulo para navegação
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
-import type { TorreModules, ModuleSummary, KpiStatus } from './types';
 
 /**
  * Módulo: Usuários
@@ -133,9 +136,9 @@ async function getPipelineModule(): Promise<ModuleSummary> {
     const proposalStatuses = ['proposal_sent', 'proposta_enviada'];
     const acceptedStatuses = ['proposal_accepted', 'proposta_aceita', 'accepted'];
     
-    const openSnap = await db.collection('requests').where('status', 'in', openStatuses).get();
-    const proposalSnap = await db.collection('requests').where('status', 'in', proposalStatuses).get();
-    const acceptedSnap = await db.collection('requests').where('status', 'in', acceptedStatuses).get();
+    const openSnap = await db.collection('jobs').where('status', 'in', openStatuses).get();
+    const proposalSnap = await db.collection('jobs').where('status', 'in', proposalStatuses).get();
+    const acceptedSnap = await db.collection('jobs').where('status', 'in', acceptedStatuses).get();
     
     const openStatus: KpiStatus = openSnap.size > 20 ? 'warning' : 'healthy';
     const acceptedStatus: KpiStatus = acceptedSnap.size > 5 ? 'warning' : 'healthy';
@@ -188,7 +191,8 @@ async function getServiceDeskModule(): Promise<ModuleSummary> {
       const data = doc.data();
       if (data.priority === 'urgent' || data.priority === 'high') critical++;
       if (data.source === 'detractor') detractors++;
-      if (data.createdAt?.toDate() < oneDayAgo) over24h++;
+      const created = toDate(data.createdAt);
+      if (created && created < oneDayAgo) over24h++;
     });
     
     const criticalStatus: KpiStatus = critical > 5 ? 'critical' : critical > 2 ? 'warning' : 'healthy';
@@ -254,7 +258,7 @@ async function getQualityModule(): Promise<ModuleSummary> {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const cancellationsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('status', 'in', ['cancelado', 'cancelled'])
       .where('updatedAt', '>=', thirtyDaysAgo)
       .get();
@@ -298,7 +302,7 @@ async function getGrowthModule(): Promise<ModuleSummary> {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     const recentRequestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('createdAt', '>=', thirtyDaysAgo)
       .get();
     

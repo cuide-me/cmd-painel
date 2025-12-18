@@ -27,7 +27,7 @@ export async function getFamiliesSummary() {
 
     // Requests dos últimos 30 dias
     const recentRequestsSnap = await db
-      .collection('requests')
+      .collection('jobs')
       .where('createdAt', '>=', thirtyDaysAgo)
       .get();
 
@@ -43,7 +43,7 @@ export async function getFamiliesSummary() {
     });
 
     // Todas as requests (histórico total)
-    const allRequestsSnap = await db.collection('requests').get();
+    const allRequestsSnap = await db.collection('jobs').get();
     allRequestsSnap.docs.forEach(doc => {
       const userId = doc.data().userId;
       if (userId) familiesWithRequests.add(userId);
@@ -104,7 +104,8 @@ export async function getProfessionalsSummary() {
 
     const professionalsWithProposals = new Set<string>();
     proposalsSnap.docs.forEach(doc => {
-      const professionalId = doc.data().professionalId;
+      const data = doc.data();
+      const professionalId = data.specialistId || data.professionalId;
       if (professionalId) professionalsWithProposals.add(professionalId);
     });
 

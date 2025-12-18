@@ -1,3 +1,4 @@
+import { toDate } from '@/lib/dateUtils';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 
@@ -19,7 +20,7 @@ export async function getFamiliasNovas() {
 
   const familias = usuariosSnap.docs.map(doc => ({
     id: doc.id,
-    createdAt: doc.data().createdAt?.toDate() || new Date(0),
+    createdAt: toDate(doc.data().createdAt) || new Date(0),
   }));
 
   return {
@@ -34,7 +35,7 @@ export async function getFamiliasEmAtendimento() {
   const db = getFirestore();
 
   const requestsSnap = await db
-    .collection('requests')
+    .collection('jobs')
     .where('status', 'in', ['em_andamento', 'em_progresso', 'ativo'])
     .get();
 
@@ -71,12 +72,12 @@ export async function getFamiliasComProposta() {
   seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
 
   const requestsSnap = await db
-    .collection('requests')
+    .collection('jobs')
     .where('status', '==', 'proposta_enviada')
     .get();
 
   const propostasRecentes = requestsSnap.docs.filter(doc => {
-    const updatedAt = doc.data().updatedAt?.toDate() || new Date(0);
+    const updatedAt = toDate(doc.data().updatedAt) || new Date(0);
     return updatedAt >= seteDiasAtras;
   });
 

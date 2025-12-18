@@ -1,3 +1,8 @@
+import { toDate } from '@/lib/dateUtils';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import type { FamilyHealth, NPSByStage, CohortData, FamilySummary } from './types';
+
 /**
  * ═══════════════════════════════════════════════════════════════
  * SAÚDE OPERACIONAL - FAMILIES SERVICE
@@ -5,8 +10,6 @@
  * Métricas de saúde da demanda (famílias)
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
-import type { FamilyHealth, NPSByStage, CohortData, FamilySummary } from './types';
 
 /**
  * Calcula métricas de saúde das famílias
@@ -24,7 +27,7 @@ export async function getFamilyHealth(): Promise<FamilyHealth> {
     const families = familiesSnap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate(),
+      createdAt: toDate(doc.data().createdAt),
     }));
 
     const totalRegistered = families.length;
