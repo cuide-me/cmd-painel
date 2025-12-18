@@ -6,6 +6,8 @@
  */
 
 import { getFirestore } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { toDate } from '@/lib/dateUtils';
 import type { ProfessionalHealth, SpecialtyMetrics, ProfessionalSummary } from './types';
 
 /**
@@ -39,9 +41,9 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
       .map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().dataCriacao?.toDate?.() || new Date(0),
-        scheduledAt: doc.data().scheduledAt?.toDate?.() || doc.data().dataAgendamento?.toDate?.(),
-        cancelledAt: doc.data().cancelledAt?.toDate?.() || doc.data().dataCancelamento?.toDate?.(),
+        createdAt: toDate(doc.data().createdAt) || toDate(doc.data().dataCriacao) || new Date(0),
+        scheduledAt: toDate(doc.data().scheduledAt) || toDate(doc.data().dataAgendamento),
+        cancelledAt: toDate(doc.data().cancelledAt) || toDate(doc.data().dataCancelamento),
       }))
       .filter((a: any) => a.createdAt >= thirtyDaysAgo);
 
@@ -79,7 +81,7 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
       .get();
 
     const relevantRatings = ratingsSnap.docs
-      .map(doc => ({...doc.data(), createdAt: doc.data().createdAt?.toDate?.() || new Date(0)}))
+      .map(doc => ({...doc.data(), createdAt: toDate(doc.data().createdAt) || new Date(0)}))
       .filter((r: any) => {
         const isRecent = r.createdAt >= thirtyDaysAgo;
         const isProfessional = r.ratedType === 'professional' || r.targetType === 'professional';
@@ -168,7 +170,7 @@ export async function getProfessionalHealth(): Promise<ProfessionalHealth> {
 
       const lastActivity = profAppointments.length > 0 
         ? Math.max(...profAppointments.map((a: any) => new Date(a.createdAt).getTime()))
-        : new Date(prof.createdAt?.toDate?.() || 0).getTime();
+        : (toDate(prof.createdAt) || new Date(0)).getTime();
 
       let alertLevel: 'none' | 'warning' | 'critical' = 'none';
       if (cancellationRate > 20) alertLevel = 'critical';

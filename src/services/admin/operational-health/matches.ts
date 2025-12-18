@@ -6,6 +6,8 @@
  */
 
 import { getFirestore } from 'firebase-admin/firestore';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { toDate } from '@/lib/dateUtils';
 import type { MatchQuality, MatchSpecialtyMetrics, MatchSummary } from './types';
 
 /**
@@ -30,9 +32,9 @@ export async function getMatchQuality(): Promise<MatchQuality> {
       .map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().dataCriacao?.toDate?.() || new Date(0),
-        acceptedAt: doc.data().acceptedAt?.toDate?.() || doc.data().dataAceite?.toDate?.() || doc.data().updatedAt?.toDate?.(),
-        declinedAt: doc.data().declinedAt?.toDate?.() || doc.data().dataRecusa?.toDate?.(),
+        createdAt: toDate(doc.data().createdAt) || toDate(doc.data().dataCriacao) || new Date(0),
+        acceptedAt: toDate(doc.data().acceptedAt) || toDate(doc.data().dataAceite) || toDate(doc.data().updatedAt),
+        declinedAt: toDate(doc.data().declinedAt) || toDate(doc.data().dataRecusa),
       }))
       .filter((m: any) => {
         const isAccepted = acceptedStatuses.includes(m.status);
@@ -99,8 +101,10 @@ export async function getMatchQuality(): Promise<MatchQuality> {
     
     for (const match of matches) {
       const m = match as any;
+      const professionalId = m.specialistId || m.professionalId;
+      if (!professionalId) continue;
       try {
-        const profDoc = await db.collection('users').doc(m.professionalId).get();
+        const profDoc = await db.collection('users').doc(professionalId).get();
         const specialty = profDoc.data()?.specialty || 'Não especificado';
         
         if (!specialtyMap.has(specialty)) {
