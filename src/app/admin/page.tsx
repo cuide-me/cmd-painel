@@ -136,9 +136,28 @@ export default function TorreControleV2() {
   return (
     <AdminLayout 
       title="Torre de Controle" 
-      subtitle="Dashboard Decisório - Cuide.me" 
+      subtitle="Dashboard Decisório - Visão Executiva" 
       icon="🎯"
     >
+      {/* Banner Torre v2 */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="text-4xl">🚀</div>
+            <div>
+              <h3 className="text-white font-bold text-lg">Nova Torre de Controle v2 Disponível!</h3>
+              <p className="text-blue-100 text-sm">Interface moderna com KPIs em tempo real, alertas inteligentes e navegação otimizada</p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/admin/torre')}
+            className="px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors shadow-md"
+          >
+            Acessar Torre v2 →
+          </button>
+        </div>
+      </div>
+
       {/* BLOCO 1: REALIDADE DO NEGÓCIO */}
       <Section title="💰 Realidade do Negócio">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

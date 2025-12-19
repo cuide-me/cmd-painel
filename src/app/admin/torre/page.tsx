@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import Link from 'next/link';
+import { ToastProvider, useToast } from '@/components/ToastProvider';
 
 // Types
 interface Kpi {
@@ -74,6 +75,15 @@ interface TorreData {
 }
 
 export default function TorreDeControle() {
+  return (
+    <ToastProvider>
+      <TorreContent />
+    </ToastProvider>
+  );
+}
+
+function TorreContent() {
+  const { showToast } = useToast();
   const { authReady } = useFirebaseAuth();
   const [data, setData] = useState<TorreData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,9 +101,15 @@ export default function TorreDeControle() {
       const result = await response.json();
       setData(result);
       setLastUpdate(new Date());
+      
+      // Toast de sucesso apenas no refresh manual
+      if (lastUpdate) {
+        showToast('Dados atualizados com sucesso', 'success');
+      }
     } catch (err: any) {
       console.error('Erro ao buscar dados da Torre:', err);
       setError(err.message);
+      showToast('Erro ao carregar dados: ' + err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -186,17 +202,58 @@ export default function TorreDeControle() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-1">Torre de Controle V2</h1>
-            <p className="text-sm text-slate-600">
-              Visão executiva da plataforma • Atualizado {lastUpdate?.toLocaleTimeString('pt-BR')}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-            <span className="text-xs text-slate-600">Ao vivo</span>
+        {/* Breadcrumbs & Header */}
+        <div className="flex flex-col gap-4">
+          {/* Breadcrumbs */}
+          <nav className="flex items-center gap-2 text-sm">
+            <Link href="/admin" className="text-slate-600 hover:text-slate-900 transition-colors">
+              Torre v1
+            </Link>
+            <span className="text-slate-400">→</span>
+            <span className="font-semibold text-slate-900">Torre v2</span>
+          </nav>
+
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-3xl font-bold text-slate-900">Torre de Controle V2</h1>
+                <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-semibold rounded-full">
+                  NOVA
+                </span>
+              </div>
+              <p className="text-sm text-slate-600">
+                Visão executiva da plataforma • Atualizado {lastUpdate?.toLocaleTimeString('pt-BR')}
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={fetchData}
+                disabled={loading}
+                className="px-4 py-2 text-sm bg-white text-slate-700 border border-slate-300 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                title="Atualizar dados"
+              >
+                <svg 
+                  className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {loading ? 'Atualizando...' : 'Atualizar'}
+              </button>
+              <Link
+                href="/admin"
+                className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 transition-colors border border-slate-300 rounded-lg hover:border-slate-400"
+              >
+                ← Voltar para v1
+              </Link>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span className="text-xs text-slate-600">Ao vivo</span>
+              </div>
+            </div>
           </div>
         </div>
 
