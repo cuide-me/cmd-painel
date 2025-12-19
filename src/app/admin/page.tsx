@@ -21,6 +21,20 @@ interface DailyMetric {
   views: number;
 }
 
+interface Alert {
+  id: string;
+  ruleId: string;
+  severity: 'critical' | 'warning' | 'info';
+  category: string;
+  title: string;
+  description: string;
+  currentValue: string;
+  threshold: string;
+  impact: string;
+  actionRequired: string;
+  detectedAt: string;
+}
+
 export default function TorreControleV2() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -28,6 +42,8 @@ export default function TorreControleV2() {
   const [error, setError] = useState<string | null>(null);
   const [dailyMetrics, setDailyMetrics] = useState<DailyMetric[]>([]);
   const [metricsLoading, setMetricsLoading] = useState(true);
+  const [topAlerts, setTopAlerts] = useState<Alert[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(true);
 
   useEffect(() => {
     // Verificar se está logado
@@ -39,11 +55,13 @@ export default function TorreControleV2() {
     
     fetchDashboard();
     fetchDailyMetrics();
+    fetchTopAlerts();
     
     // Auto-refresh a cada 60 segundos
     const interval = setInterval(() => {
       fetchDashboard();
       fetchDailyMetrics();
+      fetchTopAlerts();
     }, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -82,6 +100,28 @@ export default function TorreControleV2() {
       console.error('Erro ao carregar métricas diárias:', err);
     } finally {
       setMetricsLoading(false);
+    }
+  };
+
+  const fetchTopAlerts = async () => {
+    try {
+      const response = await authFetch('/api/admin/intelligent-alerts');
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[Admin] Alerts loaded:', data);
+        // Pegar apenas top 3 alertas críticos
+        const criticalAlerts = (data.alerts || [])
+          .filter((alert: Alert) => alert.severity === 'critical')
+          .slice(0, 3);
+        setTopAlerts(criticalAlerts);
+      } else {
+        console.error('[Admin] Failed to load alerts:', response.status);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar alertas:', err);
+    } finally {
+      setAlertsLoading(false);
     }
   };
 
@@ -245,38 +285,184 @@ export default function TorreControleV2() {
         </div>
       </Section>
 
-      {/* BLOCO 4: ANALYTICS (GA4) */}
+      {/* BLOCO 4: ENGAJAMENTO (GA4 + Firebase) */}
+      <Section title="📊 Engajamento & Crescimento" subtitle="Dados reais de tráfego e conversão">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* GA4 Metrics */}
+          {dashboard.analytics && (
+            <>
+              <StatCard
+                label="Usuários Ativos (7d)"
+                value={dashboard.analytics.activeUsers.toString()}
+                icon="👥"
+                tooltip="Total de usuários únicos que visitaram o site nos últimos 7 dias (Google Analytics 4). Indica o volume de tráfego real."
+              />
+
+              <StatCard
+                label="Sessões (7d)"
+                value={dashboard.analytics.sessions.toString()}
+                icon="🔄"
+                tooltip="Total de sessões/visitas nos últimos 7 dias. Múltiplas sessões podem vir do mesmo usuário."
+              />
+            </>
+          )}
+
+          {/* Firebase Metrics - Cadastros recentes */}
+          <StatCard
+            label="Cadastros (30d)"
+            value={dailyMetrics.reduce((sum, d) => sum + d.signups, 0).toString()}
+            icon="✨"
+            tooltip="Total de novos cadastros nos últimos 30 dias (dados do Firebase). Soma de todos os cadastros dia a dia."
+          />
+
+          {/* Firebase Metrics - Views */}
+          <StatCard
+            label="Pageviews (30d)"
+            value={dailyMetrics.reduce((sum, d) => sum + d.views, 0).toLocaleString('pt-BR')}
+            icon="👁️"
+            tooltip="Total de visualizações de página nos últimos 30 dias (Google Analytics 4 ou Firebase)."
+          />
+        </div>
+
+        {/* Taxa de Conversão Simplificada */}
+        {dashboard.analytics && dailyMetrics.length > 0 && (
+          <Card padding="md" className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-slate-900">
+                  {dashboard.analytics.activeUsers.toLocaleString('pt-BR')}
+                </div>
+                <div className="text-xs text-slate-600 mt-1">Visitantes (7d)</div>
+              </div>
+              <div className="flex items-center justify-center">
+                <div className="text-2xl text-blue-600">→</div>
+                <div className="ml-2 text-sm font-semibold text-blue-700">
+                  {dashboard.analytics.activeUsers > 0 
+                    ? ((dailyMetrics.reduce((sum, d) => sum + d.signups, 0) / dashboard.analytics.activeUsers) * 100).toFixed(1)
+                    : 0}%
+                </div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">
+                  {dailyMetrics.reduce((sum, d) => sum + d.signups, 0)}
+                </div>
+                <div className="text-xs text-slate-600 mt-1">Cadastros (30d)</div>
+              </div>
+            </div>
+            <div className="text-center mt-3 text-xs text-slate-500">
+              Taxa de conversão: Visitantes → Cadastros
+            </div>
+          </Card>
+        )}
+      </Section>
+
+      {/* BLOCO 5: ALERTAS CRÍTICOS (TOP 3) */}
+      {!alertsLoading && topAlerts.length > 0 && (
+        <Section title="🚨 Alertas Críticos" subtitle="Situações que requerem atenção imediata">
+          <div className="space-y-3">
+            {topAlerts.map((alert) => (
+              <Card 
+                key={alert.id}
+                padding="md" 
+                className="border-l-4 border-red-500 bg-red-50 hover:shadow-lg transition-all"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="error">
+                        🚨 CRÍTICO
+                      </Badge>
+                      <span className="text-xs text-slate-500">
+                        {alert.category.toUpperCase()}
+                      </span>
+                    </div>
+                    
+                    <h3 className="text-sm font-bold text-slate-900 mb-1">{alert.title}</h3>
+                    <p className="text-xs text-slate-700 mb-3">{alert.description}</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 text-xs">
+                      <div>
+                        <span className="text-slate-600">Valor Atual: </span>
+                        <span className="font-bold text-red-700">{alert.currentValue}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-600">Threshold: </span>
+                        <span className="font-semibold text-slate-900">{alert.threshold}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-600">Detectado: </span>
+                        <span className="font-semibold text-slate-900">
+                          {new Date(alert.detectedAt).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-3 rounded border border-red-200">
+                      <div className="text-xs mb-2">
+                        <span className="font-semibold text-slate-900">💥 Impacto: </span>
+                        <span className="text-slate-700">{alert.impact}</span>
+                      </div>
+                      <div className="text-xs">
+                        <span className="font-semibold text-blue-900">✅ Ação Requerida: </span>
+                        <span className="text-blue-700 font-medium">{alert.actionRequired}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Link para ver todos os alertas */}
+          <Card 
+            padding="sm" 
+            className="mt-3 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+            onClick={() => router.push('/admin/intelligent-alerts')}
+          >
+            <div className="text-center text-xs font-semibold text-blue-700">
+              Ver todos os alertas →
+            </div>
+          </Card>
+        </Section>
+      )}
+
+      {/* BLOCO 6: ANALYTICS (GA4) - Detalhado */}
       {dashboard.analytics && (
-        <Section title="📊 Analytics - Tráfego (GA4)">
+        <Section title="📈 Analytics Detalhado (GA4)" subtitle="Últimos 7 dias">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard
-              label="Usuários Ativos (7d)"
-              value={dashboard.analytics.activeUsers.toString()}
-              tooltip="Total de usuários únicos que visitaram o site nos últimos 7 dias (dados do Google Analytics 4)"
-            />
-
-            <StatCard
-              label="Novos Usuários (7d)"
-              value={dashboard.analytics.newUsers.toString()}
-              tooltip="Usuários visitando pela primeira vez nos últimos 7 dias"
-            />
-
-            <StatCard
-              label="Sessões (7d)"
-              value={dashboard.analytics.sessions.toString()}
-              tooltip="Total de sessões/visitas nos últimos 7 dias"
-            />
-
-            <StatCard
-              label="Pageviews (7d)"
+              label="Pageviews"
               value={dashboard.analytics.pageViews.toString()}
               tooltip="Total de visualizações de página nos últimos 7 dias"
+            />
+
+            <StatCard
+              label="Novos Usuários"
+              value={dashboard.analytics.newUsers.toString()}
+              tooltip="Total de novos usuários nos últimos 7 dias"
+            />
+
+            <StatCard
+              label="Sessões"
+              value={dashboard.analytics.sessions.toString()}
+              tooltip="Total de sessões nos últimos 7 dias"
+            />
+
+            <StatCard
+              label="Taxa Conversão"
+              value={`${dashboard.analytics.conversionRate.toFixed(1)}%`}
+              tooltip="Taxa de conversão calculada: (novos usuários / usuários ativos) * 100"
             />
           </div>
         </Section>
       )}
 
-      {/* BLOCO 5: FUNIL DE CONVERSÃO (GA4 Custom Events) */}
+      {/* BLOCO 7: FUNIL DE CONVERSÃO (GA4 Custom Events) */}
       <Section 
         title="🎯 Funil de Conversão (GA4)" 
         subtitle="Rastreamento de eventos customizados - Últimos 30 dias"
