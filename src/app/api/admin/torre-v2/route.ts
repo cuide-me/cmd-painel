@@ -135,39 +135,88 @@ export async function GET(request: NextRequest) {
       npsData,
       userGrowthData,
     ] = await Promise.all([
-      safeFetch('MRR', () => getMRR(), { currentMRR: 0, previousMRR: 0, growth: 0, mrrByPlan: [] }),
-      safeFetch('Churn Rate', () => getChurnRate({ startDate, endDate }), { churnRate: 0, churnedCustomers: 0, retainedCustomers: 0 }),
-      safeFetch('Payment Metrics', () => getPaymentMetrics({ startDate, endDate }), { 
-        totalRevenue: 0, 
-        successfulPayments: 0, 
-        failedPayments: 0, 
-        averageTicket: 0, 
-        successRate: 0 
+      safeFetch('MRR', () => getMRR(), { 
+        currentMRR: 0, 
+        previousMRR: 0, 
+        growth: 0, 
+        activeSubscriptions: 0,
+        newSubscriptions: 0,
+        canceledSubscriptions: 0,
+        mrrByPlan: [] 
       }),
-      safeFetch('Sign Ups', () => getSignUps({ startDate, endDate }), { signups: 0, growth: 0 }),
-      safeFetch('Active Users', () => getActiveUsers({ startDate, endDate }), { activeUsers: 0, growth: 0 }),
+      safeFetch('Churn Rate', () => getChurnRate({ startDate, endDate }), { 
+        churnRate: 0, 
+        churnedCustomers: 0, 
+        totalActiveStart: 0,
+        totalActiveEnd: 0,
+        churnedMRR: 0,
+        averageLifetime: 0
+      }),
+      safeFetch('Payment Metrics', () => getPaymentMetrics({ startDate, endDate }), { 
+        totalRevenue: 0,
+        netRevenue: 0,
+        totalPayments: 0,
+        successfulPayments: 0, 
+        failedPayments: 0,
+        refundedPayments: 0,
+        refundedAmount: 0,
+        averageTicket: 0,
+        paymentsByStatus: { succeeded: 0, pending: 0, failed: 0, refunded: 0 },
+        paymentsByMethod: { card: 0, pix: 0, boleto: 0, other: 0 },
+        topTransactions: []
+      }),
+      safeFetch('Sign Ups', () => getSignUps({ startDate, endDate }), { 
+        totalSignups: 0, 
+        signupsByDay: [], 
+        signupsByUserType: { cliente: 0, profissional: 0 } 
+      }),
+      safeFetch('Active Users', () => getActiveUsers({ startDate, endDate }), { 
+        activeUsers: 0, 
+        newUsers: 0, 
+        returningUsers: 0, 
+        activeUsersByDay: [] 
+      }),
       safeFetch('Conversion Funnel', () => getFunnelConversion(
         ['page_view', 'sign_up', 'profile_complete', 'create_request', 'payment_success'],
         { startDate, endDate }
-      ), { stages: [], overallConversion: 0 }),
-      safeFetch('Active Professionals', () => getActiveProfessionals(), { count: 0, bySpecialty: [] }),
+      ), { steps: [], overallConversion: 0 }),
+      safeFetch('Active Professionals', () => getActiveProfessionals(), { 
+        totalActive: 0, 
+        totalInactive: 0, 
+        activationRate: 0, 
+        bySpecialty: [], 
+        byStatus: { active: 0, busy: 0, offline: 0 }, 
+        avgProfileCompleteness: 0 
+      }),
       safeFetch('Pending Jobs', () => getPendingJobs({ startDate, endDate }), { 
-        total: 0, 
+        totalPending: 0,
+        totalMatched: 0,
+        totalCompleted: 0,
+        avgMatchingTime: 0,
+        byStatus: { pending: 0, contacted: 0, proposal_sent: 0, accepted: 0, completed: 0, cancelled: 0 },
+        bySpecialty: [],
         olderThan24h: 0, 
-        olderThan48h: 0, 
-        avgAge: 0 
+        olderThan48h: 0
       }),
       safeFetch('NPS Score', () => getNPSScore({ startDate, endDate }), { 
         npsScore: 0, 
+        totalResponses: 0,
         promoters: 0, 
         passives: 0, 
-        detractors: 0, 
-        totalResponses: 0 
+        detractors: 0,
+        promoterRate: 0,
+        detractorRate: 0,
+        avgScore: 0,
+        responsesByCategory: { excellent: 0, good: 0, poor: 0 },
+        trendVsPreviousPeriod: 0
       }),
       safeFetch('User Growth', () => getUserGrowth({ startDate, endDate }), { 
-        daily: [], 
-        total: 0, 
-        growth: 0 
+        totalUsers: 0,
+        newUsers: 0,
+        activeUsers: 0,
+        usersByType: { clients: 0, professionals: 0, admin: 0 },
+        growthRate: 0,
+        retentionRate: 0
       }),
     ]);
 
