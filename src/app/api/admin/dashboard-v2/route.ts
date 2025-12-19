@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getDashboardData } from '@/services/admin/dashboard';
-import { measurePerformance } from '@/lib/performanceMonitor';
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,11 +25,7 @@ export async function GET(request: NextRequest) {
     if (startDateParam) filters.startDate = new Date(startDateParam);
     if (endDateParam) filters.endDate = new Date(endDateParam);
 
-    const data = await measurePerformance(
-      '/api/admin/dashboard-v2',
-      'GET',
-      () => getDashboardData(filters)
-    );
+    const data = await getDashboardData(filters);
 
     return NextResponse.json(data);
   } catch (error: any) {

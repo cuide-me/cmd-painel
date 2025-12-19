@@ -1,56 +1,32 @@
-/**
- * API Route: Performance Metrics
- * GET /api/admin/performance-metrics
- */
-
-import { NextResponse } from 'next/server';
-import { performanceMonitor } from '@/lib/performanceMonitor';
-import { isFeatureEnabled } from '@/lib/featureFlags';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/server/auth';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    if (!isFeatureEnabled('performanceMetrics')) {
-      return NextResponse.json({
-        success: false,
-        error: 'Performance metrics feature is disabled',
-      }, { status: 403 });
+    const authResult = await verifyAdminAuth(request);
+    if (!authResult || !authResult.authorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const stats = performanceMonitor.getStats();
-    const problematic = performanceMonitor.getProblematicEndpoints();
-
-    // Calcular métricas gerais
-    const totalRequests = stats.reduce((sum, s) => sum + s.totalRequests, 0);
-    const avgDuration = stats.length > 0
-      ? stats.reduce((sum, s) => sum + s.avgDuration, 0) / stats.length
-      : 0;
-    const avgSuccessRate = stats.length > 0
-      ? stats.reduce((sum, s) => sum + s.successRate, 0) / stats.length
-      : 100;
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        summary: {
-          totalRequests,
-          avgDuration: Math.round(avgDuration),
-          avgSuccessRate: Math.round(avgSuccessRate * 100) / 100,
-          problematicCount: problematic.length,
-        },
-        endpoints: stats,
-        problematic,
+    // Placeholder data
+    const data = {
+      metrics: {
+        apiResponseTime: 250,
+        pageLoadTime: 1.2,
+        errorRate: 0.05,
+        uptime: 99.9
       },
-      timestamp: new Date().toISOString(),
-    });
+      generatedAt: new Date().toISOString()
+    };
+
+    return NextResponse.json(data);
   } catch (error: any) {
-    console.error('[PerformanceMetrics] Error:', error);
+    console.error('[Performance Metrics API] Error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || 'Failed to fetch performance metrics',
-      },
+      { error: 'Internal server error', message: error.message },
       { status: 500 }
     );
   }

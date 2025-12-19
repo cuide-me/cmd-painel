@@ -7,7 +7,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getFinanceiroDashboard } from '@/services/admin/financeiro-v2';
 import { FinanceiroFilters } from '@/services/admin/financeiro-v2/types';
 import { verifyAdminAuth } from '@/lib/server/auth';
-import { measurePerformance } from '@/lib/performanceMonitor';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -67,14 +66,10 @@ export async function GET(request: NextRequest) {
     }
     
     // ═══════════════════════════════════════════════════════════════
-    // FETCH DATA (with performance tracking)
+    // FETCH DATA
     // ═══════════════════════════════════════════════════════════════
     
-    const dashboard = await measurePerformance(
-      '/api/admin/financeiro-v2',
-      'GET',
-      () => getFinanceiroDashboard(filters)
-    );
+    const dashboard = await getFinanceiroDashboard(filters);
     
     // ═══════════════════════════════════════════════════════════════
     // RESPONSE

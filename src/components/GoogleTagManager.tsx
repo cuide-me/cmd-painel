@@ -3,20 +3,17 @@
 import Script from 'next/script';
 
 export function GoogleTagManager() {
-  const GA4_ID = process.env.NEXT_PUBLIC_GA4_ID;
+  const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
-  if (!GA4_ID) {
-    console.warn('[GA4] NEXT_PUBLIC_GA4_ID não configurado');
+  if (!measurementId) {
     return null;
   }
 
   return (
     <>
-      {/* Google Tag Manager */}
       <Script
-        id="gtag-base"
         strategy="afterInteractive"
-        src={`https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`}
+        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
       />
       <Script
         id="gtag-init"
@@ -26,9 +23,7 @@ export function GoogleTagManager() {
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', '${GA4_ID}', {
-              page_path: window.location.pathname,
-            });
+            gtag('config', '${measurementId}');
           `,
         }}
       />

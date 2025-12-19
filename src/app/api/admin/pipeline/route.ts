@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getPipelineData } from '@/services/admin/pipeline';
-import { measurePerformance } from '@/lib/performanceMonitor';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,11 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     getFirebaseAdmin();
-    const data = await measurePerformance(
-      '/api/admin/pipeline',
-      'GET',
-      () => getPipelineData()
-    );
+    const data = await getPipelineData();
 
     return NextResponse.json(data);
   } catch (error: any) {
