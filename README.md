@@ -1,16 +1,25 @@
-﻿# 🏥 Torre de Controle V2 - Cuide-me
+﻿# 🏥 Torre de Controle - Cuide.me
 
-[![Deploy](https://img.shields.io/badge/deploy-vercel-black)](https://cmd-painel.vercel.app/admin)
+[![Deploy](https://img.shields.io/badge/deploy-vercel-black)](https://cmd-painel-main-o1d4vgngc-felipe-pachecos-projects-53eb7e7c.vercel.app)
 [![Next.js](https://img.shields.io/badge/Next.js-16.0-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-12.7-orange)](https://firebase.google.com/)
 [![Stripe](https://img.shields.io/badge/Stripe-17.5-purple)](https://stripe.com/)
+[![Recharts](https://img.shields.io/badge/Recharts-2.15-green)](https://recharts.org/)
 
-Painel administrativo executivo da plataforma Cuide-me com integrações reais de **Firebase**, **Stripe** e **Google Analytics 4**.
+Painel administrativo executivo completo da plataforma Cuide.me com **8 módulos especializados** e integrações reais de **Firebase**, **Stripe** e **Google Analytics 4**.
 
 ## 🎯 Visão Geral
 
-A **Torre de Controle V2** é o centro de comando do marketplace Cuide-me, oferecendo visibilidade completa sobre operações, métricas executivas e alertas em tempo real através de dados agregados de múltiplas fontes.
+A **Torre de Controle** é o centro de comando completo do marketplace Cuide.me, oferecendo:
+
+✅ **8 Módulos Especializados** - Home, Marketplace, Famílias, Cuidadores, Pipeline, Financeiro, Confiança, Fricção  
+✅ **8 APIs Funcionais** - Dados em tempo real de Firebase + Stripe + GA4  
+✅ **41 Rotas** - Build passando em produção  
+✅ **100% Português** - Interface e métricas localizadas  
+✅ **Arquitetura 3-Source** - Segregação clara Firebase (ops) + Stripe ($$) + GA4 (behavior)  
+
+**Deploy em Produção:** https://cmd-painel-main-o1d4vgngc-felipe-pachecos-projects-53eb7e7c.vercel.app
 
 ## 🚀 Setup Rápido
 
@@ -40,14 +49,78 @@ npm run dev
 
 Acesse: **http://localhost:3001/admin**
 
-## 📊 Funcionalidades
+## 📊 Módulos Implementados
 
-### 🏠 Home - Torre de Controle
-- **6 KPIs Executivos** com status (verde/amarelo/vermelho) e trends
-  - 💰 MRR (Stripe) | 👥 Famílias Ativas (Firebase) | 🏥 Profissionais Ativos (Firebase)
-  - 🔄 Taxa Conversão (Firebase) | 📊 Tráfego (GA4) | 💼 Pipeline Aberto (Firebase)
-- **Sistema de Alertas** operacionais em tempo real
-- **Navegação Modular** para todos os painéis especializados
+### 1. 🏠 **Home Dashboard** (`/admin`)
+Visão executiva com 5 blocos principais:
+- 📈 **Demanda** - Solicitações abertas, SLA, tempo médio de match
+- 👥 **Oferta** - Profissionais disponíveis, taxa de conversão  
+- ✅ **Núcleo do Negócio** - Atendimentos concluídos, índice de satisfação
+- 💰 **Financeiro** - GMV, receita, ticket médio, taxa de cancelamento (Stripe)
+- 🛡️ **Confiança** - Tickets de suporte, tempo de resposta, SLA
+- 📊 **Gráficos Diários** - Métricas dos últimos 30 dias com Recharts
+
+### 2. 🏪 **Marketplace** (`/admin/marketplace`)
+Validação de equilíbrio entre oferta e demanda:
+- Razão oferta/demanda com status (saudável/atenção/crítico)
+- Qualidade do matching (score 0-100)
+- Cobertura geográfica (cidades e estados)
+- Balanceamento por especialidade
+- Identificação de especialidades com falta de oferta
+
+### 3. 👨‍👩‍👧 **Famílias** (`/admin/familias`)
+Analytics completo do lado da demanda:
+- Overview (famílias ativas, tempo resposta, satisfação)
+- Jornada completa (cadastro → solicitação → match → conclusão)
+- Solicitações por estado e especialidade
+- Urgências (>48h sem atendimento, famílias insatisfeitas)
+- Taxas de conversão entre etapas
+
+### 4. 👩‍⚕️ **Cuidadores** (`/admin/cuidadores`)
+Analytics completo do lado da oferta:
+- Overview (cuidadores ativos, retenção, disponibilidade)
+- Performance geral (NPS, taxa de aceite, taxa de conclusão)
+- Top performers ranqueados por NPS
+- Distribuição por especialidade e cidade
+- Níveis de engajamento (altamente ativos, moderados, inativos)
+
+### 5. 🔄 **Pipeline** (`/admin/pipeline`)
+Funil de conversão completo:
+- 4 etapas do funil visualizadas (cadastro → solicitação → match → conclusão)
+- Taxas de conversão entre cada etapa
+- Identificação automática de gargalos
+- Ações sugeridas por gargalo com prioridade
+- Previsões para próximo mês
+- Taxa de conversão geral end-to-end
+
+### 6. 💰 **Financeiro** (`/admin/financeiro`)
+Análise financeira profunda (100% Stripe):
+- Receita total e crescimento (tendência automática)
+- Transações detalhadas (total, sucesso, falhas, métodos de pagamento)
+- Assinaturas (ativas, MRR, ARR, churn rate, LTV, CAC)
+- Métricas (GMV, comissão plataforma, margens bruta/líquida)
+- Projeções 30 dias e 12 meses
+- Formatação de moeda em Real (BRL)
+
+### 7. 🛡️ **Confiança & Qualidade** (`/admin/confianca`)
+Suporte e satisfação:
+- Suporte (tickets abertos/resolvidos/pendentes/urgentes)
+- Tempos médios (resposta e resolução)
+- SLA de atendimento com indicador visual
+- NPS detalhado (geral + promotores/neutros/detratores)
+- Qualidade dos matches (score, taxa conclusão/cancelamento)
+- Média de avaliações (0-5 estrelas)
+- Ações recomendadas prioritizadas (crítica/alta/média)
+
+### 8. ⚠️ **Pontos de Fricção** (`/admin/friccao`)
+Identificação e priorização de problemas:
+- Fricções identificadas automaticamente (abandono, erro, demora, confusão, bloqueio)
+- Impacto total (usuários perdidos, receita perdida, conversão perdida)
+- Gravidade automática (crítica/alta/média/baixa)
+- Matriz de priorização (score, esforço, impacto, ROI)
+- Recomendações detalhadas com passos de implementação
+- Resultado esperado e prazo por fricção
+- ROI estimado por solução
 
 ### 📈 Módulos Disponíveis
 - **Dashboard V2** - Análise detalhada de oferta, demanda e financeiro com filtros
