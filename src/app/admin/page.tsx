@@ -122,7 +122,7 @@ export default function TorreControleHome() {
             change={demanda.solicitacoesAbertas.change}
             trend={demanda.solicitacoesAbertas.trend === 'stable' ? 'neutral' : demanda.solicitacoesAbertas.trend}
             icon="📋"
-            tooltip="Total de solicitações aguardando match com profissional"
+            tooltip="Total de solicitações aguardando correspondência com profissional"
           />
 
           <StatCard
@@ -161,7 +161,7 @@ export default function TorreControleHome() {
             change={oferta.taxaConversaoAceite.change}
             trend={oferta.taxaConversaoAceite.trend === 'stable' ? 'neutral' : oferta.taxaConversaoAceite.trend}
             icon="✔️"
-            tooltip="Percentual de solicitações que foram aceitas por profissionais"
+            tooltip="Percentual de solicitações aceitas por profissionais"
           />
 
           <StatCard
@@ -181,19 +181,19 @@ export default function TorreControleHome() {
       </Section>
 
       {/* BLOCO 3: CORE MVP */}
-      <Section title="🎯 Core MVP">
+      <Section title="🎯 Núcleo do Negócio">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <StatCard
-            label="Matches Concluídos (Mês)"
+            label="Atendimentos Concluídos (Mês)"
             value={coreMVP.matchesConcluidos.total.toString()}
             change={coreMVP.matchesConcluidos.change}
             trend={coreMVP.matchesConcluidos.trend === 'stable' ? 'neutral' : coreMVP.matchesConcluidos.trend}
             icon="✅"
-            tooltip="Total de matches finalizados com sucesso no mês atual"
+            tooltip="Total de atendimentos finalizados com sucesso no mês atual"
           />
 
           <StatCard
-            label="NPS (Net Promoter Score)"
+            label="NPS (Índice de Satisfação)"
             value={`${coreMVP.nps.score} - ${coreMVP.nps.category}`}
             change={coreMVP.nps.change}
             icon={
@@ -201,7 +201,7 @@ export default function TorreControleHome() {
               coreMVP.nps.category === 'bom' ? '😊' :
               coreMVP.nps.category === 'razoavel' ? '😐' : '😞'
             }
-            tooltip="Satisfação geral dos usuários (-100 a 100)"
+            tooltip="Índice de Satisfação dos usuários (-100 a 100)"
           />
         </div>
       </Section>
@@ -215,7 +215,7 @@ export default function TorreControleHome() {
             change={financeiro.gmvMes.change}
             trend={financeiro.gmvMes.trend === 'stable' ? 'neutral' : financeiro.gmvMes.trend}
             icon="💵"
-            tooltip="Gross Merchandise Value - valor total transacionado no mês"
+            tooltip="Volume Bruto de Mercadoria - valor total transacionado no mês"
           />
 
           <StatCard
@@ -237,7 +237,7 @@ export default function TorreControleHome() {
           />
 
           <StatCard
-            label="Churn Rate"
+            label="Taxa de Cancelamento"
             value={`${financeiro.churnRate.percentage.toFixed(1)}%`}
             icon="📉"
             tooltip={`${financeiro.churnRate.count} cancelamentos no período`}
