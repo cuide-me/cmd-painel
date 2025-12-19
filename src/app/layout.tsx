@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { GoogleTagManager } from '@/components/GoogleTagManager';
 
 export const metadata: Metadata = {
   title: 'Torre de Controle | Cuide-me',
@@ -15,7 +14,6 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <GoogleTagManager />
         {children}
       </body>
     </html>

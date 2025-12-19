@@ -13,7 +13,7 @@ let analyticsClient: BetaAnalyticsDataClient | null = null;
 /**
  * Inicializa cliente do Google Analytics Data API
  */
-function getAnalyticsClient(): BetaAnalyticsDataClient {
+export function getAnalyticsClient(): BetaAnalyticsDataClient {
   if (analyticsClient) {
     return analyticsClient;
   }

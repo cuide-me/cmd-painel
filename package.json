@@ -7,10 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest --testPathIgnorePatterns=health.test.ts",
-    "test:all": "jest",
-    "test:watch": "jest --watch --testPathIgnorePatterns=health.test.ts",
-    "test:coverage": "jest --coverage --testPathIgnorePatterns=health.test.ts",
+    "test": "jest",
     "test:integrations": "tsx scripts/test-integrations.ts",
     "check:env": "node scripts/check-env.js",
     "check:health": "curl http://localhost:3001/api/health"
@@ -23,27 +20,19 @@
     "next": "^16.0.10",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
-    "recharts": "^3.6.0",
     "stripe": "^17.5.0",
     "typescript": "^5.7.2",
-    "zod": "^3.25.76"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.1",
-    "@testing-library/user-event": "^14.6.1",
-    "@types/jest": "^30.0.0",
     "@types/node": "^22.9.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.23",
     "eslint": "^9.13.0",
     "eslint-config-next": "16.0.10",
-    "jest": "^30.2.0",
-    "jest-environment-jsdom": "^30.2.0",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.18",
-    "tsx": "^4.21.0"
+    "tailwindcss": "^4.1.18"
   }
 }
