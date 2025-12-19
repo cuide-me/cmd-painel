@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchConversionMetrics } from '@/services/admin/analyticsService';
+import { measurePerformance } from '@/lib/performanceMonitor';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,11 @@ export async function GET(request: NextRequest) {
 
     console.log('[ConversionFunnel] Fetching GA4 custom events...');
 
-    const metrics = await fetchConversionMetrics(startDate, endDate);
+    const metrics = await measurePerformance(
+      '/api/admin/conversion-funnel',
+      'GET',
+      () => fetchConversionMetrics(startDate, endDate)
+    );
 
     return NextResponse.json({
       success: true,

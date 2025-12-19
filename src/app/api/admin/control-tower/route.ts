@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/server/auth';
 import { getControlTowerDashboard } from '@/services/admin/control-tower';
+import { measurePerformance } from '@/lib/performanceMonitor';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -30,11 +31,15 @@ export async function GET(request: NextRequest) {
     }
     
     // ═══════════════════════════════════════════════════════════════
-    // FETCH DATA
+    // FETCH DATA (with performance tracking)
     // ═══════════════════════════════════════════════════════════════
     
     console.log('[Control Tower] Fetching dashboard...');
-    const dashboard = await getControlTowerDashboard();
+    const dashboard = await measurePerformance(
+      '/api/admin/control-tower',
+      'GET',
+      () => getControlTowerDashboard()
+    );
     console.log('[Control Tower] Dashboard fetched successfully');
     
     // ═══════════════════════════════════════════════════════════════

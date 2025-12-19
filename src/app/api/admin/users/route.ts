@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { listUsers } from '@/services/admin/users';
+import { measurePerformance } from '@/lib/performanceMonitor';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +25,11 @@ export async function GET(request: NextRequest) {
     if (perfilFilter) params.perfilFilter = perfilFilter;
     if (searchTerm) params.searchTerm = searchTerm;
 
-    const result = await listUsers(params);
+    const result = await measurePerformance(
+      '/api/admin/users',
+      'GET',
+      () => listUsers(params)
+    );
 
     return NextResponse.json(result);
   } catch (error: any) {

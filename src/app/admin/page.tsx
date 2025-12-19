@@ -516,9 +516,11 @@ export default function TorreControleV2() {
             { title: 'Saúde Operacional', icon: '🏥', path: '/admin/operational-health' },
             { title: 'Service Desk', icon: '🎫', path: '/admin/service-desk' },
             { title: 'Central de Alertas', icon: '🚨', path: '/admin/alerts' },
+            { title: 'Alertas Inteligentes', icon: '🤖', path: '/admin/intelligent-alerts', isNew: true },
             { title: 'Growth & Ativação', icon: '📈', path: '/admin/growth' },
             { title: 'Financeiro V2', icon: '💰', path: '/admin/financeiro-v2' },
             { title: 'Pipeline V2', icon: '🎯', path: '/admin/pipeline' },
+            { title: 'Performance', icon: '⚡', path: '/admin/performance', isNew: true },
             { title: 'Reports', icon: '📊', path: '/admin/reports' },
             { title: 'Dashboard V2', icon: '📱', path: '/admin/dashboard' },
             { title: 'Usuários', icon: '👥', path: '/admin/users' }
@@ -526,9 +528,14 @@ export default function TorreControleV2() {
             <Card
               key={module.path}
               padding="md"
-              className="hover:shadow-lg transition-all cursor-pointer group"
+              className="hover:shadow-lg transition-all cursor-pointer group relative"
               onClick={() => router.push(module.path)}
             >
+              {(module as any).isNew && (
+                <div className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-full">
+                  NEW
+                </div>
+              )}
               <div className="text-center">
                 <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
                   {module.icon}

@@ -3,6 +3,7 @@ import { verifyAdminAuth } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getFirestore } from 'firebase-admin/firestore';
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
+import { measurePerformance } from '@/lib/performanceMonitor';
 
 /**
  * GET /api/admin/daily-metrics
@@ -18,36 +19,40 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    getFirebaseAdmin();
-    const db = getFirestore();
+    const result = await measurePerformance(
+      '/api/admin/daily-metrics',
+      'GET',
+      async () => {
+        getFirebaseAdmin();
+        const db = getFirestore();
 
-    // Data de 30 dias atrás
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const thirtyDaysAgoTimestamp = thirtyDaysAgo.getTime();
+        // Data de 30 dias atrás
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const thirtyDaysAgoTimestamp = thirtyDaysAgo.getTime();
 
-    // CADASTROS POR DIA
-    let signupsByDay: Record<string, number> = {};
-    
-    try {
-      // Buscar últimos 500 users (sem filtro de data para evitar erro de índice)
-      const usersSnap = await db
-        .collection('users')
-        .orderBy('createdAt', 'desc')
-        .limit(500)
-        .get();
+        // CADASTROS POR DIA
+        let signupsByDay: Record<string, number> = {};
+        
+        try {
+          // Buscar últimos 500 users (sem filtro de data para evitar erro de índice)
+          const usersSnap = await db
+            .collection('users')
+            .orderBy('createdAt', 'desc')
+            .limit(500)
+            .get();
 
-      usersSnap.forEach(doc => {
-        const data = doc.data();
-        if (data.createdAt) {
-          const createdDate = new Date(data.createdAt);
-          // Filtrar últimos 30 dias manualmente
-          if (createdDate.getTime() >= thirtyDaysAgoTimestamp) {
-            const dateKey = createdDate.toISOString().split('T')[0];
-            signupsByDay[dateKey] = (signupsByDay[dateKey] || 0) + 1;
-          }
-        }
-      });
+          usersSnap.forEach(doc => {
+            const data = doc.data();
+            if (data.createdAt) {
+              const createdDate = new Date(data.createdAt);
+              // Filtrar últimos 30 dias manualmente
+              if (createdDate.getTime() >= thirtyDaysAgoTimestamp) {
+                const dateKey = createdDate.toISOString().split('T')[0];
+                signupsByDay[dateKey] = (signupsByDay[dateKey] || 0) + 1;
+              }
+            }
+          });
     } catch (error) {
       console.error('[DailyMetrics] Error fetching users:', error);
     }
@@ -127,15 +132,19 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      data: dailyData,
-      summary: {
-        totalSignups: Object.values(signupsByDay).reduce((a, b) => a + b, 0),
-        totalViews: Object.values(viewsByDay).reduce((a, b) => a + b, 0),
-        daysWithData: dailyData.filter(d => d.signups > 0 || d.views > 0).length,
-      },
-    });
+        return {
+          success: true,
+          data: dailyData,
+          summary: {
+            totalSignups: Object.values(signupsByDay).reduce((a, b) => a + b, 0),
+            totalViews: Object.values(viewsByDay).reduce((a, b) => a + b, 0),
+            daysWithData: dailyData.filter(d => d.signups > 0 || d.views > 0).length,
+          },
+        };
+      }
+    );
+
+    return NextResponse.json(result);
   } catch (error: any) {
     console.error('[DailyMetrics API] Error:', error);
     return NextResponse.json(
