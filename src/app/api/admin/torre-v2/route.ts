@@ -105,7 +105,24 @@ export async function GET(request: NextRequest) {
 
     console.log('[Torre V2 API] Fetching dashboard data:', { startDate, endDate });
 
-    // Fetch all data in parallel
+    // Helper to safely fetch data with fallback
+    async function safeFetch<T>(
+      name: string,
+      fetcher: () => Promise<T>,
+      fallback: T
+    ): Promise<T> {
+      try {
+        console.log(`[Torre V2 API] Fetching ${name}...`);
+        const result = await fetcher();
+        console.log(`[Torre V2 API] ✓ ${name} fetched successfully`);
+        return result;
+      } catch (error: any) {
+        console.error(`[Torre V2 API] ✗ ${name} failed:`, error.message);
+        return fallback;
+      }
+    }
+
+    // Fetch all data in parallel with error handling
     const [
       mrrData,
       churnData,
@@ -118,19 +135,40 @@ export async function GET(request: NextRequest) {
       npsData,
       userGrowthData,
     ] = await Promise.all([
-      getMRR(),
-      getChurnRate({ startDate, endDate }),
-      getPaymentMetrics({ startDate, endDate }),
-      getSignUps({ startDate, endDate }),
-      getActiveUsers({ startDate, endDate }),
-      getFunnelConversion(
+      safeFetch('MRR', () => getMRR(), { currentMRR: 0, previousMRR: 0, growth: 0, mrrByPlan: [] }),
+      safeFetch('Churn Rate', () => getChurnRate({ startDate, endDate }), { churnRate: 0, churnedCustomers: 0, retainedCustomers: 0 }),
+      safeFetch('Payment Metrics', () => getPaymentMetrics({ startDate, endDate }), { 
+        totalRevenue: 0, 
+        successfulPayments: 0, 
+        failedPayments: 0, 
+        averageTicket: 0, 
+        successRate: 0 
+      }),
+      safeFetch('Sign Ups', () => getSignUps({ startDate, endDate }), { signups: 0, growth: 0 }),
+      safeFetch('Active Users', () => getActiveUsers({ startDate, endDate }), { activeUsers: 0, growth: 0 }),
+      safeFetch('Conversion Funnel', () => getFunnelConversion(
         ['page_view', 'sign_up', 'profile_complete', 'create_request', 'payment_success'],
         { startDate, endDate }
-      ),
-      getActiveProfessionals(),
-      getPendingJobs({ startDate, endDate }),
-      getNPSScore({ startDate, endDate }),
-      getUserGrowth({ startDate, endDate }),
+      ), { stages: [], overallConversion: 0 }),
+      safeFetch('Active Professionals', () => getActiveProfessionals(), { count: 0, bySpecialty: [] }),
+      safeFetch('Pending Jobs', () => getPendingJobs({ startDate, endDate }), { 
+        total: 0, 
+        olderThan24h: 0, 
+        olderThan48h: 0, 
+        avgAge: 0 
+      }),
+      safeFetch('NPS Score', () => getNPSScore({ startDate, endDate }), { 
+        npsScore: 0, 
+        promoters: 0, 
+        passives: 0, 
+        detractors: 0, 
+        totalResponses: 0 
+      }),
+      safeFetch('User Growth', () => getUserGrowth({ startDate, endDate }), { 
+        daily: [], 
+        total: 0, 
+        growth: 0 
+      }),
     ]);
 
     // ──────────────────────────────────────────────────────────────────────
@@ -259,8 +297,9 @@ export async function GET(request: NextRequest) {
     const avgTicket = paymentData.averageTicket;
     
     // Success Rate: successful payments / total payments
-    const successRate = paymentData.totalPayments > 0
-      ? (paymentData.successfulPayments / paymentData.totalPayments) * 100
+    const totalPayments = paymentData.successfulPayments + paymentData.failedPayments;
+    const successRate = totalPayments > 0
+      ? (paymentData.successfulPayments / totalPayments) * 100
       : 0;
 
     const finance = {
@@ -298,11 +337,14 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('[Torre V2 API] Error fetching dashboard:', error);
+    console.error('[Torre V2 API] Fatal error fetching dashboard:', error);
+    console.error('[Torre V2 API] Stack trace:', error.stack);
+    
     return NextResponse.json(
       {
         error: 'Failed to fetch Torre v2 dashboard',
         message: error.message,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
         timestamp: new Date().toISOString(),
       },
       { status: 500 }
