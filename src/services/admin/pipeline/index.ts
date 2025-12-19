@@ -31,14 +31,14 @@ export async function getPipelineOverview() {
       .get();
     const openRequests = openRequestsSnap.size;
 
-    // Propostas enviadas (todas)
-    const proposalsSnap = await db.collection('proposals').get();
-    const proposalsSent = proposalsSnap.size;
+    // Propostas enviadas (contando jobs que têm proposal embeded)
+    const jobsSnap = await db.collection('jobs').get();
+    const proposalsSent = jobsSnap.docs.filter(doc => doc.data().proposal).length;
 
-    // Propostas aceitas
+    // Propostas aceitas (status proposta_aceita)
     const acceptedProposalsSnap = await db
-      .collection('proposals')
-      .where('status', 'in', ['accepted', 'active'])
+      .collection('jobs')
+      .where('status', '==', 'proposta_aceita')
       .get();
     const acceptedProposals = acceptedProposalsSnap.size;
 

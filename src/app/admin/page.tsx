@@ -276,6 +276,75 @@ export default function TorreControleV2() {
         </Section>
       )}
 
+      {/* BLOCO 5: FUNIL DE CONVERSÃO (GA4 Custom Events) */}
+      <Section 
+        title="🎯 Funil de Conversão (GA4)" 
+        subtitle="Rastreamento de eventos customizados - Últimos 30 dias"
+      >
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-100">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Stage 1: Visitantes */}
+            <div className="text-center">
+              <div className="text-3xl font-bold text-blue-600 mb-2">--</div>
+              <div className="text-sm text-slate-600 mb-1">Visitantes</div>
+              <div className="text-xs text-slate-500">Usuários ativos</div>
+            </div>
+
+            {/* Arrow */}
+            <div className="flex items-center justify-center">
+              <div className="text-2xl text-slate-400">→</div>
+              <div className="ml-2 text-xs text-slate-500">--%</div>
+            </div>
+
+            {/* Stage 2: Cadastros */}
+            <div className="text-center">
+              <div className="text-3xl font-bold text-green-600 mb-2">--</div>
+              <div className="text-sm text-slate-600 mb-1">Cadastros</div>
+              <div className="text-xs text-slate-500">sign_up events</div>
+            </div>
+
+            {/* Arrow */}
+            <div className="flex items-center justify-center">
+              <div className="text-2xl text-slate-400">→</div>
+              <div className="ml-2 text-xs text-slate-500">--%</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
+            {/* Stage 3: Solicitações */}
+            <div className="text-center">
+              <div className="text-3xl font-bold text-orange-600 mb-2">--</div>
+              <div className="text-sm text-slate-600 mb-1">Solicitações</div>
+              <div className="text-xs text-slate-500">create_request events</div>
+            </div>
+
+            {/* Arrow */}
+            <div className="flex items-center justify-center">
+              <div className="text-2xl text-slate-400">→</div>
+              <div className="ml-2 text-xs text-slate-500">--%</div>
+            </div>
+
+            {/* Stage 4: Contratações */}
+            <div className="text-center">
+              <div className="text-3xl font-bold text-purple-600 mb-2">--</div>
+              <div className="text-sm text-slate-600 mb-1">Contratações</div>
+              <div className="text-xs text-slate-500">hire_caregiver events</div>
+            </div>
+
+            {/* Overall Conversion */}
+            <div className="text-center">
+              <div className="text-3xl font-bold text-indigo-600 mb-2">--%</div>
+              <div className="text-sm text-slate-600 mb-1">Conversão Geral</div>
+              <div className="text-xs text-slate-500">Visitante → Contratação</div>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+            ⚠️ <strong>Setup Necessário:</strong> Para rastrear o funil completo, adicione os custom events GA4 nas páginas de cadastro, criação de solicitação e contratação usando o hook <code>useGA4Events</code>.
+          </div>
+        </div>
+      </Section>
+
       {/* GRÁFICOS DIÁRIOS */}
       {!metricsLoading && (
         <Section title="📈 Métricas Diárias (Últimos 30 dias)">

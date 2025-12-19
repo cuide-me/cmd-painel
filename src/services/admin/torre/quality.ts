@@ -68,7 +68,7 @@ export async function getQualitySummary(): Promise<QualitySummary> {
     // 1. AVALIAÇÕES DE PROFISSIONAIS
     // ═══════════════════════════════════════
     const professionalRatingsSnap = await db
-      .collection('ratings')
+      .collection('feedbacks')
       .where('targetType', '==', 'professional')
       .get();
 
@@ -81,7 +81,7 @@ export async function getQualitySummary(): Promise<QualitySummary> {
     // 2. AVALIAÇÕES DE FAMÍLIAS
     // ═══════════════════════════════════════
     const familyRatingsSnap = await db
-      .collection('ratings')
+      .collection('feedbacks')
       .where('targetType', '==', 'family')
       .get();
 

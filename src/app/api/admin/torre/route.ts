@@ -4,9 +4,6 @@
  * ────────────────────────────────────
  * GET /api/admin/torre
  * 
- * ⚠️ DEPRECATED: Use /api/admin/control-tower instead
- * This endpoint will be removed in a future version
- * 
  * Retorna dados completos da Torre de Controle
  */
 
@@ -20,9 +17,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  // Log deprecation warning
-  console.warn('[DEPRECATED] /api/admin/torre is deprecated. Use /api/admin/control-tower instead');
-  
   try {
     const authResult = await verifyAdminAuth(request);
     if (!authResult || !authResult.authorized) {
@@ -58,8 +52,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(torreData, {
       headers: {
         'Cache-Control': 'no-store, max-age=0',
-        'X-API-Deprecated': 'true',
-        'X-API-Deprecation-Info': 'Use /api/admin/control-tower instead',
       },
     });
   } catch (error: any) {

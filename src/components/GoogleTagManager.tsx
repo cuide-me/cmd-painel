@@ -1,26 +1,25 @@
-/**
- * ────────────────────────────────────
- * GOOGLE TAG MANAGER SCRIPT
- * ────────────────────────────────────
- * Script do GTM para Next.js App Router
- */
-
 'use client';
 
 import Script from 'next/script';
 
-const GA4_ID = process.env.NEXT_PUBLIC_GA4_ID || 'G-B21PK9JQYS';
-
 export function GoogleTagManager() {
+  const GA4_ID = process.env.NEXT_PUBLIC_GA4_ID;
+
+  if (!GA4_ID) {
+    console.warn('[GA4] NEXT_PUBLIC_GA4_ID não configurado');
+    return null;
+  }
+
   return (
     <>
-      {/* Google tag (gtag.js) */}
+      {/* Google Tag Manager */}
       <Script
+        id="gtag-base"
         strategy="afterInteractive"
         src={`https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`}
       />
       <Script
-        id="google-analytics"
+        id="gtag-init"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `
