@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useAdminInactivityTimeout } from '@/hooks/useAdminInactivityTimeout';
+import { authFetch } from '@/lib/client/authFetch';
 
 interface FamiliasData {
   overview: {
@@ -42,7 +43,7 @@ export default function FamiliasPage() {
 
   async function fetchData() {
     try {
-      const response = await fetch('/api/admin/familias');
+      const response = await authFetch('/api/admin/familias');
       if (!response.ok) throw new Error('Erro ao carregar dados');
       const result = await response.json();
       setData(result);

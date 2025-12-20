@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useAdminInactivityTimeout } from '@/hooks/useAdminInactivityTimeout';
+import { authFetch } from '@/lib/client/authFetch';
 
 interface FriccaoData {
   friccoes: Array<{
@@ -49,7 +50,7 @@ export default function FriccaoPage() {
 
   async function fetchData() {
     try {
-      const response = await fetch('/api/admin/friccao');
+      const response = await authFetch('/api/admin/friccao');
       if (!response.ok) throw new Error('Erro ao carregar dados');
       const result = await response.json();
       setData(result);

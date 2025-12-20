@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useAdminInactivityTimeout } from '@/hooks/useAdminInactivityTimeout';
+import { authFetch } from '@/lib/client/authFetch';
 
 interface PipelineData {
   funil: {
@@ -54,7 +55,7 @@ export default function PipelinePage() {
 
   async function fetchData() {
     try {
-      const response = await fetch('/api/admin/pipeline');
+      const response = await authFetch('/api/admin/pipeline');
       if (!response.ok) throw new Error('Erro ao carregar dados');
       const result = await response.json();
       setData(result);

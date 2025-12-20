@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useAdminInactivityTimeout } from '@/hooks/useAdminInactivityTimeout';
+import { authFetch } from '@/lib/client/authFetch';
 
 interface MarketplaceData {
   supplyDemand: {
@@ -43,7 +44,7 @@ export default function MarketplacePage() {
   async function fetchData() {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/marketplace-validation');
+      const response = await authFetch('/api/admin/marketplace-validation');
       if (!response.ok) throw new Error('Erro ao carregar dados');
       const result = await response.json();
       setData(result);
