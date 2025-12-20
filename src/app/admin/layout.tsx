@@ -17,6 +17,7 @@ interface MenuItem {
 
 const mainMenuItems: MenuItem[] = [
   { id: 'home', label: 'Dashboard', icon: moduleIcons.home, href: '/admin' },
+  { id: 'executivo', label: 'Executivo (C-Level)', icon: '📊', href: '/admin/executivo' },
   { id: 'marketplace', label: 'Marketplace', icon: moduleIcons.marketplace, href: '/admin/marketplace' },
   { id: 'familias', label: 'Famílias', icon: moduleIcons.familias, href: '/admin/familias' },
   { id: 'cuidadores', label: 'Cuidadores', icon: moduleIcons.cuidadores, href: '/admin/cuidadores' },
