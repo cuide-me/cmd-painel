@@ -1,36 +1,128 @@
-'use client';
-
 /**
  * ═══════════════════════════════════════════════════════
- * TORRE DE CONTROLE - HOMEPAGE
+ * TORRE DE CONTROLE - HOMEPAGE REDESIGN V2
  * ═══════════════════════════════════════════════════════
- * Dashboard principal com 5 cards KPI
- * 
- * Responde em 5 segundos:
- * 1. Como está a demanda? (Famílias)
- * 2. Como está a oferta? (Cuidadores)
- * 3. O core MVP está funcionando? (Marketplace)
- * 4. Estamos ganhando dinheiro? (Financeiro)
- * 5. Os usuários confiam em nós? (Confiança)
+ * Dashboard moderno com acesso rápido a todos os módulos
  */
+
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authFetch } from '@/lib/client/authFetch';
-import AdminLayout, { LoadingSkeleton, EmptyState } from '@/components/admin/AdminLayout';
-import { Top5Problemas } from '@/components/admin/Top5Problemas';
-import { Sparkline, StatusBadge, Comparacao, MetaIndicador } from '@/components/admin/ui/Sparkline';
-import type { TorreControleDashboard } from '@/services/admin/torre-controle/types';
 import Link from 'next/link';
+import { authFetch } from '@/lib/client/authFetch';
+import { Top5Problemas } from '@/components/admin/Top5Problemas';
+import type { TorreControleDashboard } from '@/services/admin/torre-controle/types';
+
+interface ModuleCard {
+  id: string;
+  title: string;
+  icon: string;
+  href: string;
+  description: string;
+  color: string;
+  gradient: string;
+}
+
+const modules: ModuleCard[] = [
+  {
+    id: 'executivo',
+    title: 'Dashboard Executivo',
+    icon: '📊',
+    href: '/admin/executivo',
+    description: 'GMV, LTV:CAC, ARR, MRR, Runway',
+    color: 'purple',
+    gradient: 'from-purple-500 to-purple-700'
+  },
+  {
+    id: 'dashboard-v2',
+    title: 'Dashboard V2',
+    icon: '📈',
+    href: '/admin/dashboard',
+    description: 'Visão completa: Demanda, Oferta, Financeiro',
+    color: 'blue',
+    gradient: 'from-blue-500 to-blue-700'
+  },
+  {
+    id: 'marketplace',
+    title: 'Marketplace',
+    icon: '🛒',
+    href: '/admin/marketplace',
+    description: 'Jobs, Matches, Taxa de Conversão',
+    color: 'green',
+    gradient: 'from-green-500 to-green-700'
+  },
+  {
+    id: 'familias',
+    title: 'Famílias',
+    icon: '👨‍👩‍👧‍👦',
+    href: '/admin/familias',
+    description: 'Cadastros, Ativação, Retenção',
+    color: 'pink',
+    gradient: 'from-pink-500 to-pink-700'
+  },
+  {
+    id: 'cuidadores',
+    title: 'Cuidadores',
+    icon: '👨‍⚕️',
+    href: '/admin/cuidadores',
+    description: 'Profissionais, Disponibilidade, Qualidade',
+    color: 'cyan',
+    gradient: 'from-cyan-500 to-cyan-700'
+  },
+  {
+    id: 'pipeline',
+    title: 'Pipeline',
+    icon: '📊',
+    href: '/admin/pipeline',
+    description: 'Funil de Conversão, Etapas, Drop-off',
+    color: 'orange',
+    gradient: 'from-orange-500 to-orange-700'
+  },
+  {
+    id: 'financeiro',
+    title: 'Financeiro',
+    icon: '💰',
+    href: '/admin/financeiro',
+    description: 'Receitas, Churn, Ticket Médio',
+    color: 'emerald',
+    gradient: 'from-emerald-500 to-emerald-700'
+  },
+  {
+    id: 'confianca',
+    title: 'Confiança & Qualidade',
+    icon: '⭐',
+    href: '/admin/confianca',
+    description: 'NPS, Ratings, Satisfação',
+    color: 'yellow',
+    gradient: 'from-yellow-500 to-yellow-700'
+  },
+  {
+    id: 'friccao',
+    title: 'Fricção',
+    icon: '⚠️',
+    href: '/admin/friccao',
+    description: 'Pontos de Atrito, Gargalos',
+    color: 'red',
+    gradient: 'from-red-500 to-red-700'
+  },
+  {
+    id: 'service-desk',
+    title: 'Service Desk',
+    icon: '🎧',
+    href: '/admin/service-desk',
+    description: 'Tickets, SLA, Resoluções',
+    color: 'indigo',
+    gradient: 'from-indigo-500 to-indigo-700'
+  },
+];
 
 export default function TorreControleHomepage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<TorreControleDashboard | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Verificar autenticação
     const isLogged = localStorage.getItem('admin_logged') === 'true';
     if (!isLogged) {
       router.push('/admin/login');
@@ -38,26 +130,17 @@ export default function TorreControleHomepage() {
     }
     
     fetchDashboard();
-    
-    // Auto-refresh a cada 60 segundos
-    const interval = setInterval(fetchDashboard, 60000);
-    return () => clearInterval(interval);
   }, []);
 
   const fetchDashboard = async () => {
     try {
       const response = await authFetch('/api/admin/torre-controle');
-      
       if (response.ok) {
         const data = await response.json();
         setDashboard(data.data);
-        setError(null);
-      } else {
-        setError('Erro ao carregar dashboard');
       }
     } catch (err) {
       console.error('Erro:', err);
-      setError('Erro de conexão');
     } finally {
       setLoading(false);
     }
@@ -65,272 +148,194 @@ export default function TorreControleHomepage() {
 
   if (loading) {
     return (
-      <AdminLayout title="Torre de Controle" subtitle="Carregando..." icon="🎯">
-        <LoadingSkeleton lines={5} />
-      </AdminLayout>
+      <div className="space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="h-48 bg-gray-200 rounded-lg"></div>
+            ))}
+          </div>
+        </div>
+      </div>
     );
   }
-
-  if (error || !dashboard) {
-    return (
-      <AdminLayout title="Torre de Controle" subtitle="Erro" icon="🎯">
-        <EmptyState
-          icon="⚠️"
-          title="Erro ao carregar"
-          description={error || 'Não foi possível carregar os dados'}
-          action="Tentar novamente"
-          onAction={fetchDashboard}
-        />
-      </AdminLayout>
-    );
-  }
-
-  const { demanda, oferta, coreMvp, financeiro, confianca } = dashboard;
-
-  // Helper para formatar moeda
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(value);
-  };
-
-  // Helper para cor de trend
-  const getTrendColor = (trend: 'up' | 'down' | 'stable') => {
-    if (trend === 'up') return 'text-green-600';
-    if (trend === 'down') return 'text-red-600';
-    return 'text-slate-600';
-  };
-
-  // Helper para ícone de trend
-  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
-    if (trend === 'up') return '↑';
-    if (trend === 'down') return '↓';
-    return '→';
-  };
 
   return (
-    <AdminLayout 
-      title="Torre de Controle" 
-      subtitle="Dashboard Executivo - Cuide.me" 
-      icon="🎯"
-    >
-      {/* TOP 5 PROBLEMAS - Quick Win #3 */}
-      {dashboard.top5Problemas && dashboard.top5Problemas.length > 0 && (
-        <div className="mb-6">
+    <div className="space-y-8">
+      
+      {/* HEADER */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">🎯 Torre de Controle</h1>
+        <p className="text-gray-600 mt-2">Dashboard administrativo completo • Cuide.me</p>
+      </div>
+
+      {/* TOP 5 PROBLEMAS */}
+      {dashboard?.top5Problemas && dashboard.top5Problemas.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <Top5Problemas problemas={dashboard.top5Problemas} />
         </div>
       )}
 
-      {/* GRID PRINCIPAL - 5 CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        
-        {/* CARD 1: DEMANDA (Famílias) */}
-        <Link href="/admin/familias" className="block">
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-600">DEMANDA</h3>
-              <div className="flex items-center gap-2">
-                {demanda.status && <StatusBadge status={demanda.status} />}
-                <span className="text-2xl">👨‍👩‍👧‍👦</span>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <div>
-                <div className="text-3xl font-bold text-slate-900">{demanda.totalFamilias}</div>
-                <div className="text-xs text-slate-500">Famílias Ativas</div>
-                {demanda.historico && (
-                  <div className="mt-2">
-                    <Sparkline data={demanda.historico} width={120} height={30} color="#10b981" />
-                  </div>
-                )}
-              </div>
-              
-              {demanda.metas && (
-                <MetaIndicador 
-                  atual={demanda.totalFamilias}
-                  meta={demanda.metas.totalFamilias}
-                  label="Meta"
-                  formato="numero"
-                />
-              )}
-              
-              {demanda.comparacao && (
-                <Comparacao 
-                  atual={demanda.totalFamilias}
-                  anterior={demanda.comparacao.mesAnterior.totalFamilias}
-                  variacao={demanda.comparacao.mesAnterior.variacao}
-                />
-              )}
-              
-              <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-100">
-                <span className="text-slate-600">Novas (30d)</span>
-                <span className={`font-semibold ${getTrendColor(demanda.trend)}`}>
-                  {demanda.novasFamilias30d} {getTrendIcon(demanda.trend)}
+      {/* QUICK STATS */}
+      {dashboard && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Demanda */}
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xl">👨‍👩‍👧‍👦</span>
+              {dashboard.demanda.status && (
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  dashboard.demanda.status === 'excelente' ? 'bg-green-200 text-green-800' :
+                  dashboard.demanda.status === 'bom' ? 'bg-blue-200 text-blue-800' :
+                  dashboard.demanda.status === 'atencao' ? 'bg-yellow-200 text-yellow-800' :
+                  'bg-red-200 text-red-800'
+                }`}>
+                  {dashboard.demanda.status}
                 </span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Taxa Conversão</span>
-                <span className="font-semibold text-slate-900">{demanda.taxaConversao}%</span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Tempo 1º Job</span>
-                <span className="font-semibold text-slate-900">{demanda.tempoMedioPrimeiroJob}h</span>
-              </div>
+              )}
+            </div>
+            <div className="text-3xl font-bold text-gray-900">{dashboard.demanda.totalFamilias}</div>
+            <div className="text-sm text-gray-600">Famílias Ativas</div>
+            <div className="text-xs text-gray-500 mt-2">
+              +{dashboard.demanda.novasFamilias30d} nos últimos 30 dias
             </div>
           </div>
-        </Link>
 
-        {/* CARD 2: OFERTA (Cuidadores) */}
-        <Link href="/admin/cuidadores" className="block">
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-600">OFERTA</h3>
+          {/* Oferta */}
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+            <div className="flex items-center justify-between mb-2">
               <span className="text-2xl">👨‍⚕️</span>
-            </div>
-            
-            <div className="space-y-3">
-              <div>
-                <div className="text-3xl font-bold text-slate-900">{oferta.totalCuidadores}</div>
-                <div className="text-xs text-slate-500">Cuidadores Ativos</div>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Novos (30d)</span>
-                <span className={`font-semibold ${getTrendColor(oferta.trend)}`}>
-                  {oferta.novosCuidadores30d} {getTrendIcon(oferta.trend)}
+              {dashboard.oferta.status && (
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  dashboard.oferta.status === 'excelente' ? 'bg-green-200 text-green-800' :
+                  dashboard.oferta.status === 'bom' ? 'bg-blue-200 text-blue-800' :
+                  dashboard.oferta.status === 'atencao' ? 'bg-yellow-200 text-yellow-800' :
+                  'bg-red-200 text-red-800'
+                }`}>
+                  {dashboard.oferta.status}
                 </span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Taxa Ativação</span>
-                <span className="font-semibold text-slate-900">{oferta.taxaAtivacao}%</span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Disponibilidade</span>
-                <span className="font-semibold text-slate-900">{oferta.disponibilidadeMedia}%</span>
-              </div>
+              )}
+            </div>
+            <div className="text-3xl font-bold text-gray-900">{dashboard.oferta.totalCuidadores}</div>
+            <div className="text-sm text-gray-600">Cuidadores Ativos</div>
+            <div className="text-xs text-gray-500 mt-2">
+              +{dashboard.oferta.novosCuidadores30d} nos últimos 30 dias
             </div>
           </div>
-        </Link>
 
-        {/* CARD 3: CORE MVP (Marketplace) */}
-        <Link href="/admin/marketplace" className="block">
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-600">CORE MVP</h3>
+          {/* Core MVP */}
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+            <div className="flex items-center justify-between mb-2">
               <span className="text-2xl">🎯</span>
-            </div>
-            
-            <div className="space-y-3">
-              <div>
-                <div className="text-3xl font-bold text-slate-900">{coreMvp.jobsAtivos}</div>
-                <div className="text-xs text-slate-500">Jobs Ativos</div>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Taxa Match</span>
-                <span className={`font-semibold ${getTrendColor(coreMvp.trend)}`}>
-                  {coreMvp.taxaMatch}% {getTrendIcon(coreMvp.trend)}
+              {dashboard.coreMvp.status && (
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  dashboard.coreMvp.status === 'excelente' ? 'bg-green-200 text-green-800' :
+                  dashboard.coreMvp.status === 'bom' ? 'bg-blue-200 text-blue-800' :
+                  dashboard.coreMvp.status === 'atencao' ? 'bg-yellow-200 text-yellow-800' :
+                  'bg-red-200 text-red-800'
+                }`}>
+                  {dashboard.coreMvp.status}
                 </span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Tempo Match</span>
-                <span className="font-semibold text-slate-900">{coreMvp.tempoMedioMatch}h</span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Conversão</span>
-                <span className="font-semibold text-slate-900">{coreMvp.taxaConversao}%</span>
-              </div>
+              )}
+            </div>
+            <div className="text-3xl font-bold text-gray-900">{dashboard.coreMvp.jobsAtivos}</div>
+            <div className="text-sm text-gray-600">Jobs Ativos</div>
+            <div className="text-xs text-gray-500 mt-2">
+              {dashboard.coreMvp.taxaMatch}% taxa de match
             </div>
           </div>
-        </Link>
 
-        {/* CARD 4: FINANCEIRO */}
-        <Link href="/admin/financeiro" className="block">
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-600">FINANCEIRO</h3>
+          {/* Financeiro */}
+          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-4 border border-emerald-200">
+            <div className="flex items-center justify-between mb-2">
               <span className="text-2xl">💰</span>
-            </div>
-            
-            <div className="space-y-3">
-              <div>
-                <div className="text-3xl font-bold text-slate-900">{formatCurrency(financeiro.gmv)}</div>
-                <div className="text-xs text-slate-500">GMV (30d)</div>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Receita</span>
-                <span className={`font-semibold ${getTrendColor(financeiro.trend)}`}>
-                  {formatCurrency(financeiro.receita)} {getTrendIcon(financeiro.trend)}
+              {dashboard.financeiro.status && (
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  dashboard.financeiro.status === 'excelente' ? 'bg-green-200 text-green-800' :
+                  dashboard.financeiro.status === 'bom' ? 'bg-blue-200 text-blue-800' :
+                  dashboard.financeiro.status === 'atencao' ? 'bg-yellow-200 text-yellow-800' :
+                  'bg-red-200 text-red-800'
+                }`}>
+                  {dashboard.financeiro.status}
                 </span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Ticket Médio</span>
-                <span className="font-semibold text-slate-900">{formatCurrency(financeiro.ticketMedio)}</span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Conversão</span>
-                <span className="font-semibold text-slate-900">{financeiro.taxaConversao}%</span>
-              </div>
+              )}
+            </div>
+            <div className="text-3xl font-bold text-gray-900">
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(dashboard.financeiro.gmv)}
+            </div>
+            <div className="text-sm text-gray-600">GMV Mensal</div>
+            <div className="text-xs text-gray-500 mt-2">
+              {dashboard.financeiro.taxaConversao}% conversão
             </div>
           </div>
-        </Link>
 
-        {/* CARD 5: CONFIANÇA */}
-        <Link href="/admin/confianca" className="block">
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-600">CONFIANÇA</h3>
+          {/* Confiança */}
+          <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border border-yellow-200">
+            <div className="flex items-center justify-between mb-2">
               <span className="text-2xl">⭐</span>
+              {dashboard.confianca.status && (
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  dashboard.confianca.status === 'excelente' ? 'bg-green-200 text-green-800' :
+                  dashboard.confianca.status === 'bom' ? 'bg-blue-200 text-blue-800' :
+                  dashboard.confianca.status === 'atencao' ? 'bg-yellow-200 text-yellow-800' :
+                  'bg-red-200 text-red-800'
+                }`}>
+                  {dashboard.confianca.status}
+                </span>
+              )}
             </div>
-            
-            <div className="space-y-3">
-              <div>
-                <div className="text-3xl font-bold text-slate-900">{confianca.ratingMedio.toFixed(1)}</div>
-                <div className="text-xs text-slate-500">Rating Médio (5.0)</div>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Tickets Abertos</span>
-                <span className={`font-semibold ${confianca.ticketsAbertos > 10 ? 'text-red-600' : 'text-slate-900'}`}>
-                  {confianca.ticketsAbertos}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Alertas Críticos</span>
-                <span className={`font-semibold ${confianca.alertasCriticos > 5 ? 'text-red-600' : 'text-slate-900'}`}>
-                  {confianca.alertasCriticos}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">NPS</span>
-                <span className="font-semibold text-slate-900">
-                  {confianca.nps !== null ? confianca.nps : 'N/A'}
-                </span>
-              </div>
+            <div className="text-3xl font-bold text-gray-900">{dashboard.confianca.ratingMedio.toFixed(1)}</div>
+            <div className="text-sm text-gray-600">Rating Médio</div>
+            <div className="text-xs text-gray-500 mt-2">
+              {dashboard.confianca.ticketsAbertos} tickets abertos
             </div>
           </div>
-        </Link>
+        </div>
+      )}
+
+      {/* MÓDULOS GRID */}
+      <div>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">📊 Módulos Disponíveis</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {modules.map((module) => (
+            <Link
+              key={module.id}
+              href={module.href}
+              className="group relative bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-xl hover:scale-105 hover:-translate-y-1 transition-all duration-300"
+            >
+              {/* Gradient Background on Hover */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${module.gradient} opacity-0 group-hover:opacity-10 rounded-xl transition-opacity duration-300`}></div>
+              
+              {/* Content */}
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-4xl">{module.icon}</span>
+                  <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+                
+                <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-gray-700">
+                  {module.title}
+                </h3>
+                
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {module.description}
+                </p>
+
+                {/* Bottom Accent */}
+                <div className={`mt-4 h-1 bg-gradient-to-r ${module.gradient} rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* FOOTER INFO */}
-      <div className="mt-6 text-center text-xs text-slate-500">
-        Última atualização: {new Date(dashboard.timestamp).toLocaleString('pt-BR')}
+      <div className="text-center text-sm text-gray-500 py-4">
+        <p>Torre de Controle V2 • Última atualização: {dashboard ? new Date(dashboard.timestamp).toLocaleString('pt-BR') : 'Carregando...'}</p>
       </div>
-    </AdminLayout>
+    </div>
   );
 }
