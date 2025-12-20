@@ -9,17 +9,25 @@ import { toDate } from '@/lib/dateUtils';
 import type { DemandaBlock } from './types';
 
 export async function getDemandaBlock(): Promise<DemandaBlock> {
-  const db = getFirestore();
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  console.log('[Demanda Block] Starting...');
+  
+  try {
+    const db = getFirestore();
+    console.log('[Demanda Block] Firestore obtained');
+    
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // Solicitações abertas (status: pendente ou em_andamento)
-  const openJobsSnapshot = await db
-    .collection('jobs')
-    .where('status', 'in', ['pendente', 'em_andamento'])
-    .get();
+    console.log('[Demanda Block] Querying open jobs...');
+    // Solicitações abertas (status: pendente ou em_andamento)
+    const openJobsSnapshot = await db
+      .collection('jobs')
+      .where('status', 'in', ['pendente', 'em_andamento'])
+      .get();
+    
+    console.log('[Demanda Block] Open jobs found:', openJobsSnapshot.size);
 
-  const totalOpen = openJobsSnapshot.size;
+    const totalOpen = openJobsSnapshot.size;
 
   // Calcular % de mudança vs período anterior (30 dias atrás)
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
@@ -121,4 +129,9 @@ export async function getDemandaBlock(): Promise<DemandaBlock> {
       percentage: slaRiskPercentage
     }
   };
+  } catch (error: any) {
+    console.error('[Demanda Block] Error:', error.message);
+    console.error('[Demanda Block] Stack:', error.stack);
+    throw error;
+  }
 }
