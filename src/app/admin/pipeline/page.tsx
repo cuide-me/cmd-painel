@@ -4,6 +4,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import AdminLayout, { StatCard, Section, Card, Badge, Button, Table, LoadingSkeleton, EmptyState } from '@/components/admin/AdminLayout';
+import DateRangeFilter, { type DateRange } from '@/components/admin/DateRangeFilter';
+import ExportButton from '@/components/admin/ExportButton';
+import SimpleLineChart from '@/components/admin/charts/SimpleLineChart';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import type { PipelineData } from '@/services/admin/pipeline';
 
 export default function AdminPipelinePage() {
@@ -12,12 +16,19 @@ export default function AdminPipelinePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await authFetch('/api/admin/pipeline');
+      
+      let url = '/api/admin/pipeline';
+      if (dateRange) {
+        url += `?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+      }
+      
+      const response = await authFetch(url);
       if (!response.ok) throw new Error('Erro ao carregar pipeline');
       const result = await response.json();
       setData(result.success ? result.data : result);
@@ -26,7 +37,13 @@ export default function AdminPipelinePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateRange]);
+
+  const { isEnabled, countdown, toggle, reset } = useAutoRefresh({
+    onRefresh: fetchData,
+    interval: 60000, // 60 segundos
+    enabled: false
+  });
 
   useEffect(() => {
     if (!authReady) return;
@@ -61,6 +78,43 @@ export default function AdminPipelinePage() {
 
   return (
     <AdminLayout title="Pipeline V2" subtitle="Sprint 5 - Velocity, Conversão, Forecast" icon="🎯">
+      {/* Filtros e Controles */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div className="lg:col-span-2">
+          <DateRangeFilter onRangeChange={(range) => { setDateRange(range); setTimeout(() => fetchData(), 100); }} />
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={toggle}
+            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+              isEnabled 
+                ? 'bg-green-600 text-white hover:bg-green-700' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            {isEnabled ? `🔄 Auto (${countdown}s)` : '⏸️ Auto-refresh OFF'}
+          </button>
+          <ExportButton data={data} filename="pipeline" />
+          <button
+            onClick={() => { fetchData(); reset(); }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            🔄
+          </button>
+        </div>
+      </div>
+
+      {/* Gráfico de Conversão */}
+      <SimpleLineChart
+        title="📈 Taxa de Conversão por Etapa"
+        data={data.stages.map(stage => ({
+          label: stage.name.substring(0, 15),
+          value: stage.percentage
+        }))}
+        height={200}
+        color="#10b981"
+      />
+
       {/* Main KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard

@@ -12,6 +12,10 @@ import { useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import AdminLayout from '@/components/admin/AdminLayout';
+import DateRangeFilter, { type DateRange } from '@/components/admin/DateRangeFilter';
+import ExportButton from '@/components/admin/ExportButton';
+import SimpleBarChart from '@/components/admin/charts/SimpleBarChart';
+import LoadingSkeleton from '@/components/admin/LoadingSkeleton';
 import type { MarketplaceValidationData } from '@/services/admin/marketplace-validation';
 
 export default function MarketplacePage() {
@@ -20,6 +24,7 @@ export default function MarketplacePage() {
   const [data, setData] = useState<MarketplaceValidationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
 
   useEffect(() => {
     if (!authLoading) {
@@ -31,7 +36,13 @@ export default function MarketplacePage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await authFetch('/api/admin/marketplace-validation');
+      
+      let url = '/api/admin/marketplace-validation';
+      if (dateRange) {
+        url += `?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+      }
+      
+      const response = await authFetch(url);
       const result = await response.json();
 
       if (result.success && result.data) {
@@ -47,12 +58,19 @@ export default function MarketplacePage() {
     }
   };
 
+  const handleDateRangeChange = (range: DateRange) => {
+    setDateRange(range);
+    // Reload will happen via useEffect
+    setTimeout(() => loadData(), 100);
+  };
+
   if (authLoading || loading) {
     return (
       <AdminLayout title="Marketplace Validation" subtitle="Carregando..." icon="🎯">
-        <div className="text-center p-12">
-          <div className="text-4xl mb-4">🔄</div>
-          <div className="text-gray-600">Carregando dados...</div>
+        <div className="space-y-6">
+          <LoadingSkeleton type="card" />
+          <LoadingSkeleton type="chart" />
+          <LoadingSkeleton type="table" rows={5} />
         </div>
       </AdminLayout>
     );
@@ -85,15 +103,31 @@ export default function MarketplacePage() {
   return (
     <AdminLayout title="Marketplace Validation" subtitle="Validação Demanda vs Oferta" icon="🎯">
       <div className="space-y-6">
-        {/* Botão Atualizar */}
-        <div className="flex justify-end">
-          <button
-            onClick={loadData}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            🔄 Atualizar
-          </button>
+        {/* Filtros e Ações */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <DateRangeFilter onRangeChange={handleDateRangeChange} />
+          </div>
+          <div className="flex gap-3">
+            <ExportButton data={data} filename="marketplace-validation" />
+            <button
+              onClick={loadData}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              🔄 Atualizar
+            </button>
+          </div>
         </div>
+
+        {/* Gráfico de Balance */}
+        <SimpleBarChart
+          title="📊 Demanda vs Oferta"
+          data={[
+            { label: 'Demanda Aberta', value: balance.demandaAberta, color: 'bg-red-500' },
+            { label: 'Oferta Disponível', value: balance.ofertaDisponivel, color: 'bg-green-500' }
+          ]}
+          height={250}
+        />
 
         {/* Balance Geral */}
         <div className="bg-white rounded-lg shadow-lg p-6">
