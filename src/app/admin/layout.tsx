@@ -209,6 +209,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
               {/* Actions */}
               <div className="flex items-center gap-3">
+                {/* Quick Menu Button */}
+                <button
+                  onClick={() => setQuickMenuOpen(!quickMenuOpen)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative"
+                  title="Menu Rápido - Todos os Módulos"
+                >
+                  <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+
                 <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                   <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -218,6 +229,130 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
             </div>
           </header>
+
+          {/* Quick Access Menu (Dropdown) */}
+          {quickMenuOpen && (
+            <>
+              {/* Overlay */}
+              <div 
+                className="fixed inset-0 bg-black/20 z-40"
+                onClick={() => setQuickMenuOpen(false)}
+              />
+              
+              {/* Menu Dropdown */}
+              <div className="fixed top-20 right-6 z-50 bg-white rounded-lg shadow-2xl border border-gray-200 w-96 max-h-[80vh] overflow-hidden">
+                {/* Header */}
+                <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-white">🚀 Acesso Rápido</h3>
+                    <button
+                      onClick={() => setQuickMenuOpen(false)}
+                      className="p-1 hover:bg-white/20 rounded transition-colors"
+                    >
+                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p className="text-sm text-blue-100 mt-1">Navegue entre todos os módulos</p>
+                </div>
+
+                {/* Content */}
+                <div className="overflow-y-auto max-h-[calc(80vh-100px)]">
+                  {/* Main Modules */}
+                  <div className="p-3">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-2">
+                      📊 Módulos Principais
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {mainMenuItems.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                          <Link
+                            key={item.id}
+                            href={item.href}
+                            onClick={() => setQuickMenuOpen(false)}
+                            className={`
+                              p-3 rounded-lg border transition-all hover:shadow-md
+                              ${isActive 
+                                ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-500' 
+                                : 'bg-white border-gray-200 hover:border-blue-300'
+                              }
+                            `}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-2xl">{item.icon}</span>
+                              <span className={`text-xs font-semibold ${isActive ? 'text-blue-700' : 'text-gray-900'}`}>
+                                {item.label}
+                              </span>
+                            </div>
+                            {item.description && (
+                              <p className="text-xs text-gray-500 line-clamp-2">{item.description}</p>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Secondary Modules */}
+                  <div className="p-3 border-t border-gray-200 bg-gray-50">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-2">
+                      ⚙️ Administração
+                    </div>
+                    <div className="space-y-1">
+                      {secondaryMenuItems.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                          <Link
+                            key={item.id}
+                            href={item.href}
+                            onClick={() => setQuickMenuOpen(false)}
+                            className={`
+                              flex items-center gap-3 p-2.5 rounded-lg transition-all
+                              ${isActive 
+                                ? 'bg-blue-100 text-blue-700' 
+                                : 'hover:bg-gray-100 text-gray-700'
+                              }
+                            `}
+                          >
+                            <span className="text-xl">{item.icon}</span>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium">{item.label}</div>
+                              {item.description && (
+                                <div className="text-xs text-gray-500">{item.description}</div>
+                              )}
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Quick Stats */}
+                  <div className="p-3 border-t border-gray-200">
+                    <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-2">
+                      📈 Status Rápido
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="p-2 bg-green-50 rounded-lg border border-green-200">
+                        <div className="text-xs text-green-600 font-medium">Sistema</div>
+                        <div className="text-lg font-bold text-green-700">✓</div>
+                      </div>
+                      <div className="p-2 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="text-xs text-blue-600 font-medium">APIs</div>
+                        <div className="text-lg font-bold text-blue-700">49</div>
+                      </div>
+                      <div className="p-2 bg-purple-50 rounded-lg border border-purple-200">
+                        <div className="text-xs text-purple-600 font-medium">Módulos</div>
+                        <div className="text-lg font-bold text-purple-700">{mainMenuItems.length}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Page Content */}
           <main className="p-6">
