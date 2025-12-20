@@ -21,17 +21,19 @@ export async function getServiceDeskData(): Promise<ServiceDeskData> {
     const tickets: Ticket[] = [];
     const stats: ServiceDeskStats = {
       total: 0,
-      aFazer: 0,
-      emAtendimento: 0,
-      concluidos: 0,
+      porStatus: {
+        A_FAZER: 0,
+        EM_ATENDIMENTO: 0,
+        CONCLUIDO: 0
+      },
+      porPrioridade: {
+        URGENTE: 0,
+        ALTA: 0,
+        MEDIA: 0,
+        BAIXA: 0
+      },
       tempoMedioResposta: 0,
-      tempoMedioResolucao: 0,
-      ticketsPorPrioridade: {
-        urgente: 0,
-        alta: 0,
-        media: 0,
-        baixa: 0
-      }
+      tempoMedioResolucao: 0
     };
 
     ticketsSnap.forEach(doc => {
@@ -39,32 +41,32 @@ export async function getServiceDeskData(): Promise<ServiceDeskData> {
       
       const ticket: Ticket = {
         id: doc.id,
-        titulo: data.titulo || 'Sem título',
-        descricao: data.descricao || '',
+        title: data.titulo || data.title || 'Sem título',
+        description: data.descricao || data.description || '',
         status: data.status || 'A_FAZER',
-        prioridade: data.prioridade || 'media',
-        categoria: data.categoria || 'geral',
-        criadoEm: toDate(data.criadoEm) || new Date(),
-        atualizadoEm: toDate(data.atualizadoEm) || new Date(),
-        responsavel: data.responsavel,
-        usuarioId: data.usuarioId,
-        tempoResposta: data.tempoResposta,
-        tempoResolucao: data.tempoResolucao
+        priority: (data.prioridade || data.priority || 'media').toUpperCase() as 'BAIXA' | 'MEDIA' | 'ALTA' | 'URGENTE',
+        type: data.categoria || data.type || 'geral',
+        createdAt: toDate(data.criadoEm || data.createdAt) || new Date(),
+        updatedAt: toDate(data.atualizadoEm || data.updatedAt) || new Date(),
+        assignedTo: data.responsavel || data.assignedTo,
+        userId: data.usuarioId || data.userId,
+        responseTime: data.tempoResposta || data.responseTime,
+        resolutionTime: data.tempoResolucao || data.resolutionTime
       };
 
       tickets.push(ticket);
       stats.total++;
 
       // Contagem por status
-      if (ticket.status === 'A_FAZER') stats.aFazer++;
-      else if (ticket.status === 'EM_ATENDIMENTO') stats.emAtendimento++;
-      else if (ticket.status === 'CONCLUIDO') stats.concluidos++;
+      if (ticket.status === 'A_FAZER') stats.porStatus.A_FAZER++;
+      else if (ticket.status === 'EM_ATENDIMENTO') stats.porStatus.EM_ATENDIMENTO++;
+      else if (ticket.status === 'CONCLUIDO') stats.porStatus.CONCLUIDO++;
 
       // Contagem por prioridade
-      const prioridade = ticket.prioridade;
-      if (stats.ticketsPorPrioridade[prioridade] !== undefined) {
-        stats.ticketsPorPrioridade[prioridade]++;
-      }
+      if (ticket.priority === 'URGENTE') stats.porPrioridade.URGENTE++;
+      else if (ticket.priority === 'ALTA') stats.porPrioridade.ALTA++;
+      else if (ticket.priority === 'MEDIA') stats.porPrioridade.MEDIA++;
+      else if (ticket.priority === 'BAIXA') stats.porPrioridade.BAIXA++;
     });
 
     return {
@@ -79,17 +81,19 @@ export async function getServiceDeskData(): Promise<ServiceDeskData> {
       tickets: [],
       stats: {
         total: 0,
-        aFazer: 0,
-        emAtendimento: 0,
-        concluidos: 0,
+        porStatus: {
+          A_FAZER: 0,
+          EM_ATENDIMENTO: 0,
+          CONCLUIDO: 0
+        },
+        porPrioridade: {
+          URGENTE: 0,
+          ALTA: 0,
+          MEDIA: 0,
+          BAIXA: 0
+        },
         tempoMedioResposta: 0,
-        tempoMedioResolucao: 0,
-        ticketsPorPrioridade: {
-          urgente: 0,
-          alta: 0,
-          media: 0,
-          baixa: 0
-        }
+        tempoMedioResolucao: 0
       },
       timestamp: new Date().toISOString()
     };

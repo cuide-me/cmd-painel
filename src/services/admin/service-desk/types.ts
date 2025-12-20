@@ -6,32 +6,34 @@
 
 export interface Ticket {
   id: string;
-  titulo: string;
-  descricao: string;
+  title: string;
+  description: string;
   status: 'A_FAZER' | 'EM_ATENDIMENTO' | 'CONCLUIDO';
-  prioridade: 'baixa' | 'media' | 'alta' | 'urgente';
-  categoria: string;
-  criadoEm: Date;
-  atualizadoEm: Date;
-  responsavel?: string;
-  usuarioId?: string;
-  tempoResposta?: number; // minutos
-  tempoResolucao?: number; // minutos
+  priority: 'BAIXA' | 'MEDIA' | 'ALTA' | 'URGENTE';
+  type: string;
+  createdAt: Date;
+  updatedAt: Date;
+  assignedTo?: string;
+  userId?: string;
+  responseTime?: number; // minutos
+  resolutionTime?: number; // minutos
 }
 
 export interface ServiceDeskStats {
   total: number;
-  aFazer: number;
-  emAtendimento: number;
-  concluidos: number;
+  porStatus: {
+    A_FAZER: number;
+    EM_ATENDIMENTO: number;
+    CONCLUIDO: number;
+  };
+  porPrioridade: {
+    URGENTE: number;
+    ALTA: number;
+    MEDIA: number;
+    BAIXA: number;
+  };
   tempoMedioResposta: number;
   tempoMedioResolucao: number;
-  ticketsPorPrioridade: {
-    urgente: number;
-    alta: number;
-    media: number;
-    baixa: number;
-  };
 }
 
 export interface ServiceDeskData {
