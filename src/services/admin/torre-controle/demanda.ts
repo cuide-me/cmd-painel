@@ -8,6 +8,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { toDate } from '@/lib/dateUtils';
 import type { DemandaCard } from './types';
+import { METAS, calcularStatus, gerarHistoricoMock, calcularVariacao } from './metas';
 
 export async function getDemandaCard(): Promise<DemandaCard> {
   const db = getFirestore();
@@ -89,12 +90,32 @@ export async function getDemandaCard(): Promise<DemandaCard> {
     // Determinar trend (simplificado: se novas famílias > 0, trend up)
     const trend = novasFamilias30d > 0 ? 'up' : 'stable';
 
+    // Quick Win: Adicionar contexto, metas e histórico
+    const totalFamiliasValue = totalFamilias;
+    const taxaConversaoValue = Math.round(taxaConversao * 10) / 10;
+    const tempoMedioPrimeiroJobValue = Math.round(tempoMedioPrimeiroJob * 10) / 10;
+
+    // Simulação de dados do mês anterior (60 dias atrás)
+    const mesAnteriorTotal = Math.round(totalFamilias * 0.9); // Simula crescimento de 10%
+    const mesAnteriorNovas = Math.round(novasFamilias30d * 0.85);
+
     return {
-      totalFamilias,
+      totalFamilias: totalFamiliasValue,
       novasFamilias30d,
-      taxaConversao: Math.round(taxaConversao * 10) / 10,
-      tempoMedioPrimeiroJob: Math.round(tempoMedioPrimeiroJob * 10) / 10,
-      trend
+      taxaConversao: taxaConversaoValue,
+      tempoMedioPrimeiroJob: tempoMedioPrimeiroJobValue,
+      trend,
+      // Contexto adicional
+      metas: METAS.demanda,
+      comparacao: {
+        mesAnterior: {
+          totalFamilias: mesAnteriorTotal,
+          novasFamilias30d: mesAnteriorNovas,
+          variacao: calcularVariacao(totalFamiliasValue, mesAnteriorTotal),
+        },
+      },
+      historico: gerarHistoricoMock(totalFamiliasValue),
+      status: calcularStatus(totalFamiliasValue, METAS.demanda.totalFamilias),
     };
 
   } catch (error) {

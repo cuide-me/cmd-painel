@@ -18,6 +18,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authFetch } from '@/lib/client/authFetch';
 import AdminLayout, { LoadingSkeleton, EmptyState } from '@/components/admin/AdminLayout';
+import { Top5Problemas } from '@/components/admin/Top5Problemas';
+import { Sparkline, StatusBadge, Comparacao, MetaIndicador } from '@/components/admin/ui/Sparkline';
 import type { TorreControleDashboard } from '@/services/admin/torre-controle/types';
 import Link from 'next/link';
 
@@ -115,6 +117,13 @@ export default function TorreControleHomepage() {
       subtitle="Dashboard Executivo - Cuide.me" 
       icon="🎯"
     >
+      {/* TOP 5 PROBLEMAS - Quick Win #3 */}
+      {dashboard.top5Problemas && dashboard.top5Problemas.length > 0 && (
+        <div className="mb-6">
+          <Top5Problemas problemas={dashboard.top5Problemas} />
+        </div>
+      )}
+
       {/* GRID PRINCIPAL - 5 CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         
@@ -123,16 +132,41 @@ export default function TorreControleHomepage() {
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-600">DEMANDA</h3>
-              <span className="text-2xl">👨‍👩‍👧‍👦</span>
+              <div className="flex items-center gap-2">
+                {demanda.status && <StatusBadge status={demanda.status} />}
+                <span className="text-2xl">👨‍👩‍👧‍👦</span>
+              </div>
             </div>
             
             <div className="space-y-3">
               <div>
                 <div className="text-3xl font-bold text-slate-900">{demanda.totalFamilias}</div>
                 <div className="text-xs text-slate-500">Famílias Ativas</div>
+                {demanda.historico && (
+                  <div className="mt-2">
+                    <Sparkline data={demanda.historico} width={120} height={30} color="#10b981" />
+                  </div>
+                )}
               </div>
               
-              <div className="flex items-center justify-between text-sm">
+              {demanda.metas && (
+                <MetaIndicador 
+                  atual={demanda.totalFamilias}
+                  meta={demanda.metas.totalFamilias}
+                  label="Meta"
+                  formato="numero"
+                />
+              )}
+              
+              {demanda.comparacao && (
+                <Comparacao 
+                  atual={demanda.totalFamilias}
+                  anterior={demanda.comparacao.mesAnterior.totalFamilias}
+                  variacao={demanda.comparacao.mesAnterior.variacao}
+                />
+              )}
+              
+              <div className="flex items-center justify-between text-sm pt-2 border-t border-slate-100">
                 <span className="text-slate-600">Novas (30d)</span>
                 <span className={`font-semibold ${getTrendColor(demanda.trend)}`}>
                   {demanda.novasFamilias30d} {getTrendIcon(demanda.trend)}

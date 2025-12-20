@@ -10,17 +10,19 @@ import { getOfertaCard } from './oferta';
 import { getCoreMvpCard } from './core-mvp';
 import { getFinanceiroCard } from './financeiro';
 import { getConfiancaCard } from './confianca';
+import { getTop5Problemas } from './problemas';
 import type { TorreControleDashboard } from './types';
 
 export async function getTorreControleDashboard(): Promise<TorreControleDashboard> {
   try {
     // Buscar todos os cards em paralelo
-    const [demanda, oferta, coreMvp, financeiro, confianca] = await Promise.all([
+    const [demanda, oferta, coreMvp, financeiro, confianca, top5Problemas] = await Promise.all([
       getDemandaCard(),
       getOfertaCard(),
       getCoreMvpCard(),
       getFinanceiroCard(),
-      getConfiancaCard()
+      getConfiancaCard(),
+      getTop5Problemas(), // Quick Win #3
     ]);
 
     return {
@@ -29,6 +31,7 @@ export async function getTorreControleDashboard(): Promise<TorreControleDashboar
       coreMvp,
       financeiro,
       confianca,
+      top5Problemas,
       timestamp: new Date().toISOString()
     };
 
