@@ -1,10 +1,12 @@
 /**
  * API ROUTE: /api/admin/marketplace-validation
- * TODO: Implementar conforme roadmap
+ * Validação Marketplace: Demanda vs Oferta
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/server/auth';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getMarketplaceValidation } from '@/services/admin/marketplace-validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,10 +15,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    getFirebaseAdmin();
+    const data = await getMarketplaceValidation();
+
     return NextResponse.json({
       success: true,
-      message: 'API será implementada nas próximas fases',
-      data: { validation: {} }
+      data
     });
   } catch (error: any) {
     console.error('[Marketplace Validation API] Erro:', error);

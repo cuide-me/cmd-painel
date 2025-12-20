@@ -1,10 +1,12 @@
 /**
  * API ROUTE: /api/admin/familias
- * TODO: Implementar conforme roadmap
+ * Módulo Famílias: Jornada + Urgências + Conversão
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/server/auth';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getFamiliasData } from '@/services/admin/familias';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,10 +15,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    getFirebaseAdmin();
+    const data = await getFamiliasData();
+
     return NextResponse.json({
       success: true,
-      message: 'API será implementada nas próximas fases',
-      data: { familias: [] }
+      data
     });
   } catch (error: any) {
     console.error('[Famílias API] Erro:', error);
