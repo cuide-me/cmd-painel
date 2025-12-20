@@ -13,30 +13,33 @@ interface MenuItem {
   icon: string;
   href: string;
   badge?: number;
+  description?: string;
 }
 
 const mainMenuItems: MenuItem[] = [
-  { id: 'home', label: 'Dashboard', icon: moduleIcons.home, href: '/admin' },
-  { id: 'executivo', label: 'Executivo (C-Level)', icon: '📊', href: '/admin/executivo' },
-  { id: 'marketplace', label: 'Marketplace', icon: moduleIcons.marketplace, href: '/admin/marketplace' },
-  { id: 'familias', label: 'Famílias', icon: moduleIcons.familias, href: '/admin/familias' },
-  { id: 'cuidadores', label: 'Cuidadores', icon: moduleIcons.cuidadores, href: '/admin/cuidadores' },
-  { id: 'pipeline', label: 'Pipeline', icon: moduleIcons.pipeline, href: '/admin/pipeline' },
-  { id: 'financeiro', label: 'Financeiro', icon: moduleIcons.financeiro, href: '/admin/financeiro' },
-  { id: 'confianca', label: 'Confiança', icon: moduleIcons.confianca, href: '/admin/confianca' },
-  { id: 'friccao', label: 'Fricção', icon: moduleIcons.friccao, href: '/admin/friccao' },
-  { id: 'service-desk', label: 'Service Desk', icon: moduleIcons.serviceDesk, href: '/admin/service-desk' },
+  { id: 'home', label: 'Torre de Controle', icon: moduleIcons.home, href: '/admin', description: 'Dashboard principal' },
+  { id: 'executivo', label: 'Dashboard Executivo', icon: '📊', href: '/admin/executivo', description: 'Visão C-Level: GMV, LTV, CAC, ARR' },
+  { id: 'dashboard', label: 'Dashboard V2', icon: '📈', href: '/admin/dashboard', description: 'Visão completa: Demanda, Oferta, Financeiro' },
+  { id: 'marketplace', label: 'Marketplace', icon: moduleIcons.marketplace, href: '/admin/marketplace', description: 'Jobs, Matches, Conversões' },
+  { id: 'familias', label: 'Famílias', icon: moduleIcons.familias, href: '/admin/familias', description: 'Gestão de famílias cadastradas' },
+  { id: 'cuidadores', label: 'Cuidadores', icon: moduleIcons.cuidadores, href: '/admin/cuidadores', description: 'Gestão de profissionais' },
+  { id: 'pipeline', label: 'Pipeline', icon: moduleIcons.pipeline, href: '/admin/pipeline', description: 'Funil de conversão' },
+  { id: 'financeiro', label: 'Financeiro', icon: moduleIcons.financeiro, href: '/admin/financeiro', description: 'MRR, Churn, Receitas' },
+  { id: 'confianca', label: 'Confiança & Qualidade', icon: moduleIcons.confianca, href: '/admin/confianca', description: 'NPS, Ratings, Satisfação' },
+  { id: 'friccao', label: 'Fricção', icon: moduleIcons.friccao, href: '/admin/friccao', description: 'Pontos de atrito no fluxo' },
+  { id: 'service-desk', label: 'Service Desk', icon: moduleIcons.serviceDesk, href: '/admin/service-desk', description: 'Tickets e suporte' },
 ];
 
 const secondaryMenuItems: MenuItem[] = [
-  { id: 'users', label: 'Usuários', icon: '👥', href: '/admin/users' },
-  { id: 'settings', label: 'Configurações', icon: moduleIcons.settings, href: '/admin/settings' },
+  { id: 'users', label: 'Usuários Admin', icon: '👥', href: '/admin/users', description: 'Gestão de administradores' },
+  { id: 'settings', label: 'Configurações', icon: moduleIcons.settings, href: '/admin/settings', description: 'Preferências do sistema' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [quickMenuOpen, setQuickMenuOpen] = useState(false);
   const [user, setUser] = useState({ name: 'Admin', email: 'admin@cuide.me' });
 
   useEffect(() => {
