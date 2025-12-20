@@ -91,27 +91,22 @@ function getEmptyOfertaBlock(): any {
 function getEmptyCoreMVPBlock(): any {
   return {
     matchesConcluidos: { total: 0, change: 0, trend: 'stable' },
-    taxaSucesso: { percentage: 0, change: 0, trend: 'stable' },
-    cancelamentos: { total: 0, percentage: 0 },
-    retrabalho: { count: 0, percentage: 0 }
+    nps: { score: 0, change: 0, category: 'ruim' }
   };
 }
 
 function getEmptyFinanceiroBlock(): any {
   return {
-    receitaMensal: { value: 0, change: 0, trend: 'stable' },
+    gmvMes: { value: 0, change: 0, trend: 'stable' },
+    receitaLiquidaMes: { value: 0, change: 0, trend: 'stable' },
     ticketMedio: { value: 0, change: 0, trend: 'stable' },
-    churn: { percentage: 0, count: 0 },
-    assinaturasAtivas: { total: 0, change: 0, trend: 'stable' }
+    churnRate: { percentage: 0, count: 0 }
   };
 }
 
 function getEmptyConfiancaBlock(): any {
   return {
-    ticketsAbertos: { total: 0, change: 0, trend: 'stable' },
-    tempoMedioResposta: { hours: 0, change: 0, trend: 'stable' },
-    satisfacaoGeral: { score: 0, change: 0, trend: 'stable' },
-    incidentesCriticos: { count: 0, resolvidos: 0 }
+    ticketsAbertos: { total: 0, criticos: 0, sla24h: 100 }
   };
 }
 
