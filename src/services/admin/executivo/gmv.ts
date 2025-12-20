@@ -115,13 +115,13 @@ async function gerarHistorico12M(db: FirebaseFirestore.Firestore) {
       });
 
       historico.push({
-        mes: mesRef.toLocaleDateString('pt-BR', { year: 'numeric', month: 'short' }),
+        data: mesRef.toLocaleDateString('pt-BR', { year: 'numeric', month: 'short' }),
         valor: gmvMes,
       });
     } catch (error) {
       // Se falhar, adicionar 0
       historico.push({
-        mes: mesRef.toLocaleDateString('pt-BR', { year: 'numeric', month: 'short' }),
+        data: mesRef.toLocaleDateString('pt-BR', { year: 'numeric', month: 'short' }),
         valor: 0,
       });
     }

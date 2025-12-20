@@ -15,7 +15,7 @@ export interface GMVMetrics {
   momGrowth: number;          // Crescimento Month-over-Month (%)
   forecast3M: number[];       // Forecast próximos 3 meses
   historico12M: Array<{       // Últimos 12 meses
-    mes: string;
+    data: string;
     valor: number;
   }>;
   status: 'excelente' | 'bom' | 'atencao' | 'critico';

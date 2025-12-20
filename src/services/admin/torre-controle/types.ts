@@ -76,6 +76,25 @@ export interface CoreMvpCard {
   trend: 'up' | 'down' | 'stable';
   // Quick Win: Adicionar contexto
   metas?: {
+    jobsAtivos: number;
+    taxaMatch: number;
+    tempoMedioMatch: number;
+    taxaConversao: number;
+  };
+  comparacao?: {
+    mesAnterior: {
+      jobsAtivos: number;
+      taxaMatch: number;
+      variacao: number; // %
+    };
+  };
+  historico?: Array<{
+    data: string;
+    valor: number;
+  }>;
+  status?: 'excelente' | 'bom' | 'atencao' | 'critico';
+}
+
 /**
  * CARD 4: FINANCEIRO
  */
@@ -104,8 +123,8 @@ export interface FinanceiroCard {
     valor: number;
   }>;
   status?: 'excelente' | 'bom' | 'atencao' | 'critico';
-}     variacao: number; // %
-    };
+}
+
 /**
  * CARD 5: CONFIANÇA
  */
@@ -134,8 +153,8 @@ export interface ConfiancaCard {
     valor: number;
   }>;
   status?: 'excelente' | 'bom' | 'atencao' | 'critico';
-}* CARD 4: FINANCEIRO
- */
+}
+
 /**
  * TOP 5 PROBLEMAS (Quick Win #3)
  */
@@ -165,23 +184,4 @@ export interface TorreControleDashboard {
   timestamp: string;
   // Quick Win: Top 5 problemas
   top5Problemas?: ProblemaAtivo[];
-}*/
-export interface ConfiancaCard {
-  ticketsAbertos: number; // tickets críticos (tipo: RECLAMAÇÃO)
-  ratingMedio: number; // 1-5
-  nps: number | null; // Net Promoter Score (se implementado)
-  alertasCriticos: number;
-  trend: 'up' | 'down' | 'stable';
-}
-
-/**
- * DASHBOARD COMPLETO
- */
-export interface TorreControleDashboard {
-  demanda: DemandaCard;
-  oferta: OfertaCard;
-  coreMvp: CoreMvpCard;
-  financeiro: FinanceiroCard;
-  confianca: ConfiancaCard;
-  timestamp: string;
 }
