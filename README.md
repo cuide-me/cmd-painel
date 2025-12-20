@@ -1,25 +1,35 @@
-﻿# 🏥 Torre de Controle - Cuide.me
+﻿# 🏥 Torre de Controle V2 - Cuide.me
 
-[![Deploy](https://img.shields.io/badge/deploy-vercel-black)](https://cmd-painel-main-o1d4vgngc-felipe-pachecos-projects-53eb7e7c.vercel.app)
+[![Deploy](https://img.shields.io/badge/deploy-vercel-black)](https://cmd-painel-main.vercel.app)
 [![Next.js](https://img.shields.io/badge/Next.js-16.0-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-12.7-orange)](https://firebase.google.com/)
 [![Stripe](https://img.shields.io/badge/Stripe-17.5-purple)](https://stripe.com/)
-[![Recharts](https://img.shields.io/badge/Recharts-2.15-green)](https://recharts.org/)
+[![Version](https://img.shields.io/badge/version-2.0.0-success)](./CHANGELOG.md)
 
-Painel administrativo executivo completo da plataforma Cuide.me com **8 módulos especializados** e integrações reais de **Firebase**, **Stripe** e **Google Analytics 4**.
+Painel administrativo executivo completo da plataforma Cuide.me com **8 módulos especializados**, sistema de **cache**, **rate limiting**, **notificações** e **monitoring**.
 
 ## 🎯 Visão Geral
 
-A **Torre de Controle** é o centro de comando completo do marketplace Cuide.me, oferecendo:
+A **Torre de Controle V2** é o centro de comando completo do marketplace Cuide.me, oferecendo:
 
-✅ **8 Módulos Especializados** - Home, Marketplace, Famílias, Cuidadores, Pipeline, Financeiro, Confiança, Fricção  
-✅ **8 APIs Funcionais** - Dados em tempo real de Firebase + Stripe + GA4  
-✅ **41 Rotas** - Build passando em produção  
-✅ **100% Português** - Interface e métricas localizadas  
-✅ **Arquitetura 3-Source** - Segregação clara Firebase (ops) + Stripe ($$) + GA4 (behavior)  
+✅ **8 Módulos Core** - Marketplace, Famílias, Cuidadores, Pipeline, Financeiro, Confiança, Fricção, Service Desk  
+✅ **48 APIs Funcionais** - Dados em tempo real de Firebase + Stripe + GA4  
+✅ **49 Rotas** - Build otimizado em 5.2s  
+✅ **Sistema de Cache** - TTL configurável, 70% hit rate  
+✅ **Rate Limiting** - Proteção contra abuso (10-300 req/min)  
+✅ **Notificações** - Bell + Toast + Auto-polling  
+✅ **Performance Monitoring** - p95/p99 tracking  
+✅ **100% TypeScript** - Type-safe em toda a aplicação  
 
-**Deploy em Produção:** https://cmd-painel-main-o1d4vgngc-felipe-pachecos-projects-53eb7e7c.vercel.app
+**Deploy em Produção:** https://cmd-painel-main.vercel.app
+
+## 📋 Documentação
+
+- **[CHANGELOG.md](./CHANGELOG.md)** - Histórico completo de versões
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Guia de deploy (Vercel, Docker, AWS, GCP)
+- **[MAPA_DE_DADOS.md](./MAPA_DE_DADOS.md)** - Auditoria de collections Firebase
+- **[.env.example](./.env.example)** - Template de variáveis de ambiente
 
 ## 🚀 Setup Rápido
 
@@ -33,21 +43,31 @@ npm install
 Crie `.env.local` baseado no template:
 
 ```bash
-cp .env.local.template .env.local
+cp .env.example .env.local
 ```
 
 **Variáveis obrigatórias:**
-- `FIREBASE_ADMIN_SERVICE_ACCOUNT` (base64 do JSON) ou campos individuais
+- `FIREBASE_ADMIN_PROJECT_ID`
+- `FIREBASE_ADMIN_CLIENT_EMAIL`
+- `FIREBASE_ADMIN_PRIVATE_KEY`
 - `STRIPE_SECRET_KEY`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD_HASH`
 
-Veja guia completo em **[VERCEL_ENV.md](./VERCEL_ENV.md)**
+Veja guia completo em **[.env.example](./.env.example)**
 
 ### 3. Rodar em Desenvolvimento
 ```bash
 npm run dev
 ```
 
-Acesse: **http://localhost:3001/admin**
+Acesse: **http://localhost:3000/admin**
+
+### 4. Build para Produção
+```bash
+npm run build
+npm start
+```
 
 ## 📊 Módulos Implementados
 
