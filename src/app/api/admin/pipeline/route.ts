@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
     getFirebaseAdmin();
     const data = await getPipelineData();
 
-    return NextResponse.json(data);
+    return NextResponse.json({
+      success: true,
+      data
+    });
   } catch (error: any) {
     console.error('[Pipeline API] Erro:', error);
     return NextResponse.json(
