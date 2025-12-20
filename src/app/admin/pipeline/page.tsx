@@ -1,191 +1,149 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { useAdminInactivityTimeout } from '@/hooks/useAdminInactivityTimeout';
+import { useEffect, useState, useCallback } from 'react';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { authFetch } from '@/lib/client/authFetch';
+import AdminLayout, { StatCard, Section, Card, Badge, Button, Table, LoadingSkeleton, EmptyState } from '@/components/admin/AdminLayout';
+import type { PipelineData } from '@/services/admin/pipeline';
 
-interface PipelineData {
-  funil: {
-    etapas: Array<{
-      nome: string;
-      descricao: string;
-      quantidade: number;
-      percentualDoInicio: number;
-      taxaConversaoAteProxima: number;
-    }>;
-    taxaConversaoGeral: number;
-  };
-  taxasConversao: {
-    cadastroParaSolicitacao: number;
-    solicitacaoParaMatch: number;
-    matchParaConclusao: number;
-    cadastroParaConclusao: number;
-  };
-  gargalos: {
-    identificados: Array<{
-      etapa: string;
-      problema: string;
-      impacto: number;
-      volumeAfetado: number;
-      acaoSugerida: string;
-      prioridade: string;
-    }>;
-  };
-  previsoes: {
-    proximoMes: {
-      cadastrosEsperados: number;
-      solicitacoesEsperadas: number;
-      matchesEsperados: number;
-      conclusoesEsperadas: number;
-    };
-  };
-}
-
-export default function PipelinePage() {
-  useAdminAuth();
-  useAdminInactivityTimeout(true);
-  
+export default function AdminPipelinePage() {
+  const { authReady } = useFirebaseAuth();
   const [data, setData] = useState<PipelineData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedStage, setSelectedStage] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     try {
+      setLoading(true);
+      setError(null);
       const response = await authFetch('/api/admin/pipeline');
-      if (!response.ok) throw new Error('Erro ao carregar dados');
+      if (!response.ok) throw new Error('Erro ao carregar pipeline');
       const result = await response.json();
       setData(result);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!authReady) return;
+    fetchData();
+  }, [authReady, fetchData]);
+
+  const formatHours = (hours: number) => {
+    if (hours < 24) return `${Math.round(hours)}h`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ${Math.round(hours % 24)}h`;
+  };
+
+  const formatCurrency = (value: number) => {
+    return `R$ ${(value / 1000).toFixed(0)}k`;
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg">Carregando...</div>
-      </div>
+      <AdminLayout title="Pipeline V2" subtitle="Sprint 5 - Velocity & Forecast" icon="🎯">
+        <LoadingSkeleton lines={4} />
+      </AdminLayout>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <AdminLayout title="Pipeline V2" subtitle="Sprint 5 - Velocity & Forecast" icon="🎯">
+        <EmptyState icon="⚠️" title="Erro ao carregar" description={error || 'Erro desconhecido'} action="Tentar novamente" onAction={fetchData} />
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Pipeline de Conversão</h1>
+    <AdminLayout title="Pipeline V2" subtitle="Sprint 5 - Velocity, Conversão, Forecast" icon="🎯">
+      {/* Main KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <StatCard
+          label="Oportunidades Ativas"
+          value={data.stages.reduce((sum, s) => sum + s.count, 0)}
+          icon="🎯"
+          tooltip="Total de solicitações em andamento no pipeline (não inclui rejeitadas/canceladas)"
+        />
+        <StatCard
+          label="Total Geral"
+          value={data.totalRequests}
+          icon="📋"
+          tooltip="Todas as oportunidades incluindo ativas e pipeline negativa"
+        />
+        <StatCard
+          label="Taxa Conversão"
+          value={`${data.overallConversionRate.toFixed(1)}%`}
+          icon="📊"
+          tooltip="Percentual de oportunidades que chegam até o final do funil"
+        />
+        <StatCard
+          label="Pipeline Negativa"
+          value={data.negativeFunnel.reduce((sum, n) => sum + n.count, 0)}
+          icon="❌"
+          tooltip="Total de oportunidades rejeitadas, canceladas, recusadas ou expiradas"
+        />
+      </div>
 
-        {/* Funil */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Funil Completo</h2>
-          <div className="space-y-4">
-            {data?.funil.etapas.map((etapa, index) => (
-              <div key={index}>
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <div className="font-medium text-gray-900">{etapa.nome}</div>
-                    <div className="text-sm text-gray-600">{etapa.descricao}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-gray-900">{etapa.quantidade}</div>
-                    <div className="text-sm text-gray-600">
-                      {etapa.percentualDoInicio.toFixed(1)}% do início
-                    </div>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-blue-600 h-3 rounded-full transition-all"
-                    style={{ width: `${etapa.percentualDoInicio}%` }}
-                  />
-                </div>
-                {index < data.funil.etapas.length - 1 && (
-                  <div className="text-sm text-gray-600 mt-2 ml-2">
-                    ↓ {etapa.taxaConversaoAteProxima.toFixed(1)}% convertem para próxima etapa
-                  </div>
-                )}
+      {/* Stages */}
+      <Section title="Etapas do Pipeline" tooltip="Oportunidades ativas em cada etapa do funil de vendas">
+        <div className="space-y-3">
+          {data.stages.map(stage => (
+            <Card key={stage.id} padding="md">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-slate-900">{stage.name}</h3>
+                <Badge variant="info">{stage.count}</Badge>
               </div>
+              <div className="flex gap-4 text-sm text-slate-600">
+                <span>{stage.percentage.toFixed(1)}%</span>
+                <span>Tempo médio: {(stage.avgTimeInStage / 24).toFixed(1)} dias</span>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </Section>
+
+      {/* Pipeline Negativa */}
+      {data.negativeFunnel && data.negativeFunnel.length > 0 && (
+        <Section title="Pipeline Negativa" tooltip="Oportunidades que saíram do funil: rejeitadas, canceladas, recusadas ou expiradas">
+          <div className="space-y-3">
+            {data.negativeFunnel.map(item => (
+              <Card key={item.id} padding="md" className="border-l-4 border-red-500">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-slate-900">{item.name}</h3>
+                  <Badge variant="error">{item.count}</Badge>
+                </div>
+                <div className="flex gap-4 text-sm text-slate-600">
+                  <span>{item.percentage.toFixed(1)}% do total</span>
+                  {item.requests.length > 0 && (
+                    <span className="text-slate-400">Últimas {item.requests.length}</span>
+                  )}
+                </div>
+              </Card>
             ))}
           </div>
+        </Section>
+      )}
 
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="text-lg font-medium text-gray-900">
-              Taxa de Conversão Geral:{' '}
-              <span className="text-blue-600">{data?.funil.taxaConversaoGeral.toFixed(1)}%</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Gargalos */}
-        {data?.gargalos.identificados && data.gargalos.identificados.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Gargalos Identificados</h2>
-            <div className="space-y-4">
-              {data.gargalos.identificados.map((gargalo, index) => (
-                <div
-                  key={index}
-                  className={`border-l-4 p-4 ${
-                    gargalo.prioridade === 'critica'
-                      ? 'bg-red-50 border-red-500'
-                      : 'bg-yellow-50 border-yellow-500'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{gargalo.etapa}</div>
-                      <div className="text-sm text-gray-700 mt-1">{gargalo.problema}</div>
-                      <div className="text-sm text-gray-600 mt-2">
-                        💡 {gargalo.acaoSugerida}
-                      </div>
-                    </div>
-                    <div className="text-right ml-4">
-                      <div className="text-2xl font-bold text-red-600">
-                        {gargalo.impacto.toFixed(0)}%
-                      </div>
-                      <div className="text-sm text-gray-600">{gargalo.volumeAfetado} afetados</div>
-                    </div>
-                  </div>
+      {/* Bottlenecks */}
+      {data.bottlenecks.length > 0 && (
+        <Section title="Gargalos" tooltip="Etapas onde oportunidades ficam presas por mais de 48 horas">
+          <div className="space-y-2">
+            {data.bottlenecks.map((b, i) => (
+              <Card key={i} padding="md" className="border-l-4 border-yellow-500">
+                <div className="flex justify-between">
+                  <span className="font-medium">{b.stage}</span>
+                  <span className="text-slate-600">{b.count} itens - {(b.avgTime / 24).toFixed(1)} dias</span>
                 </div>
-              ))}
-            </div>
+              </Card>
+            ))}
           </div>
-        )}
-
-        {/* Previsões */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Previsões para Próximo Mês</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-sm text-gray-600">Cadastros</div>
-              <div className="text-2xl font-bold text-gray-900 mt-1">
-                {data?.previsoes.proximoMes.cadastrosEsperados}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-600">Solicitações</div>
-              <div className="text-2xl font-bold text-gray-900 mt-1">
-                {data?.previsoes.proximoMes.solicitacoesEsperadas}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-600">Matches</div>
-              <div className="text-2xl font-bold text-gray-900 mt-1">
-                {data?.previsoes.proximoMes.matchesEsperados}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-600">Conclusões</div>
-              <div className="text-2xl font-bold text-gray-900 mt-1">
-                {data?.previsoes.proximoMes.conclusoesEsperadas}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+        </Section>
+      )}
+    </AdminLayout>
   );
 }

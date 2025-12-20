@@ -1,5 +1,5 @@
 /**
- * API ROUTE: /api/admin/torre-home
+ * API ROUTE: /api/admin/marketplace
  * TODO: Implementar conforme roadmap
  */
 
@@ -16,10 +16,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'API será implementada nas próximas fases',
-      data: { home: {} }
+      data: { marketplace: [] }
     });
   } catch (error: any) {
-    console.error('[Torre Home API] Erro:', error);
+    console.error('[Marketplace API] Erro:', error);
     return NextResponse.json(
       { error: error.message || 'Erro ao carregar dados' },
       { status: 500 }

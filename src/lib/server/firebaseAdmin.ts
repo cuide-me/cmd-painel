@@ -163,18 +163,8 @@ export function getFirebaseAdmin(): App {
  * Must be called after getFirebaseAdmin()
  */
 export function getFirestore() {
-  try {
-    console.log('[Firestore] Getting Firestore instance...');
-    const { getFirestore: getFirestoreFunc } = require('firebase-admin/firestore');
-    const app = getFirebaseAdmin();
-    const db = getFirestoreFunc(app);
-    console.log('[Firestore] ✓ Firestore instance obtained');
-    return db;
-  } catch (error: any) {
-    console.error('[Firestore] ❌ Failed to get Firestore:', error.message);
-    console.error('[Firestore] Stack:', error.stack);
-    throw error;
-  }
+  const { getFirestore: getFirestoreFunc } = require('firebase-admin/firestore');
+  return getFirestoreFunc(getFirebaseAdmin());
 }
 
 // REMOVED: Don't initialize on module load - only when needed at runtime

@@ -141,7 +141,7 @@ export default function AdminUsersPage() {
               className="flex-1 md:w-64 px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <Button variant="secondary" size="sm" onClick={handleExport}>
-              📥 Exportar
+              � Exportar
             </Button>
           </div>
         </div>

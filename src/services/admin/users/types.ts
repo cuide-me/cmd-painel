@@ -7,6 +7,14 @@ export interface AdminUserRow {
   perfil: 'profissional' | 'cliente';
   porcentagemPerfil: number;
   stripeAccountStatus: string;
+  // Customer data (for both clientes and profissionais)
+  stripeCustomerId?: string;
+  subscriptionStatus?: string; // active, canceled, past_due, trialing, etc.
+  subscriptionPlan?: string; // Basic, Pro, Enterprise, etc.
+  mrr?: number; // Monthly Recurring Revenue
+  paymentMethod?: string; // card, boleto, pix, etc.
+  lastPaymentDate?: string;
+  nextBillingDate?: string;
 }
 
 export interface ListUsersParams {
