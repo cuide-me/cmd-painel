@@ -92,7 +92,7 @@ export async function getGMVMetrics(): Promise<GMVMetrics> {
  * Gera histórico dos últimos 12 meses
  */
 async function gerarHistorico12M(db: FirebaseFirestore.Firestore) {
-  const historico: Array<{ mes: string; valor: number }> = [];
+  const historico: Array<{ data: string; valor: number }> = [];
   const hoje = new Date();
 
   for (let i = 11; i >= 0; i--) {
