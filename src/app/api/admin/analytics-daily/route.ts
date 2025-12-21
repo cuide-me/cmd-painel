@@ -130,11 +130,29 @@ export async function GET(request: NextRequest) {
 
     try {
       console.log('[Analytics Daily] Buscando usuários do Firebase...');
+      
+      // Buscar TODOS os usuários primeiro para ver quantos existem
+      const allUsersSnap = await db.collection('users').limit(10).get();
+      console.log('[Analytics Daily] Total de usuários (sample):', allUsersSnap.size);
+      
+      if (allUsersSnap.size > 0) {
+        const firstUser = allUsersSnap.docs[0].data();
+        console.log('[Analytics Daily] Exemplo de usuário:', {
+          temCreatedAt: !!firstUser.createdAt,
+          userType: firstUser.userType,
+          type: firstUser.type,
+          campos: Object.keys(firstUser)
+        });
+      }
+      
+      // Agora buscar com filtro de data
       const usersSnap = await db
         .collection('users')
         .where('createdAt', '>=', startDate)
         .where('createdAt', '<=', endDate)
         .get();
+
+      console.log('[Analytics Daily] Usuários no período:', usersSnap.size);
 
       usersSnap.forEach((doc) => {
         const data = doc.data();
@@ -156,9 +174,15 @@ export async function GET(request: NextRequest) {
             // Total geral
             signupsMap.set(dateStr, (signupsMap.get(dateStr) || 0) + 1);
             
-            // Separar por tipo (userType: 'professional' ou 'client'/'family')
-            const userType = data.userType || data.type || 'client';
-            if (userType === 'professional' || userType === 'cuidador') {
+            // Separar por tipo - checar vários campos possíveis
+            const userType = data.userType || data.type || data.role || '';
+            const isProfessional = 
+              userType === 'professional' || 
+              userType === 'cuidador' ||
+              userType === 'caregiver' ||
+              data.isProfessional === true;
+            
+            if (isProfessional) {
               professionalsMap.set(dateStr, (professionalsMap.get(dateStr) || 0) + 1);
             } else {
               clientsMap.set(dateStr, (clientsMap.get(dateStr) || 0) + 1);
