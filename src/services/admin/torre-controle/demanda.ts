@@ -8,7 +8,7 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { toDate } from '@/lib/dateUtils';
 import type { DemandaCard } from './types';
-import { METAS, calcularStatus, gerarHistoricoMock, calcularVariacao } from './metas';
+import { METAS, calcularStatus, calcularVariacao } from './metas';
 
 export async function getDemandaCard(): Promise<DemandaCard> {
   const db = getFirestore();
@@ -95,9 +95,9 @@ export async function getDemandaCard(): Promise<DemandaCard> {
     const taxaConversaoValue = Math.round(taxaConversao * 10) / 10;
     const tempoMedioPrimeiroJobValue = Math.round(tempoMedioPrimeiroJob * 10) / 10;
 
-    // Simulação de dados do mês anterior (60 dias atrás)
-    const mesAnteriorTotal = Math.round(totalFamilias * 0.9); // Simula crescimento de 10%
-    const mesAnteriorNovas = Math.round(novasFamilias30d * 0.85);
+    // Simulação de dados do mês anterior (baseado em crescimento estimado)
+    const mesAnteriorTotal = Math.round(totalFamilias * 0.9); // Estimativa: 10% crescimento
+    const mesAnteriorNovas = Math.round(novasFamilias30d * 0.85); // Estimativa
 
     return {
       totalFamilias: totalFamiliasValue,
@@ -114,7 +114,7 @@ export async function getDemandaCard(): Promise<DemandaCard> {
           variacao: calcularVariacao(totalFamiliasValue, mesAnteriorTotal),
         },
       },
-      historico: gerarHistoricoMock(totalFamiliasValue),
+      // Histórico removido - dados reais virão de agregação temporal
       status: calcularStatus(totalFamiliasValue, METAS.demanda.totalFamilias),
     };
 

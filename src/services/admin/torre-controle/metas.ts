@@ -72,30 +72,6 @@ export function calcularStatus(
 }
 
 /**
- * Gera histórico mock dos últimos 30 dias (enquanto não temos dados reais)
- */
-export function gerarHistoricoMock(valorAtual: number): Array<{ data: string; valor: number }> {
-  const historico: Array<{ data: string; valor: number }> = [];
-  const hoje = new Date();
-  
-  for (let i = 29; i >= 0; i--) {
-    const data = new Date(hoje);
-    data.setDate(data.getDate() - i);
-    
-    // Variação aleatória de ±10% para simular tendência
-    const variacao = 0.9 + Math.random() * 0.2;
-    const valor = Math.round(valorAtual * variacao);
-    
-    historico.push({
-      data: data.toISOString().split('T')[0],
-      valor
-    });
-  }
-  
-  return historico;
-}
-
-/**
  * Calcula variação percentual entre dois valores
  */
 export function calcularVariacao(atual: number, anterior: number): number {
