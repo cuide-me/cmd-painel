@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authFetch } from '@/lib/client/authFetch';
 import { Top5Problemas } from '@/components/admin/Top5Problemas';
+import MultiLineChart from '@/components/admin/charts/MultiLineChart';
 import { LineChart } from '@/components/admin/charts/LineChart';
 import type { TorreControleDashboard } from '@/services/admin/torre-controle/types';
 
@@ -204,7 +205,7 @@ export default function TorreControleHomepage() {
 
       {/* ANALYTICS CHARTS - 2 GRÁFICOS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Gráfico 1: Acessos ao Site (www.cuide-me.com.br + /login combinados) */}
+        {/* Gráfico 1: Acessos ao Site (2 linhas: site + login) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           {analyticsLoading ? (
             <div className="animate-pulse">
@@ -212,13 +213,20 @@ export default function TorreControleHomepage() {
               <div className="h-40 bg-gray-100 rounded"></div>
             </div>
           ) : (
-            <LineChart
-              data={analyticsData.map(d => ({ 
-                date: d.date, 
-                value: d.websiteViews + d.loginPageViews 
-              }))}
+            <MultiLineChart
+              lines={[
+                {
+                  data: analyticsData.map(d => ({ date: d.date, value: d.websiteViews })),
+                  label: 'www.cuide-me.com.br',
+                  color: '#3b82f6'
+                },
+                {
+                  data: analyticsData.map(d => ({ date: d.date, value: d.loginPageViews })),
+                  label: '/login',
+                  color: '#8b5cf6'
+                }
+              ]}
               title="📊 Acessos ao Site - Últimos 30 dias (GA4)"
-              color="#3b82f6"
               height={180}
             />
           )}
