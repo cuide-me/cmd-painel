@@ -17,7 +17,9 @@ interface DailyData {
   date: string;
   websiteViews: number;      // Acessos ao www.cuide-me.com.br
   loginPageViews: number;     // Acessos ao /login
-  signups: number;            // Cadastros no Firebase
+  signups: number;            // Total de cadastros
+  professionals: number;      // Profissionais cadastrados
+  clients: number;            // Clientes/Famílias cadastrados
 }
 
 export async function GET(request: NextRequest) {
@@ -139,6 +141,8 @@ export async function GET(request: NextRequest) {
 
     // 2. BUSCAR CADASTROS DO FIREBASE (users collection)
     const signupsMap: Map<string, number> = new Map();
+    const professionalsMap: Map<string, number> = new Map();
+    const clientsMap: Map<string, number> = new Map();
 
     try {
       const usersSnap = await db
@@ -163,7 +167,17 @@ export async function GET(request: NextRequest) {
 
           if (createdDate && !isNaN(createdDate.getTime())) {
             const dateStr = createdDate.toISOString().split('T')[0];
+            
+            // Total geral
             signupsMap.set(dateStr, (signupsMap.get(dateStr) || 0) + 1);
+            
+            // Separar por tipo (userType: 'professional' ou 'client'/'family')
+            const userType = data.userType || data.type || 'client';
+            if (userType === 'professional' || userType === 'cuidador') {
+              professionalsMap.set(dateStr, (professionalsMap.get(dateStr) || 0) + 1);
+            } else {
+              clientsMap.set(dateStr, (clientsMap.get(dateStr) || 0) + 1);
+            }
           }
         }
       });
@@ -179,12 +193,16 @@ export async function GET(request: NextRequest) {
       const dateStr = currentDate.toISOString().split('T')[0];
       const ga4Info = ga4Data.get(dateStr) || { websiteViews: 0, loginPageViews: 0 };
       const signups = signupsMap.get(dateStr) || 0;
+      const professionals = professionalsMap.get(dateStr) || 0;
+      const clients = clientsMap.get(dateStr) || 0;
 
       dailyData.push({
         date: dateStr,
         websiteViews: ga4Info.websiteViews,
         loginPageViews: ga4Info.loginPageViews,
         signups,
+        professionals,
+        clients,
       });
 
       currentDate.setDate(currentDate.getDate() + 1);
@@ -197,6 +215,8 @@ export async function GET(request: NextRequest) {
         totalWebsiteViews: dailyData.reduce((sum, d) => sum + d.websiteViews, 0),
         totalLoginPageViews: dailyData.reduce((sum, d) => sum + d.loginPageViews, 0),
         totalSignups: dailyData.reduce((sum, d) => sum + d.signups, 0),
+        totalProfessionals: dailyData.reduce((sum, d) => sum + d.professionals, 0),
+        totalClients: dailyData.reduce((sum, d) => sum + d.clients, 0),
         days: dailyData.length,
       },
     });

@@ -21,6 +21,8 @@ interface DailyData {
   websiteViews: number;
   loginPageViews: number;
   signups: number;
+  professionals: number;
+  clients: number;
 }
 
 interface ModuleCard {
@@ -227,12 +229,12 @@ export default function TorreControleHomepage() {
                 }
               ]}
               title="📊 Acessos ao Site - Últimos 30 dias (GA4)"
-              height={280}
+              height={350}
             />
           )}
         </div>
 
-        {/* Gráfico 2: Cadastros no Firebase */}
+        {/* Gráfico 2: Cadastros no Firebase (2 linhas) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           {analyticsLoading ? (
             <div className="animate-pulse">
@@ -240,11 +242,21 @@ export default function TorreControleHomepage() {
               <div className="h-40 bg-gray-100 rounded"></div>
             </div>
           ) : (
-            <LineChart
-              data={analyticsData.map(d => ({ date: d.date, value: d.signups }))}
+            <MultiLineChart
+              lines={[
+                {
+                  data: analyticsData.map(d => ({ date: d.date, value: d.professionals })),
+                  label: 'Profissionais',
+                  color: '#f59e0b'
+                },
+                {
+                  data: analyticsData.map(d => ({ date: d.date, value: d.clients })),
+                  label: 'Clientes/Famílias',
+                  color: '#10b981'
+                }
+              ]}
               title="✉️ Cadastros - Últimos 30 dias (Firebase)"
-              color="#10b981"
-              height={280}
+              height={350}
             />
           )}
         </div>

@@ -52,7 +52,7 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
 
   return (
     <div className="w-full">
-      <h3 className="text-xl font-bold text-gray-900 mb-6">{title}</h3>
+      <h3 className="text-2xl font-bold text-gray-900 mb-8">{title}</h3>
       <svg
         viewBox={`0 0 100 ${height}`}
         className="w-full"
@@ -86,7 +86,7 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
           points={points}
           fill="none"
           stroke={color}
-          strokeWidth="0.7"
+          strokeWidth="0.9"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -100,10 +100,10 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
               key={index}
               cx={x}
               cy={y}
-              r="1.2"
+              r="1.5"
               fill={color}
               stroke="white"
-              strokeWidth="0.3"
+              strokeWidth="0.4"
             />
           );
         })}
@@ -112,7 +112,7 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
         <text
           x={(padding / 5) - 2}
           y={padding - 2}
-          fontSize="4"
+          fontSize="5"
           fill="#4b5563"
           textAnchor="end"
           fontWeight="600"
@@ -122,7 +122,7 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
         <text
           x={(padding / 5) - 2}
           y={chartHeight + padding + 2}
-          fontSize="4"
+          fontSize="5"
           fill="#4b5563"
           textAnchor="end"
           fontWeight="600"
@@ -144,7 +144,7 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
                 key={index}
                 x={x}
                 y={height - 5}
-                fontSize="3.5"
+                fontSize="4.5"
                 fill="#4b5563"
                 textAnchor={index === 0 ? "start" : index === data.length - 1 ? "end" : "middle"}
                 fontWeight="500"
@@ -158,15 +158,15 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
       </svg>
 
       {/* Estatísticas */}
-      <div className="mt-4 flex items-center justify-between text-sm text-gray-700 font-medium">
+      <div className="mt-6 flex items-center justify-between text-base text-gray-700 font-medium">
         <div>
-          <span className="font-semibold text-gray-900">Maior:</span> {maxValue}
+          <span className="font-semibold text-lg text-gray-900">Maior:</span> <span className="text-lg">{maxValue}</span>
         </div>
         <div>
-          <span className="font-semibold text-gray-900">Menor:</span> {minValue}
+          <span className="font-semibold text-lg text-gray-900">Menor:</span> <span className="text-lg">{minValue}</span>
         </div>
         <div>
-          <span className="font-semibold text-gray-900">Total:</span> {values.reduce((a, b) => a + b, 0)}
+          <span className="font-semibold text-lg text-gray-900">Total:</span> <span className="text-lg">{values.reduce((a, b) => a + b, 0)}</span>
         </div>
       </div>
     </div>

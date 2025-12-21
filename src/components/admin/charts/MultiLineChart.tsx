@@ -70,18 +70,18 @@ export default function MultiLineChart({ lines, title, height = 200 }: MultiLine
 
   return (
     <div className="w-full">
-      <h3 className="text-xl font-bold text-gray-900 mb-6">{title}</h3>
+      <h3 className="text-2xl font-bold text-gray-900 mb-6">{title}</h3>
       
       {/* Legenda */}
-      <div className="flex gap-6 mb-6">
+      <div className="flex gap-6 mb-8">
         {totals.map((item, idx) => (
           <div key={idx} className="flex items-center gap-3">
             <div 
-              className="w-4 h-4 rounded-full" 
+              className="w-5 h-5 rounded-full" 
               style={{ backgroundColor: item.color }}
             ></div>
-            <span className="text-base text-gray-700">
-              {item.label}: <strong className="text-lg text-gray-900">{item.total.toLocaleString()}</strong>
+            <span className="text-lg text-gray-700">
+              {item.label}: <strong className="text-xl text-gray-900">{item.total.toLocaleString()}</strong>
             </span>
           </div>
         ))}
