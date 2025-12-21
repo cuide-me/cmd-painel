@@ -46,15 +46,6 @@ const modules: ModuleCard[] = [
     gradient: 'from-purple-500 to-purple-700'
   },
   {
-    id: 'dashboard-v2',
-    title: 'Dashboard V2',
-    icon: '📈',
-    href: '/admin/dashboard',
-    description: 'Visão completa: Demanda, Oferta, Financeiro',
-    color: 'blue',
-    gradient: 'from-blue-500 to-blue-700'
-  },
-  {
     id: 'marketplace',
     title: 'Marketplace',
     icon: '🛒',
