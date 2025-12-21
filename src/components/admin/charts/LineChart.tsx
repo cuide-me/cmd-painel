@@ -130,27 +130,31 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
           {minValue}
         </text>
 
-        {/* Labels X-axis (primeiro e último) */}
-        <text
-          x={padding / 5}
-          y={height - 5}
-          fontSize="3.5"
-          fill="#4b5563"
-          textAnchor="start"
-          fontWeight="500"
-        >
-          {new Date(data[0].date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-        </text>
-        <text
-          x={chartWidth + (padding / 5)}
-          y={height - 5}
-          fontSize="3.5"
-          fill="#4b5563"
-          textAnchor="end"
-          fontWeight="500"
-        >
-          {new Date(data[data.length - 1].date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-        </text>
+        {/* Labels X-axis */}
+        {data.map((point, index) => {
+          // Mostrar a cada 3 dias + primeiro e último
+          if (index % 3 === 0 || index === 0 || index === data.length - 1) {
+            const x = (index / (data.length - 1)) * chartWidth + (padding / 5);
+            const formattedDate = new Date(point.date).toLocaleDateString('pt-BR', { 
+              day: '2-digit', 
+              month: '2-digit' 
+            });
+            return (
+              <text
+                key={index}
+                x={x}
+                y={height - 5}
+                fontSize="3.5"
+                fill="#4b5563"
+                textAnchor={index === 0 ? "start" : index === data.length - 1 ? "end" : "middle"}
+                fontWeight="500"
+              >
+                {formattedDate}
+              </text>
+            );
+          }
+          return null;
+        })}
       </svg>
 
       {/* Estatísticas */}

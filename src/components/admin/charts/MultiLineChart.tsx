@@ -155,7 +155,8 @@ export default function MultiLineChart({ lines, title, height = 200 }: MultiLine
 
         {/* X-axis labels (dates) */}
         {dates.map((date, index) => {
-          if (index % Math.ceil(dataCount / 6) === 0 || index === dataCount - 1) {
+          // Mostrar mais labels: a cada 3 dias + primeiro e último
+          if (index % 3 === 0 || index === dataCount - 1) {
             const x = padding.left + (index / (dataCount - 1)) * graphWidth;
             const formattedDate = new Date(date).toLocaleDateString('pt-BR', { 
               day: '2-digit', 
