@@ -159,7 +159,7 @@ export default function TorreControleHomepage() {
 
   const fetchAnalyticsData = async () => {
     try {
-      const response = await authFetch('/api/admin/analytics-daily?days=90');
+      const response = await authFetch('/api/admin/analytics-daily?days=30');
       if (response.ok) {
         const data = await response.json();
         setAnalyticsData(data.data || []);
@@ -202,9 +202,9 @@ export default function TorreControleHomepage() {
         </div>
       )}
 
-      {/* ANALYTICS CHARTS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Acessos ao Site */}
+      {/* ANALYTICS CHARTS - 2 GRÁFICOS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Gráfico 1: Acessos ao Site (www.cuide-me.com.br + /login combinados) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           {analyticsLoading ? (
             <div className="animate-pulse">
@@ -213,32 +213,18 @@ export default function TorreControleHomepage() {
             </div>
           ) : (
             <LineChart
-              data={analyticsData.map(d => ({ date: d.date, value: d.websiteViews }))}
-              title="📊 Acessos ao Site - 90 dias (GA4)"
+              data={analyticsData.map(d => ({ 
+                date: d.date, 
+                value: d.websiteViews + d.loginPageViews 
+              }))}
+              title="📊 Acessos ao Site - Últimos 30 dias (GA4)"
               color="#3b82f6"
               height={180}
             />
           )}
         </div>
 
-        {/* Acessos à Página de Login */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          {analyticsLoading ? (
-            <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-              <div className="h-40 bg-gray-100 rounded"></div>
-            </div>
-          ) : (
-            <LineChart
-              data={analyticsData.map(d => ({ date: d.date, value: d.loginPageViews }))}
-              title="🔐 Acessos /login - 90 dias (GA4)"
-              color="#8b5cf6"
-              height={180}
-            />
-          )}
-        </div>
-
-        {/* Cadastros no Firebase */}
+        {/* Gráfico 2: Cadastros no Firebase */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           {analyticsLoading ? (
             <div className="animate-pulse">
@@ -248,7 +234,7 @@ export default function TorreControleHomepage() {
           ) : (
             <LineChart
               data={analyticsData.map(d => ({ date: d.date, value: d.signups }))}
-              title="✉️ Cadastros - 90 dias (Firebase)"
+              title="✉️ Cadastros - Últimos 30 dias (Firebase)"
               color="#10b981"
               height={180}
             />
