@@ -12,7 +12,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authFetch } from '@/lib/client/authFetch';
 import { Top5Problemas } from '@/components/admin/Top5Problemas';
+import { LineChart } from '@/components/admin/charts/LineChart';
 import type { TorreControleDashboard } from '@/services/admin/torre-controle/types';
+
+interface DailyData {
+  date: string;
+  websiteViews: number;
+  loginPageViews: number;
+  signups: number;
+}
 
 interface ModuleCard {
   id: string;
@@ -121,6 +129,8 @@ export default function TorreControleHomepage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<TorreControleDashboard | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<DailyData[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
   useEffect(() => {
     const isLogged = localStorage.getItem('admin_logged') === 'true';
@@ -130,6 +140,7 @@ export default function TorreControleHomepage() {
     }
     
     fetchDashboard();
+    fetchAnalyticsData();
   }, []);
 
   const fetchDashboard = async () => {
@@ -143,6 +154,20 @@ export default function TorreControleHomepage() {
       console.error('Erro:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAnalyticsData = async () => {
+    try {
+      const response = await authFetch('/api/admin/analytics-daily?days=30');
+      if (response.ok) {
+        const data = await response.json();
+        setAnalyticsData(data.data || []);
+      }
+    } catch (err) {
+      console.error('Erro analytics:', err);
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -176,6 +201,60 @@ export default function TorreControleHomepage() {
           <Top5Problemas problemas={dashboard.top5Problemas} />
         </div>
       )}
+
+      {/* ANALYTICS CHARTS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Acessos ao Site */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {analyticsLoading ? (
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-40 bg-gray-100 rounded"></div>
+            </div>
+          ) : (
+            <LineChart
+              data={analyticsData.map(d => ({ date: d.date, value: d.websiteViews }))}
+              title="📊 Acessos ao Site (GA4)"
+              color="#3b82f6"
+              height={180}
+            />
+          )}
+        </div>
+
+        {/* Acessos à Página de Login */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {analyticsLoading ? (
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-40 bg-gray-100 rounded"></div>
+            </div>
+          ) : (
+            <LineChart
+              data={analyticsData.map(d => ({ date: d.date, value: d.loginPageViews }))}
+              title="🔐 Acessos /login (GA4)"
+              color="#8b5cf6"
+              height={180}
+            />
+          )}
+        </div>
+
+        {/* Cadastros no Firebase */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {analyticsLoading ? (
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-40 bg-gray-100 rounded"></div>
+            </div>
+          ) : (
+            <LineChart
+              data={analyticsData.map(d => ({ date: d.date, value: d.signups }))}
+              title="✉️ Cadastros por Dia (Firebase)"
+              color="#10b981"
+              height={180}
+            />
+          )}
+        </div>
+      </div>
 
       {/* QUICK STATS */}
       {dashboard && (
