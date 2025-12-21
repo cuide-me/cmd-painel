@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         // Formatar property ID corretamente
         const property = `properties/${propertyId}`;
 
-        // Query para todos os pageviews (sem filtro de hostname)
+        // Query para todos os acessos ao site (sessions)
         const [websiteResponse] = await analyticsDataClient.runReport({
           property,
           dateRanges: [{
@@ -83,12 +83,12 @@ export async function GET(request: NextRequest) {
             endDate: endDate.toISOString().split('T')[0],
           }],
           dimensions: [{ name: 'date' }],
-          metrics: [{ name: 'screenPageViews' }],
+          metrics: [{ name: 'sessions' }],
         });
 
         console.log('[Analytics Daily] GA4 Website Response rows:', websiteResponse.rows?.length || 0);
 
-        // Query para página de login (apenas filtro de pagePath)
+        // Query para página de login (sessions com filtro de pagePath)
         const [loginResponse] = await analyticsDataClient.runReport({
           property,
           dateRanges: [{
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
             endDate: endDate.toISOString().split('T')[0],
           }],
           dimensions: [{ name: 'date' }],
-          metrics: [{ name: 'screenPageViews' }],
+          metrics: [{ name: 'sessions' }],
           dimensionFilter: {
             filter: {
               fieldName: 'pagePath',
