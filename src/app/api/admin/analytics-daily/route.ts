@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
 
     // 1. BUSCAR DADOS DO GA4 (Acessos ao site)
     let ga4Data: Map<string, { websiteViews: number; loginPageViews: number }> = new Map();
+    let ga4Error: string | null = null;
     
     try {
       const propertyId = process.env.GA4_PROPERTY_ID;
@@ -116,9 +117,13 @@ export async function GET(request: NextRequest) {
             ga4Data.get(formattedDate)!.loginPageViews = views;
           }
         });
+      } else {
+        console.log('[Analytics Daily] GA4_PROPERTY_ID não configurado - pulando GA4');
+        ga4Error = 'GA4_PROPERTY_ID não configurado';
       }
-    } catch (error) {
-      console.error('[Analytics Daily] Erro ao buscar GA4:', error);
+    } catch (error: any) {
+      console.error('[Analytics Daily] Erro ao buscar GA4:', error.message);
+      ga4Error = error.message;
     }
 
     console.log('[Analytics Daily] Total de dias com dados GA4:', ga4Data.size);
@@ -224,6 +229,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: dailyData,
+      ga4Error, // Incluir erro do GA4 se houver
       summary: {
         totalWebsiteViews: dailyData.reduce((sum, d) => sum + d.websiteViews, 0),
         totalLoginPageViews: dailyData.reduce((sum, d) => sum + d.loginPageViews, 0),
