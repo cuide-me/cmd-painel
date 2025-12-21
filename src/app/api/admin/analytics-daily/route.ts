@@ -68,9 +68,12 @@ export async function GET(request: NextRequest) {
           credentials
         });
 
+        // Formatar property ID corretamente
+        const property = `properties/${propertyId}`;
+
         // Query para todos os pageviews (sem filtro de hostname)
         const [websiteResponse] = await analyticsDataClient.runReport({
-          property: propertyId,
+          property,
           dateRanges: [{
             startDate: startDate.toISOString().split('T')[0],
             endDate: endDate.toISOString().split('T')[0],
@@ -83,7 +86,7 @@ export async function GET(request: NextRequest) {
 
         // Query para página de login (apenas filtro de pagePath)
         const [loginResponse] = await analyticsDataClient.runReport({
-          property: propertyId,
+          property,
           dateRanges: [{
             startDate: startDate.toISOString().split('T')[0],
             endDate: endDate.toISOString().split('T')[0],

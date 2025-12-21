@@ -28,9 +28,12 @@ export async function GET(request: NextRequest) {
       credentials
     });
 
+    // Formatar property ID corretamente
+    const property = `properties/${propertyId}`;
+
     // Teste simples: buscar dados dos últimos 7 dias
     const [response] = await analyticsDataClient.runReport({
-      property: propertyId,
+      property,
       dateRanges: [{
         startDate: '7daysAgo',
         endDate: 'today',
