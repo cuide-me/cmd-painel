@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       if (propertyId) {
         const analyticsDataClient = new BetaAnalyticsDataClient();
 
-        // Query para página principal
+        // Query para todos os pageviews (sem filtro de hostname)
         const [websiteResponse] = await analyticsDataClient.runReport({
           property: propertyId,
           dateRanges: [{
@@ -61,18 +61,11 @@ export async function GET(request: NextRequest) {
           }],
           dimensions: [{ name: 'date' }],
           metrics: [{ name: 'screenPageViews' }],
-          dimensionFilter: {
-            filter: {
-              fieldName: 'hostName',
-              stringFilter: {
-                matchType: 'CONTAINS',
-                value: 'cuide-me.com.br',
-              },
-            },
-          },
         });
 
-        // Query para página de login
+        console.log('[Analytics Daily] GA4 Website Response rows:', websiteResponse.rows?.length || 0);
+
+        // Query para página de login (apenas filtro de pagePath)
         const [loginResponse] = await analyticsDataClient.runReport({
           property: propertyId,
           dateRanges: [{
@@ -82,30 +75,18 @@ export async function GET(request: NextRequest) {
           dimensions: [{ name: 'date' }],
           metrics: [{ name: 'screenPageViews' }],
           dimensionFilter: {
-            andGroup: {
-              expressions: [
-                {
-                  filter: {
-                    fieldName: 'hostName',
-                    stringFilter: {
-                      matchType: 'CONTAINS',
-                      value: 'cuide-me.com.br',
-                    },
-                  },
-                },
-                {
-                  filter: {
-                    fieldName: 'pagePath',
-                    stringFilter: {
-                      matchType: 'CONTAINS',
-                      value: '/login',
-                    },
-                  },
-                },
-              ],
+            filter: {
+              fieldName: 'pagePath',
+              stringFilter: {
+                matchType: 'CONTAINS',
+                value: '/login',
+              },
             },
           },
         });
+
+        console.log('[Analytics Daily] GA4 Login Response rows:', loginResponse.rows?.length || 0);
+
 
         // Processar website views
         websiteResponse.rows?.forEach((row) => {
