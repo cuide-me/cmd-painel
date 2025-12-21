@@ -12,7 +12,21 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    const analyticsDataClient = new BetaAnalyticsDataClient();
+    // Usar as mesmas credenciais do Firebase Admin
+    let credentials;
+    if (process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT) {
+      const serviceAccount = JSON.parse(
+        Buffer.from(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT, 'base64').toString('utf-8')
+      );
+      credentials = {
+        client_email: serviceAccount.client_email,
+        private_key: serviceAccount.private_key,
+      };
+    }
+
+    const analyticsDataClient = new BetaAnalyticsDataClient({
+      credentials
+    });
 
     // Teste simples: buscar dados dos últimos 7 dias
     const [response] = await analyticsDataClient.runReport({

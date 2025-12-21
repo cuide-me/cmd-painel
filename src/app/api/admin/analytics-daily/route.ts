@@ -52,7 +52,21 @@ export async function GET(request: NextRequest) {
       console.log('[Analytics Daily] GA4_PROPERTY_ID:', propertyId ? 'Configurado' : 'NÃO CONFIGURADO');
       
       if (propertyId) {
-        const analyticsDataClient = new BetaAnalyticsDataClient();
+        // Usar as mesmas credenciais do Firebase Admin
+        let credentials;
+        if (process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT) {
+          const serviceAccount = JSON.parse(
+            Buffer.from(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT, 'base64').toString('utf-8')
+          );
+          credentials = {
+            client_email: serviceAccount.client_email,
+            private_key: serviceAccount.private_key,
+          };
+        }
+        
+        const analyticsDataClient = new BetaAnalyticsDataClient({
+          credentials
+        });
 
         // Query para todos os pageviews (sem filtro de hostname)
         const [websiteResponse] = await analyticsDataClient.runReport({
