@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     
     try {
       const propertyId = process.env.GA4_PROPERTY_ID;
+      console.log('[Analytics Daily] GA4_PROPERTY_ID:', propertyId ? 'Configurado' : 'NÃO CONFIGURADO');
       
       if (propertyId) {
         const analyticsDataClient = new BetaAnalyticsDataClient();
@@ -120,12 +121,15 @@ export async function GET(request: NextRequest) {
       console.error('[Analytics Daily] Erro ao buscar GA4:', error);
     }
 
+    console.log('[Analytics Daily] Total de dias com dados GA4:', ga4Data.size);
+
     // 2. BUSCAR CADASTROS DO FIREBASE (users collection)
     const signupsMap: Map<string, number> = new Map();
     const professionalsMap: Map<string, number> = new Map();
     const clientsMap: Map<string, number> = new Map();
 
     try {
+      console.log('[Analytics Daily] Buscando usuários do Firebase...');
       const usersSnap = await db
         .collection('users')
         .where('createdAt', '>=', startDate)
@@ -165,6 +169,10 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('[Analytics Daily] Erro ao buscar cadastros:', error);
     }
+
+    console.log('[Analytics Daily] Total de cadastros:', signupsMap.size, 'dias com dados');
+    console.log('[Analytics Daily] Profissionais:', Array.from(professionalsMap.values()).reduce((a,b) => a+b, 0));
+    console.log('[Analytics Daily] Clientes:', Array.from(clientsMap.values()).reduce((a,b) => a+b, 0));
 
     // 3. COMBINAR DADOS
     const dailyData: DailyData[] = [];
