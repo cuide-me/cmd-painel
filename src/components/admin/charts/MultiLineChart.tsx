@@ -137,17 +137,30 @@ export default function MultiLineChart({ lines, title, height = 200 }: MultiLine
                 strokeLinejoin="round"
               />
 
-              {/* Pontos */}
+              {/* Pontos com valores */}
               {points.map((point, idx) => (
-                <circle
-                  key={idx}
-                  cx={point.x}
-                  cy={point.y}
-                  r="4"
-                  fill={line.color}
-                  stroke="white"
-                  strokeWidth="2"
-                />
+                <g key={idx}>
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="4"
+                    fill={line.color}
+                    stroke="white"
+                    strokeWidth="2"
+                  />
+                  {/* Mostrar valor se for maior que 0 */}
+                  {point.value > 0 && (
+                    <text
+                      x={point.x}
+                      y={point.y - 10}
+                      textAnchor="middle"
+                      className="text-xs fill-gray-700 font-semibold"
+                      style={{ fontSize: '11px', fontWeight: '600' }}
+                    >
+                      {point.value}
+                    </text>
+                  )}
+                </g>
               ))}
             </g>
           );
