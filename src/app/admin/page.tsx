@@ -227,7 +227,7 @@ export default function TorreControleHomepage() {
                 }
               ]}
               title="📊 Acessos ao Site - Últimos 30 dias (GA4)"
-              height={180}
+              height={280}
             />
           )}
         </div>
@@ -244,7 +244,7 @@ export default function TorreControleHomepage() {
               data={analyticsData.map(d => ({ date: d.date, value: d.signups }))}
               title="✉️ Cadastros - Últimos 30 dias (Firebase)"
               color="#10b981"
-              height={180}
+              height={280}
             />
           )}
         </div>

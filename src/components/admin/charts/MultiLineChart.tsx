@@ -70,18 +70,18 @@ export default function MultiLineChart({ lines, title, height = 200 }: MultiLine
 
   return (
     <div className="w-full">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+      <h3 className="text-xl font-bold text-gray-900 mb-6">{title}</h3>
       
       {/* Legenda */}
-      <div className="flex gap-4 mb-4">
+      <div className="flex gap-6 mb-6">
         {totals.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-2">
+          <div key={idx} className="flex items-center gap-3">
             <div 
-              className="w-3 h-3 rounded-full" 
+              className="w-4 h-4 rounded-full" 
               style={{ backgroundColor: item.color }}
             ></div>
-            <span className="text-sm text-gray-600">
-              {item.label}: <strong className="text-gray-900">{item.total.toLocaleString()}</strong>
+            <span className="text-base text-gray-700">
+              {item.label}: <strong className="text-lg text-gray-900">{item.total.toLocaleString()}</strong>
             </span>
           </div>
         ))}
@@ -109,9 +109,10 @@ export default function MultiLineChart({ lines, title, height = 200 }: MultiLine
               />
               <text
                 x={padding.left - 10}
-                y={y + 4}
+                y={y + 5}
                 textAnchor="end"
-                className="text-xs fill-gray-500"
+                className="text-sm fill-gray-600"
+                style={{ fontSize: '14px', fontWeight: '500' }}
               >
                 {value}
               </text>
@@ -131,7 +132,7 @@ export default function MultiLineChart({ lines, title, height = 200 }: MultiLine
                 d={path}
                 fill="none"
                 stroke={line.color}
-                strokeWidth="3"
+                strokeWidth="3.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -142,10 +143,10 @@ export default function MultiLineChart({ lines, title, height = 200 }: MultiLine
                   key={idx}
                   cx={point.x}
                   cy={point.y}
-                  r="4"
+                  r="5"
                   fill={line.color}
                   stroke="white"
-                  strokeWidth="2"
+                  strokeWidth="2.5"
                 />
               ))}
             </g>
@@ -164,9 +165,10 @@ export default function MultiLineChart({ lines, title, height = 200 }: MultiLine
               <text
                 key={index}
                 x={x}
-                y={chartHeight - padding.bottom + 20}
+                y={chartHeight - padding.bottom + 25}
                 textAnchor="middle"
-                className="text-xs fill-gray-500"
+                className="text-sm fill-gray-600"
+                style={{ fontSize: '13px', fontWeight: '500' }}
               >
                 {formattedDate}
               </text>

@@ -52,7 +52,7 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
 
   return (
     <div className="w-full">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
+      <h3 className="text-xl font-bold text-gray-900 mb-6">{title}</h3>
       <svg
         viewBox={`0 0 100 ${height}`}
         className="w-full"
@@ -69,7 +69,7 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
               x2={chartWidth + (padding / 5)}
               y2={y}
               stroke="#e5e7eb"
-              strokeWidth="0.2"
+              strokeWidth="0.3"
             />
           );
         })}
@@ -78,7 +78,7 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
         <polygon
           points={areaPoints}
           fill={color}
-          fillOpacity="0.1"
+          fillOpacity="0.15"
         />
 
         {/* Linha principal */}
@@ -86,7 +86,7 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
           points={points}
           fill="none"
           stroke={color}
-          strokeWidth="0.5"
+          strokeWidth="0.7"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -100,8 +100,10 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
               key={index}
               cx={x}
               cy={y}
-              r="0.8"
+              r="1.2"
               fill={color}
+              stroke="white"
+              strokeWidth="0.3"
             />
           );
         })}
@@ -110,18 +112,20 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
         <text
           x={(padding / 5) - 2}
           y={padding - 2}
-          fontSize="3"
-          fill="#6b7280"
+          fontSize="4"
+          fill="#4b5563"
           textAnchor="end"
+          fontWeight="600"
         >
           {maxValue}
         </text>
         <text
           x={(padding / 5) - 2}
           y={chartHeight + padding + 2}
-          fontSize="3"
-          fill="#6b7280"
+          fontSize="4"
+          fill="#4b5563"
           textAnchor="end"
+          fontWeight="600"
         >
           {minValue}
         </text>
@@ -130,33 +134,35 @@ export function LineChart({ data, title, color = '#3b82f6', height = 200 }: Line
         <text
           x={padding / 5}
           y={height - 5}
-          fontSize="2.5"
-          fill="#6b7280"
+          fontSize="3.5"
+          fill="#4b5563"
           textAnchor="start"
+          fontWeight="500"
         >
           {new Date(data[0].date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
         </text>
         <text
           x={chartWidth + (padding / 5)}
           y={height - 5}
-          fontSize="2.5"
-          fill="#6b7280"
+          fontSize="3.5"
+          fill="#4b5563"
           textAnchor="end"
+          fontWeight="500"
         >
           {new Date(data[data.length - 1].date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
         </text>
       </svg>
 
       {/* Estatísticas */}
-      <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
+      <div className="mt-4 flex items-center justify-between text-sm text-gray-700 font-medium">
         <div>
-          <span className="font-semibold">Maior:</span> {maxValue}
+          <span className="font-semibold text-gray-900">Maior:</span> {maxValue}
         </div>
         <div>
-          <span className="font-semibold">Menor:</span> {minValue}
+          <span className="font-semibold text-gray-900">Menor:</span> {minValue}
         </div>
         <div>
-          <span className="font-semibold">Total:</span> {values.reduce((a, b) => a + b, 0)}
+          <span className="font-semibold text-gray-900">Total:</span> {values.reduce((a, b) => a + b, 0)}
         </div>
       </div>
     </div>
