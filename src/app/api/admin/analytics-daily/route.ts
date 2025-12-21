@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 
 interface DailyData {
@@ -42,6 +42,10 @@ export async function GET(request: NextRequest) {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
+    
+    // Converter para Timestamp do Firebase
+    const startTimestamp = Timestamp.fromDate(startDate);
+    const endTimestamp = Timestamp.fromDate(endDate);
 
     // 1. BUSCAR DADOS DO GA4 (Acessos ao site)
     let ga4Data: Map<string, { websiteViews: number; loginPageViews: number }> = new Map();
@@ -167,11 +171,11 @@ export async function GET(request: NextRequest) {
         });
       }
       
-      // Agora buscar com filtro de data
+      // Agora buscar com filtro de data usando Timestamp
       const usersSnap = await db
         .collection('users')
-        .where('createdAt', '>=', startDate)
-        .where('createdAt', '<=', endDate)
+        .where('createdAt', '>=', startTimestamp)
+        .where('createdAt', '<=', endTimestamp)
         .get();
 
       console.log('[Analytics Daily] Usuários no período:', usersSnap.size);
