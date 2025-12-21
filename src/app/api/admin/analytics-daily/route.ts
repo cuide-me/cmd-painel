@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     // Parâmetros
     const { searchParams } = new URL(request.url);
-    const days = parseInt(searchParams.get('days') || '30', 10);
+    const days = parseInt(searchParams.get('days') || '90', 10); // Padrão: 90 dias (3 meses)
 
     // Calcular datas
     const endDate = new Date();

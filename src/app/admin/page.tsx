@@ -159,7 +159,7 @@ export default function TorreControleHomepage() {
 
   const fetchAnalyticsData = async () => {
     try {
-      const response = await authFetch('/api/admin/analytics-daily?days=30');
+      const response = await authFetch('/api/admin/analytics-daily?days=90');
       if (response.ok) {
         const data = await response.json();
         setAnalyticsData(data.data || []);
@@ -214,7 +214,7 @@ export default function TorreControleHomepage() {
           ) : (
             <LineChart
               data={analyticsData.map(d => ({ date: d.date, value: d.websiteViews }))}
-              title="📊 Acessos ao Site (GA4)"
+              title="📊 Acessos ao Site - 90 dias (GA4)"
               color="#3b82f6"
               height={180}
             />
@@ -231,7 +231,7 @@ export default function TorreControleHomepage() {
           ) : (
             <LineChart
               data={analyticsData.map(d => ({ date: d.date, value: d.loginPageViews }))}
-              title="🔐 Acessos /login (GA4)"
+              title="🔐 Acessos /login - 90 dias (GA4)"
               color="#8b5cf6"
               height={180}
             />
@@ -248,7 +248,7 @@ export default function TorreControleHomepage() {
           ) : (
             <LineChart
               data={analyticsData.map(d => ({ date: d.date, value: d.signups }))}
-              title="✉️ Cadastros por Dia (Firebase)"
+              title="✉️ Cadastros - 90 dias (Firebase)"
               color="#10b981"
               height={180}
             />
