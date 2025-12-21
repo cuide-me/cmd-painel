@@ -153,7 +153,7 @@ export default function TorreControleHomepage() {
 
   const fetchAnalyticsData = async () => {
     try {
-      const response = await authFetch('/api/admin/analytics-daily?days=30');
+      const response = await authFetch('/api/admin/analytics-daily?days=365');
       if (response.ok) {
         const data = await response.json();
         setAnalyticsData(data.data || []);
@@ -219,7 +219,7 @@ export default function TorreControleHomepage() {
                   color: '#8b5cf6'
                 }
               ]}
-              title="📊 Acessos ao Site - Últimos 30 dias (GA4)"
+              title="📊 Acessos ao Site - Último ano (GA4)"
               height={280}
             />
           )}
@@ -246,7 +246,7 @@ export default function TorreControleHomepage() {
                   color: '#10b981'
                 }
               ]}
-              title="✉️ Cadastros - Últimos 30 dias (Firebase)"
+              title="✉️ Cadastros - Último ano (Firebase)"
               height={280}
             />
           )}
