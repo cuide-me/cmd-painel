@@ -163,7 +163,7 @@ export default function MarketplacePage() {
               value={balance.ratio.toFixed(2)}
               subtitle="Ideal: 1.0 - 1.5"
               icon="⚖️"
-              status={balanceStatus.variant}
+              status={balanceStatus.variant === 'info' ? 'active' : balanceStatus.variant as any}
             />
 
             <StatCard
