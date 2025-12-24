@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ToastProvider } from '@/components/admin/ToastNotifications';
-import NotificationBell from '@/components/admin/NotificationBell';
 
 interface MenuItem {
   id: string;
@@ -18,20 +16,10 @@ interface MenuItem {
 const mainMenuItems: MenuItem[] = [
   { id: 'torre', label: 'Torre de Controle', icon: '🎯', href: '/admin', description: 'Dashboard executivo com KPIs críticos' },
   { id: 'torre-detail', label: 'Torre (Detalhes)', icon: '📊', href: '/admin/torre-de-controle', description: 'Visão detalhada com drill-down regional' },
-  { id: 'executivo', label: 'Dashboard Executivo', icon: '📈', href: '/admin/executivo', description: 'Visão C-Level: GMV, LTV, CAC, ARR' },
-  { id: 'marketplace', label: 'Marketplace', icon: '🛒', href: '/admin/marketplace', description: 'Jobs, Matches, Conversões' },
-  { id: 'familias', label: 'Famílias', icon: '👨‍👩‍👧‍👦', href: '/admin/familias', description: 'Gestão de famílias cadastradas' },
-  { id: 'cuidadores', label: 'Cuidadores', icon: '👨‍⚕️', href: '/admin/cuidadores', description: 'Gestão de profissionais' },
-  { id: 'pipeline', label: 'Pipeline', icon: '🔄', href: '/admin/pipeline', description: 'Funil de conversão' },
-  { id: 'financeiro', label: 'Financeiro', icon: '💰', href: '/admin/financeiro', description: 'MRR, Churn, Receitas' },
-  { id: 'confianca', label: 'Confiança & Qualidade', icon: '⭐', href: '/admin/confianca', description: 'NPS, Ratings, Satisfação' },
-  { id: 'friccao', label: 'Fricção', icon: '⚠️', href: '/admin/friccao', description: 'Pontos de atrito no fluxo' },
-  { id: 'service-desk', label: 'Service Desk', icon: '🎧', href: '/admin/service-desk', description: 'Tickets e suporte' },
 ];
 
 const secondaryMenuItems: MenuItem[] = [
   { id: 'users', label: 'Usuários Admin', icon: '👥', href: '/admin/users', description: 'Gestão de administradores' },
-  { id: 'settings', label: 'Configurações', icon: '⚙️', href: '/admin/settings', description: 'Preferências do sistema' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -65,10 +53,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <ToastProvider>
-      <div className="min-h-screen bg-gray-50">
-        {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-gray-50">
+      {/* Top Bar */}
+      <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
           <div className="h-full px-6 flex items-center justify-between max-w-[1920px] mx-auto">
             {/* Logo & Breadcrumb */}
             <div className="flex items-center gap-6">
@@ -109,8 +96,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </button>
-              
-              <NotificationBell />
               
               {/* User Menu */}
               <div className="flex items-center gap-2 pl-3 border-l border-gray-200">
@@ -237,11 +222,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </>
         )}
 
-        {/* Page Content */}
-        <main className="p-6 max-w-[1920px] mx-auto">
-          {children}
-        </main>
-      </div>
-    </ToastProvider>
+      {/* Page Content */}
+      <main className="p-6 max-w-[1920px] mx-auto">
+        {children}
+      </main>
+    </div>
   );
 }
