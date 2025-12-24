@@ -50,13 +50,18 @@ export async function calculateTorreDeControleMetrics(
 
     // Buscar payment_confirmations do mês atual
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    console.log('[TorreMetrics] Buscando payment_confirmations desde:', monthStart);
     const paymentsSnapshot = await db
       .collection('payment_confirmations')
       .where('confirmedAt', '>=', Timestamp.fromDate(monthStart))
-      .where('businessStatus', '==', 'confirmed')
       .get();
 
-    const payments = paymentsSnapshot.docs.map(doc => doc.data());
+    // Filtrar apenas confirmed em memória (evita índice composto)
+    const payments = paymentsSnapshot.docs
+      .map(doc => doc.data())
+      .filter(payment => payment.businessStatus === 'confirmed');
+    
+    console.log('[TorreMetrics] Payments encontrados:', payments.length);
 
     // Buscar transações do mês
     const transacoesSnapshot = await db
