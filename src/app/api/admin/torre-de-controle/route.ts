@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/server/auth';
+import { verifyAdminAuth } from '@/lib/server/auth';
 import { calculateTorreDeControleMetrics } from '@/services/admin/torreDeControleMetrics';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 
@@ -49,10 +49,13 @@ function setCache(key: string, data: any): void {
 
 export async function GET(request: NextRequest) {
   try {
-    // Verificar autenticação admin
-    const auth = await requireAdmin(request);
-    if ('error' in auth) {
-      return auth.error;
+    // Verificar autenticação admin (aceita x-admin-password)
+    const auth = await verifyAdminAuth(request);
+    if (!auth || !auth.authorized) {
+      return NextResponse.json(
+        { error: 'unauthorized', message: 'Authentication required' },
+        { status: 401 }
+      );
     }
 
     // Garantir Firebase Admin inicializado
