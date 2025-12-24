@@ -23,17 +23,21 @@ export async function calculateTorreDeControleMetrics(
   windowDays: number = 30,
   regionFilter?: string
 ): Promise<TorreDeControleResponse> {
+  console.log('[TorreMetrics] Iniciando cálculo, window:', windowDays, 'region:', regionFilter);
+  
   const db = getFirestore();
   const now = new Date();
   const windowStart = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
   
   try {
     // Buscar jobs na janela
+    console.log('[TorreMetrics] Buscando jobs desde:', windowStart);
     const jobsSnapshot = await db
       .collection('jobs')
       .where('createdAt', '>=', Timestamp.fromDate(windowStart))
       .get();
 
+    console.log('[TorreMetrics] Jobs encontrados:', jobsSnapshot.size);
     const jobs = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     
     // Aplicar filtro de região se especificado
@@ -118,7 +122,9 @@ export async function calculateTorreDeControleMetrics(
       alertStatuses,
     };
   } catch (error) {
-    console.error('[TorreDeControle] Erro ao calcular métricas:', error);
+    console.error('[TorreMetrics] ERRO ao calcular métricas:', error);
+    console.error('[TorreMetrics] Error stack:', error instanceof Error ? error.stack : 'No stack');
+    console.error('[TorreMetrics] Error name:', error instanceof Error ? error.name : 'Unknown');
     throw error;
   }
 }
