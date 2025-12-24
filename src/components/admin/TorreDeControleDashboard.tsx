@@ -37,11 +37,6 @@ export function TorreDeControleDashboard({ initialWindow = 30 }: TorreDeControle
     setError(null);
 
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
-        throw new Error('Token de autenticação não encontrado');
-      }
-
       const params = new URLSearchParams({
         window: window.toString(),
       });
@@ -50,9 +45,12 @@ export function TorreDeControleDashboard({ initialWindow = 30 }: TorreDeControle
         params.append('region', selectedRegion);
       }
 
+      // Usar autenticação simples com senha (compatível com verifyAdminAuth)
+      const ADMIN_PASSWORD = 'cuideme@admin321';
+      
       const response = await fetch(`/api/admin/torre-de-controle?${params}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          'x-admin-password': ADMIN_PASSWORD,
         },
       });
 
