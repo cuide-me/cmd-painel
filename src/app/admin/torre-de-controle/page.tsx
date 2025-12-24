@@ -1,8 +1,8 @@
 /**
  * ═══════════════════════════════════════════════════════
- * TORRE DE CONTROLE - DASHBOARD EXECUTIVO
+ * PÁGINA - Torre de Controle
  * ═══════════════════════════════════════════════════════
- * Novo dashboard enxuto com 12 KPIs críticos (early-stage)
+ * /admin/torre-de-controle
  */
 
 'use client';
@@ -10,10 +10,12 @@
 import React from 'react';
 import { TorreDeControleDashboard } from '@/components/admin/TorreDeControleDashboard';
 
-export default function AdminHomePage() {
+export default function TorreDeControlePage() {
   return (
     <div className="min-h-screen bg-gray-50">
-      <TorreDeControleDashboard />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <TorreDeControleDashboard />
+      </div>
     </div>
   );
 }

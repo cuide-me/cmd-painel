@@ -69,32 +69,6 @@ export const ticketSchema = z.object({
 
 export type Ticket = z.infer<typeof ticketSchema>;
 
-// Torre V2 Schema
-export const TorreV2Schema = z.object({
-  finance: z.object({
-    mrr: z.number(),
-    revenue: z.number(),
-    churnRate: z.number(),
-  }).optional(),
-  operations: z.object({
-    sla: z.number(),
-    capacity: z.number(),
-    professionals: z.number(),
-  }).optional(),
-  growth: z.object({
-    traffic: z.number(),
-    conversions: z.number(),
-    cac: z.number(),
-  }).optional(),
-  quality: z.object({
-    nps: z.number(),
-    tickets: z.number(),
-  }).optional(),
-  timestamp: z.string(),
-});
-
-export type TorreV2 = z.infer<typeof TorreV2Schema>;
-
 // Alerts Response Schema
 export const AlertsResponseSchema = z.object({
   alerts: z.array(z.object({

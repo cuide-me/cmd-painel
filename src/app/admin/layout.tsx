@@ -16,13 +16,13 @@ interface MenuItem {
 }
 
 const mainMenuItems: MenuItem[] = [
-  { id: 'home', label: 'Torre de Controle', icon: '🎯', href: '/admin', description: 'Dashboard principal' },
-  { id: 'executivo', label: 'Dashboard Executivo', icon: '📊', href: '/admin/executivo', description: 'Visão C-Level: GMV, LTV, CAC, ARR' },
-  { id: 'dashboard', label: 'Dashboard V2', icon: '📈', href: '/admin/dashboard', description: 'Visão completa: Demanda, Oferta, Financeiro' },
+  { id: 'torre', label: 'Torre de Controle', icon: '🎯', href: '/admin', description: 'Dashboard executivo com KPIs críticos' },
+  { id: 'torre-detail', label: 'Torre (Detalhes)', icon: '📊', href: '/admin/torre-de-controle', description: 'Visão detalhada com drill-down regional' },
+  { id: 'executivo', label: 'Dashboard Executivo', icon: '📈', href: '/admin/executivo', description: 'Visão C-Level: GMV, LTV, CAC, ARR' },
   { id: 'marketplace', label: 'Marketplace', icon: '🛒', href: '/admin/marketplace', description: 'Jobs, Matches, Conversões' },
   { id: 'familias', label: 'Famílias', icon: '👨‍👩‍👧‍👦', href: '/admin/familias', description: 'Gestão de famílias cadastradas' },
   { id: 'cuidadores', label: 'Cuidadores', icon: '👨‍⚕️', href: '/admin/cuidadores', description: 'Gestão de profissionais' },
-  { id: 'pipeline', label: 'Pipeline', icon: '📊', href: '/admin/pipeline', description: 'Funil de conversão' },
+  { id: 'pipeline', label: 'Pipeline', icon: '🔄', href: '/admin/pipeline', description: 'Funil de conversão' },
   { id: 'financeiro', label: 'Financeiro', icon: '💰', href: '/admin/financeiro', description: 'MRR, Churn, Receitas' },
   { id: 'confianca', label: 'Confiança & Qualidade', icon: '⭐', href: '/admin/confianca', description: 'NPS, Ratings, Satisfação' },
   { id: 'friccao', label: 'Fricção', icon: '⚠️', href: '/admin/friccao', description: 'Pontos de atrito no fluxo' },
