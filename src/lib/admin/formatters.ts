@@ -42,9 +42,18 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat('pt-BR').format(value);
 }
 
-function toValidDate(value: Date | string | number): Date | null {
-  const d = typeof value === 'string' || typeof value === 'number' ? new Date(value) : value;
-  return isNaN(d.getTime()) ? null : d;
+function toValidDate(value: Date | string | number | { toDate?: () => Date }): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof value === 'object' && typeof value.toDate === 'function') {
+    const d = value.toDate();
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
 }
 
 /**
