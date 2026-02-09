@@ -37,6 +37,10 @@ export interface AdminUserRow {
   paymentMethod?: string; // card, boleto, pix, etc.
   lastPaymentDate?: string;
   nextBillingDate?: string;
+
+  // Verificação e Documentos
+  statusVerificacao?: 'verificado' | 'pendente' | 'reprovado';
+  documentosCertificados?: string[]; // URLs Firebase Storage ou links
 }
 
 export interface ListUsersParams {

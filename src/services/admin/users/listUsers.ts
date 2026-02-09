@@ -237,6 +237,10 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
         : (ratingsUser?.count || 0),
 
       ticketsTotal: ticketsByUser.get(doc.id) || 0,
+
+      // Verificação e Certificados
+      statusVerificacao: data.statusVerificacao || undefined,
+      documentosCertificados: Array.isArray(data.documentosCertificados) ? data.documentosCertificados : undefined,
     } as AdminUserRow;
   });
 
