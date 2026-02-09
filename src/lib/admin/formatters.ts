@@ -42,11 +42,17 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat('pt-BR').format(value);
 }
 
+function toValidDate(value: Date | string | number): Date | null {
+  const d = typeof value === 'string' || typeof value === 'number' ? new Date(value) : value;
+  return isNaN(d.getTime()) ? null : d;
+}
+
 /**
  * Formata data
  */
 export function formatDate(date: Date | string | number): string {
-  const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+  const d = toValidDate(date);
+  if (!d) return 'Nao disponivel';
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
     month: '2-digit',
@@ -58,7 +64,8 @@ export function formatDate(date: Date | string | number): string {
  * Formata data e hora
  */
 export function formatDateTime(date: Date | string | number): string {
-  const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+  const d = toValidDate(date);
+  if (!d) return 'Nao disponivel';
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
     month: '2-digit',
@@ -72,7 +79,8 @@ export function formatDateTime(date: Date | string | number): string {
  * Formata data relativa (ex: "há 2 dias")
  */
 export function formatRelativeDate(date: Date | string | number): string {
-  const d = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+  const d = toValidDate(date);
+  if (!d) return 'Nao disponivel';
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMins = Math.floor(diffMs / (1000 * 60));
