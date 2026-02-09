@@ -22,6 +22,8 @@ const STATUS_MAP: Record<string, NormalizedJobStatus> = {
   'pending': 'pending',
   'pendente': 'pending',
   'open': 'pending',
+  'proposta_enviada': 'pending',
+  'proposta_recusada': 'pending',
   
   // Matched (profissional atribuído)
   'matched': 'matched',
