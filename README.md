@@ -1,26 +1,37 @@
-﻿# 🏥 Torre de Controle V2 - Cuide.me
+﻿# 🏥 Torre de Controle V3.0 - Cuide.me
 
 [![Deploy](https://img.shields.io/badge/deploy-vercel-black)](https://cmd-painel-main.vercel.app)
 [![Next.js](https://img.shields.io/badge/Next.js-16.0-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-12.7-orange)](https://firebase.google.com/)
 [![Stripe](https://img.shields.io/badge/Stripe-17.5-purple)](https://stripe.com/)
-[![Version](https://img.shields.io/badge/version-2.0.0-success)](./CHANGELOG.md)
+[![GA4](https://img.shields.io/badge/GA4-5.2-yellow)](https://developers.google.com/analytics)
+[![Version](https://img.shields.io/badge/version-3.0.0-success)](./CHANGELOG.md)
 
-Painel administrativo executivo completo da plataforma Cuide.me com **8 módulos especializados**, sistema de **cache**, **rate limiting**, **notificações** e **monitoring**.
+Painel administrativo executivo completo da plataforma Cuide.me com **6 módulos v3.0**, sistema de **design tokens**, **normalização de status**, **integrações real-time** e **analytics avançado**.
 
 ## 🎯 Visão Geral
 
-A **Torre de Controle V2** é o centro de comando completo do marketplace Cuide.me, oferecendo:
+A **Torre de Controle V3.0** é o centro de comando completo do marketplace Cuide.me, oferecendo:
 
-✅ **8 Módulos Core** - Marketplace, Famílias, Cuidadores, Pipeline, Financeiro, Confiança, Fricção, Service Desk  
-✅ **48 APIs Funcionais** - Dados em tempo real de Firebase + Stripe + GA4  
-✅ **49 Rotas** - Build otimizado em 5.2s  
-✅ **Sistema de Cache** - TTL configurável, 70% hit rate  
-✅ **Rate Limiting** - Proteção contra abuso (10-300 req/min)  
-✅ **Notificações** - Bell + Toast + Auto-polling  
-✅ **Performance Monitoring** - p95/p99 tracking  
-✅ **100% TypeScript** - Type-safe em toda a aplicação  
+### 🆕 Novos Módulos (V3.0 - Fevereiro 2026)
+
+**🎯 Torre de Controle** - Dashboard executivo com 6 KPIs críticos (demanda, oferta, match rate, GMV, ticket médio, jobs ativos)  
+**💼 Atendimentos** - Gestão completa de jobs com filtros, enriquecimento de dados e exportação CSV  
+**📈 Funil de Conversão** - 7 estágios (Visitantes → GA4 → Cadastros → Famílias → Jobs → Match → Pagamentos → Concluídos)  
+**🚨 Alertas** - 7 tipos de alertas críticos (jobs sem match 48h, pagamentos pendentes, tickets críticos, etc)  
+**🎫 Service Desk** - Gestão de tickets com SLA tracking e priorização dinâmica  
+**👥 Usuários** - Gerenciamento de famílias e profissionais com agregação de dados em tempo real  
+
+### ⚙️ Infraestrutura V3.0
+
+✅ **Design System Unificado** - Tokens de cores, espaçamento, tipografia e ícones padronizados  
+✅ **Normalização de Status** - Jobs (5 estados) e Tickets (3 estados) com mapeamento PT/EN  
+✅ **Componentes Reutilizáveis** - KpiCard, StatusBadge, AlertBanner, EmptyState  
+✅ **Integrações Reais** - Firebase (7 collections), Stripe (charges), GA4 (analytics)  
+✅ **Degradação Graciosa** - "Não disponível" quando dados ausentes (auditável)  
+✅ **19 Rotas** - Build validado em 5.0s com TypeScript strict  
+✅ **100% Real Data** - Zero dados mockados, agregação client/server otimizada  
 
 **Deploy em Produção:** https://cmd-painel-main.vercel.app
 
@@ -29,7 +40,77 @@ A **Torre de Controle V2** é o centro de comando completo do marketplace Cuide.
 - **[CHANGELOG.md](./CHANGELOG.md)** - Histórico completo de versões
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Guia de deploy (Vercel, Docker, AWS, GCP)
 - **[MAPA_DE_DADOS.md](./MAPA_DE_DADOS.md)** - Auditoria de collections Firebase
+- **[PAINEL_ADMIN_ARQUITETURA.md](./PAINEL_ADMIN_ARQUITETURA.md)** - Arquitetura detalhada do painel v3.0
 - **[.env.example](./.env.example)** - Template de variáveis de ambiente
+
+## 🏗️ Arquitetura V3.0
+
+### Estrutura de Módulos
+
+Cada módulo segue o padrão **Service → API → Page**:
+
+```
+src/
+├── services/admin/          # Camada de dados (Firebase, Stripe, GA4)
+│   ├── dashboard/          # Métricas, alertas, regiões
+│   ├── users/              # Agregação de famílias e profissionais
+│   ├── jobs/               # Atendimentos com enriquecimento
+│   ├── funnel/             # Conversão em 7 estágios (GA4)
+│   ├── alerts/             # 7 tipos de alertas críticos
+│   └── tickets/            # Service desk com SLA
+│
+├── app/api/admin/          # Handlers autenticados
+│   ├── users/route.ts      # GET /api/admin/users
+│   ├── jobs/route.ts       # GET /api/admin/jobs
+│   ├── funil/route.ts      # GET /api/admin/funil
+│   ├── alertas/route.ts    # GET /api/admin/alertas
+│   └── tickets/route.ts    # GET /api/admin/tickets
+│
+├── app/admin/              # Páginas client-side
+│   ├── page.tsx            # 🎯 Torre de Controle (dashboard)
+│   ├── users/page.tsx      # 👥 Usuários (familias + profissionais)
+│   ├── jobs/page.tsx       # 💼 Atendimentos (com filtros)
+│   ├── funil/page.tsx      # 📈 Funil de conversão
+│   ├── alertas/page.tsx    # 🚨 Alertas críticos
+│   └── service-desk/page.tsx # 🎫 Tickets
+│
+├── lib/admin/              # Utilitários
+│   ├── designSystem.ts     # Tokens, cores, indicadores
+│   ├── formatters.ts       # Moeda, %, datas, números
+│   └── dateHelpers.ts      # Cálculos de tempo
+│
+└── components/admin/ui/    # Componentes reutilizáveis
+    ├── KpiCard.tsx         # Cards de métricas
+    ├── StatusBadge.tsx     # Status coloridos
+    ├── AlertBanner.tsx     # Banners de alerta
+    └── EmptyState.tsx      # Estado vazio
+```
+
+### Normalização de Status
+
+**Jobs (5 estados):**
+```typescript
+pending    → Aguardando match
+matched    → Profissional atribuído
+active     → Em andamento
+completed  → Finalizado
+cancelled  → Cancelado
+```
+
+**Tickets (3 estados):**
+```typescript
+A_FAZER         → Novo ticket
+EM_ATENDIMENTO  → Em progresso
+CONCLUIDO       → Resolvido
+```
+
+### Integrações
+
+| Fonte | Uso | Status |
+|-------|-----|--------|
+| **Firebase** | users, jobs, tickets, payments, ratings | ✅ Real-time |
+| **Stripe** | charges, account status | ✅ Real-time |
+| **GA4** | Visitantes (funil estágio 1) | ✅ Opcional |
 
 ## 🚀 Setup Rápido
 
@@ -50,9 +131,13 @@ cp .env.example .env.local
 - `FIREBASE_ADMIN_PROJECT_ID`
 - `FIREBASE_ADMIN_CLIENT_EMAIL`
 - `FIREBASE_ADMIN_PRIVATE_KEY`
+- `FIREBASE_ADMIN_SERVICE_ACCOUNT` (base64, para GA4)
 - `STRIPE_SECRET_KEY`
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD_HASH`
+
+**Variáveis opcionais (GA4):**
+- `GA4_PROPERTY_ID` (para funil de conversão - estágio "Visitantes")
 
 Veja guia completo em **[.env.example](./.env.example)**
 
