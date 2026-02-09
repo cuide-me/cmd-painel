@@ -2,7 +2,8 @@
  * Listagem de tickets (Service Desk) baseada em dados reais
  */
 
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { hoursSince } from '@/lib/admin/dateHelpers';
 import { normalizeTicketStatus } from '../statusNormalizer';
@@ -28,7 +29,7 @@ function calculatePriority(ticket: TicketItem): TicketPriority {
 
 export async function listTickets(windowDays: number = 30): Promise<TicketsResponse> {
   const app = getFirebaseAdmin();
-  const db = getFirestore(app);
+  const db = getFirestore();
 
   const windowStart = Timestamp.fromDate(
     new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000)
@@ -39,7 +40,7 @@ export async function listTickets(windowDays: number = 30): Promise<TicketsRespo
     .where('createdAt', '>=', windowStart)
     .get();
 
-  const tickets: TicketItem[] = snapshot.docs.map((doc) => {
+  const tickets: TicketItem[] = snapshot.docs.map((doc: QueryDocumentSnapshot) => {
     const data = doc.data() as Record<string, any>;
     const status = normalizeTicketStatus(data.status || 'A_FAZER') as TicketStatus;
     const horasEmAberto = hoursSince(data.createdAt);

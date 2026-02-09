@@ -2,7 +2,8 @@
  * Funnel metrics based on real data (Firebase + Stripe + GA4)
  */
 
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getStripeClient } from '@/lib/server/stripe';
@@ -55,7 +56,7 @@ async function getGA4TotalUsers(windowDays: number): Promise<{ value: number | n
 
 export async function getFunnelMetrics(windowDays: number = 30): Promise<FunnelMetrics> {
   const app = getFirebaseAdmin();
-  const db = getFirestore(app);
+  const db = getFirestore();
 
   const windowStart = Timestamp.fromDate(
     new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000)
@@ -144,7 +145,7 @@ export async function getFunnelMetrics(windowDays: number = 30): Promise<FunnelM
       .collection('jobs')
       .where('createdAt', '>=', windowStart)
       .get();
-    jobs = jobsSnap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Record<string, unknown>) })) as Array<Record<string, any>>;
+    jobs = jobsSnap.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...(doc.data() as Record<string, unknown>) })) as Array<Record<string, any>>;
     stages.push({
       id: 'jobs',
       label: 'Jobs Criados',

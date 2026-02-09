@@ -5,7 +5,8 @@
  * Calcula top regiões por demanda
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
+import { type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getTimestampDaysAgo } from '@/lib/admin/dateHelpers';
 
 export interface RegionStats {
@@ -34,7 +35,7 @@ export async function getTopRegions(limit: number = 5, windowDays: number = 30):
       .where('createdAt', '>=', windowStart)
       .get();
     
-    const jobs = jobsSnapshot.docs.map(doc => ({
+    const jobs = jobsSnapshot.docs.map((doc: QueryDocumentSnapshot) => ({
       id: doc.id,
       ...(doc.data() as Record<string, unknown>),
     })) as Array<Record<string, any>>;

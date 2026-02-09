@@ -5,7 +5,8 @@
  * Fonte de dados: Firestore (jobs, payment_confirmations, transacoes, users)
  */
 
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getRegionKey, type RegionData } from './region';
 import type {
   TorreDeControleMetrics,
@@ -38,11 +39,11 @@ export async function calculateTorreDeControleMetrics(
       .get();
 
     console.log('[TorreMetrics] Jobs encontrados:', jobsSnapshot.size);
-    const jobs = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const jobs = jobsSnapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() }));
     
     // Aplicar filtro de região se especificado
     const filteredJobs = regionFilter
-      ? jobs.filter(job => {
+      ? jobs.filter((job: any) => {
           const region = getRegionKey(job);
           return region.key === regionFilter;
         })
@@ -58,8 +59,8 @@ export async function calculateTorreDeControleMetrics(
 
     // Filtrar apenas confirmed em memória (evita índice composto)
     const payments = paymentsSnapshot.docs
-      .map(doc => doc.data())
-      .filter(payment => payment.businessStatus === 'confirmed');
+      .map((doc: QueryDocumentSnapshot) => doc.data())
+      .filter((payment: any) => payment.businessStatus === 'confirmed');
     
     console.log('[TorreMetrics] Payments encontrados:', payments.length);
 
@@ -69,11 +70,11 @@ export async function calculateTorreDeControleMetrics(
       .where('createdAt', '>=', Timestamp.fromDate(monthStart))
       .get();
 
-    const transacoes = transacoesSnapshot.docs.map(doc => doc.data());
+    const transacoes = transacoesSnapshot.docs.map((doc: QueryDocumentSnapshot) => doc.data());
 
     // Buscar users (famílias e cuidadores)
     const usersSnapshot = await db.collection('users').get();
-    const users = usersSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+    const users = usersSnapshot.docs.map((doc: QueryDocumentSnapshot) => ({ uid: doc.id, ...doc.data() }));
 
     // Calcular KPIs
     const familiasAtivas = calculateFamiliasAtivas(filteredJobs);
@@ -320,13 +321,13 @@ function calculateTaxaAceitacao(jobs: any[]): KpiCard {
 }
 
 function calculateCancelamentos(jobs: any[]): KpiCard {
-  const cancelados = jobs.filter(job => job.status === 'cancelado' || job.status === 'cancelled');
+  const cancelados = jobs.filter((job: any) => job.status === 'cancelado' || job.status === 'cancelled');
   const totalJobs = jobs.length;
   
   const taxa = totalJobs > 0 ? (cancelados.length / totalJobs) * 100 : 0;
 
-  const porCliente = cancelados.filter(job => job.canceledBy === 'cliente').length;
-  const porProfissional = cancelados.filter(job => job.canceledBy === 'profissional').length;
+  const porCliente = cancelados.filter((job: any) => job.canceledBy === 'cliente').length;
+  const porProfissional = cancelados.filter((job: any) => job.canceledBy === 'profissional').length;
 
   let status: AlertStatus = 'ok';
   if (taxa > 20) {
@@ -398,8 +399,8 @@ function calculateAvaliacaoMedia(jobs: any[]): KpiCard {
 // ========== ATIVAÇÃO ==========
 
 function calculateAtivacaoFamilias(users: any[], jobs: any[]): KpiCard {
-  const familias = users.filter(u => u.perfil === 'cliente' || u.role === 'user');
-  const familiasComPedido = new Set(jobs.map(j => j.clientId || j.familyId).filter(Boolean));
+  const familias = users.filter((u: any) => u.perfil === 'cliente' || u.role === 'user');
+  const familiasComPedido = new Set(jobs.map((j: any) => j.clientId || j.familyId).filter(Boolean));
 
   const taxa = familias.length > 0 ? (familiasComPedido.size / familias.length) * 100 : 0;
 
@@ -452,8 +453,8 @@ function calculateAtivacaoFamilias(users: any[], jobs: any[]): KpiCard {
 }
 
 function calculateAtivacaoCuidadoresPerfilCompleto(users: any[]): KpiCard {
-  const cuidadores = users.filter(u => u.perfil === 'profissional' || u.role === 'professional');
-  const perfilCompleto = cuidadores.filter(u => u.porcentagemPerfil >= 100 || u.profileComplete === true);
+  const cuidadores = users.filter((u: any) => u.perfil === 'profissional' || u.role === 'professional');
+  const perfilCompleto = cuidadores.filter((u: any) => u.porcentagemPerfil >= 100 || u.profileComplete === true);
 
   const taxa = cuidadores.length > 0 ? (perfilCompleto.length / cuidadores.length) * 100 : 0;
 
@@ -476,17 +477,17 @@ function calculateAtivacaoCuidadoresPerfilCompleto(users: any[]): KpiCard {
 }
 
 function calculateAtivacaoCuidadoresPrimeiroServico(users: any[], jobs: any[]): KpiCard {
-  const cuidadores = users.filter(u => u.perfil === 'profissional' || u.role === 'professional');
-  const perfilCompleto = cuidadores.filter(u => u.porcentagemPerfil >= 100 || u.profileComplete === true);
+  const cuidadores = users.filter((u: any) => u.perfil === 'profissional' || u.role === 'professional');
+  const perfilCompleto = cuidadores.filter((u: any) => u.porcentagemPerfil >= 100 || u.profileComplete === true);
   
   const cuidadoresComServico = new Set(
     jobs
-      .filter(j => j.status === 'proposta_aceita' || j.status === 'accepted')
+      .filter((j: any) => j.status === 'proposta_aceita' || j.status === 'accepted')
       .map(j => j.specialistId || j.professionalId)
       .filter(Boolean)
   );
 
-  const cuidadoresPerfilCompletoComServico = perfilCompleto.filter(c => cuidadoresComServico.has(c.uid));
+  const cuidadoresPerfilCompletoComServico = perfilCompleto.filter((c: any) => cuidadoresComServico.has(c.uid));
 
   const taxa = perfilCompleto.length > 0 
     ? (cuidadoresPerfilCompletoComServico.length / perfilCompleto.length) * 100 
@@ -681,7 +682,7 @@ function calculateAlertStatuses(
   });
 
   const totalClients = clientMap.size;
-  const recorrentes = Array.from(clientMap.values()).filter(count => count >= 2).length;
+  const recorrentes = Array.from(clientMap.values()).filter((count: number) => count >= 2).length;
   const taxaRecorrencia = totalClients > 0 ? (recorrentes / totalClients) * 100 : 0;
 
   let recorrenciaStatus: AlertStatus = 'ok';
