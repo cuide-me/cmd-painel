@@ -7,6 +7,13 @@ import AdminLayout, { StatCard, Section, Card, Badge, Button, Table, LoadingSkel
 import { formatDate } from '@/lib/admin/formatters';
 import type { AdminUserRow } from '@/services/admin/users';
 
+interface ColumnFilters {
+  nome: string;
+  email: string;
+  status: string;
+  verificacao: string;
+}
+
 export default function AdminUsersPage() {
   const { authReady } = useFirebaseAuth();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
@@ -14,6 +21,12 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [perfilFilter, setPerfilFilter] = useState<'all' | 'profissional' | 'cliente'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({
+    nome: '',
+    email: '',
+    status: '',
+    verificacao: '',
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
 
@@ -42,22 +55,24 @@ export default function AdminUsersPage() {
 
   const handleExport = () => {
     const headers = perfilFilter === 'profissional'
-      ? ['ID', 'Nome', 'Tipo', 'Status', 'Cadastro', 'Jobs Aceitos', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Stripe']
+      ? ['ID', 'Nome', 'Tipo', 'Status', 'Verificacao', 'Cadastro', 'Jobs Aceitos', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Stripe', 'Certificados']
       : perfilFilter === 'cliente'
-        ? ['ID', 'Nome', 'Status', 'Cadastro', 'Jobs Criados', 'Jobs Concluidos', 'Pagamentos', 'Avaliacoes', 'Tickets']
-        : ['ID', 'Nome', 'Perfil', 'Status', 'Cadastro', 'Jobs (Criados/Aceitos)', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Pagamentos', 'Tickets', 'Stripe'];
+        ? ['ID', 'Nome', 'Status', 'Verificacao', 'Cadastro', 'Jobs Criados', 'Jobs Concluidos', 'Pagamentos', 'Avaliacoes', 'Tickets']
+        : ['ID', 'Nome', 'Perfil', 'Status', 'Verificacao', 'Cadastro', 'Jobs (Criados/Aceitos)', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Pagamentos', 'Tickets', 'Stripe', 'Certificados'];
 
     const rows = searchedUsers.map(u => {
       if (perfilFilter === 'profissional' || u.perfil === 'profissional') {
         const especialidades = u.especialidades && u.especialidades.length > 0
           ? u.especialidades.join(', ')
           : u.especialidade || '-';
+        const certs = u.documentosCertificados?.length ? `${u.documentosCertificados.length} arquivo(s)` : '-';
         if (perfilFilter === 'profissional') {
           return [
             u.id,
             u.nome,
             especialidades,
             u.ativo === true ? 'Ativo' : u.ativo === false ? 'Inativo' : 'Nao disponivel',
+            u.statusVerificacao || 'Nao disponivel',
             u.createdAt ? formatDate(u.createdAt) : 'Nao disponivel',
             (u.jobsAceitos ?? 'Nao disponivel').toString(),
             (u.jobsConcluidos ?? 'Nao disponivel').toString(),
@@ -66,6 +81,7 @@ export default function AdminUsersPage() {
               ? `${u.avaliacaoMedia.toFixed(1)} (${u.avaliacoesTotal})`
               : 'Nao disponivel',
             u.stripeAccountStatus || 'Nao disponivel',
+            certs,
           ];
         }
 
@@ -75,6 +91,7 @@ export default function AdminUsersPage() {
           u.nome,
           'Profissional',
           u.ativo === true ? 'Ativo' : u.ativo === false ? 'Inativo' : 'Nao disponivel',
+          u.statusVerificacao || 'Nao disponivel',
           u.createdAt ? formatDate(u.createdAt) : 'Nao disponivel',
           jobsCriadosOuAceitos.toString(),
           (u.jobsConcluidos ?? 'Nao disponivel').toString(),
@@ -85,6 +102,7 @@ export default function AdminUsersPage() {
           (u.pagamentosRealizados ?? 'Nao disponivel').toString(),
           (u.ticketsTotal ?? 'Nao disponivel').toString(),
           u.stripeAccountStatus || 'Nao disponivel',
+          certs,
         ];
       }
 
@@ -93,6 +111,7 @@ export default function AdminUsersPage() {
           u.id,
           u.nome,
           u.ativo === true ? 'Ativo' : u.ativo === false ? 'Inativo' : 'Nao disponivel',
+          u.statusVerificacao || 'Nao disponivel',
           u.createdAt ? formatDate(u.createdAt) : 'Nao disponivel',
           (u.jobsCriados ?? 'Nao disponivel').toString(),
           (u.jobsConcluidos ?? 'Nao disponivel').toString(),
@@ -104,22 +123,7 @@ export default function AdminUsersPage() {
         ];
       }
 
-      return [
-        u.id,
-        u.nome,
-        'Familia',
-        u.ativo === true ? 'Ativo' : u.ativo === false ? 'Inativo' : 'Nao disponivel',
-        u.createdAt ? formatDate(u.createdAt) : 'Nao disponivel',
-        (u.jobsCriados ?? 'Nao disponivel').toString(),
-        (u.jobsConcluidos ?? 'Nao disponivel').toString(),
-        (u.jobsCancelados ?? 'Nao disponivel').toString(),
-        u.avaliacaoMedia && u.avaliacoesTotal
-          ? `${u.avaliacaoMedia.toFixed(1)} (${u.avaliacoesTotal})`
-          : 'Nao disponivel',
-        (u.pagamentosRealizados ?? 'Nao disponivel').toString(),
-        (u.ticketsTotal ?? 'Nao disponivel').toString(),
-        u.stripeAccountStatus || 'Nao disponivel',
-      ];
+      return [];
     });
     const csvContent = [
       headers.join(';'),
@@ -152,15 +156,22 @@ export default function AdminUsersPage() {
   const clientes = users.filter(u => u.perfil === 'cliente');
   const perfilCompleto = users.filter(u => u.porcentagemPerfil === 100);
   const stripeAtivos = users.filter(u => u.stripeAccountStatus === 'Ativada');
+  const verificados = users.filter(u => u.statusVerificacao === 'verificado');
 
   const filteredUsers = perfilFilter === 'all' ? users : users.filter(u => u.perfil === perfilFilter);
-  const searchedUsers = searchTerm
-    ? filteredUsers.filter(u =>
-        u.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.especialidade?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : filteredUsers;
+  
+  // Aplicar filtros de coluna
+  const searchedUsers = filteredUsers.filter(u => {
+    const nomeMatch = u.nome.toLowerCase().includes(columnFilters.nome.toLowerCase());
+    const emailMatch = u.email.toLowerCase().includes(columnFilters.email.toLowerCase());
+    const statusMatch = columnFilters.status === '' || 
+      (columnFilters.status === 'ativo' && u.ativo === true) ||
+      (columnFilters.status === 'inativo' && u.ativo === false) ||
+      (columnFilters.status === 'nao-definido' && u.ativo === undefined);
+    const verificacaoMatch = columnFilters.verificacao === '' || u.statusVerificacao === columnFilters.verificacao;
+    
+    return nomeMatch && emailMatch && statusMatch && verificacaoMatch;
+  });
 
   const totalPages = Math.ceil(searchedUsers.length / itemsPerPage);
   const paginatedUsers = searchedUsers.slice(
@@ -180,6 +191,33 @@ export default function AdminUsersPage() {
     return <Badge variant="neutral">Nao disponivel</Badge>;
   };
 
+  const formatVerificacaoBadge = (status?: string) => {
+    if (status === 'verificado') return <Badge variant="success">Verificado</Badge>;
+    if (status === 'reprovado') return <Badge variant="error">Reprovado</Badge>;
+    if (status === 'pendente') return <Badge variant="warning">Pendente</Badge>;
+    return <Badge variant="neutral">Nao definido</Badge>;
+  };
+
+  const formatCertificados = (docs?: string[]) => {
+    if (!docs || docs.length === 0) return '-';
+    return (
+      <div className="flex flex-col gap-1">
+        {docs.map((doc, idx) => (
+          <a
+            key={idx}
+            href={doc}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 underline text-xs truncate max-w-[150px]"
+            title={doc}
+          >
+            📄 Cert {idx + 1}
+          </a>
+        ))}
+      </div>
+    );
+  };
+
   const formatRating = (avg?: number | null, total?: number) => {
     if (!avg || !total) return 'Nao disponivel';
     return `${avg.toFixed(1)} (${total})`;
@@ -192,10 +230,10 @@ export default function AdminUsersPage() {
   ];
 
   const tableHeaders = perfilFilter === 'profissional'
-    ? ['ID', 'Nome', 'Tipo', 'Status', 'Cadastro', 'Jobs Aceitos', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Stripe']
+    ? ['ID', 'Nome', 'Tipo', 'Status', 'Verificacao', 'Cadastro', 'Jobs Aceitos', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Stripe', 'Certificados']
     : perfilFilter === 'cliente'
-      ? ['ID', 'Nome', 'Status', 'Cadastro', 'Jobs Criados', 'Jobs Concluidos', 'Pagamentos', 'Avaliacoes', 'Tickets']
-      : ['ID', 'Nome', 'Perfil', 'Status', 'Cadastro', 'Jobs (Criados/Aceitos)', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Pagamentos', 'Tickets', 'Stripe'];
+      ? ['ID', 'Nome', 'Status', 'Verificacao', 'Cadastro', 'Jobs Criados', 'Jobs Concluidos', 'Pagamentos', 'Avaliacoes', 'Tickets']
+      : ['ID', 'Nome', 'Perfil', 'Status', 'Verificacao', 'Cadastro', 'Jobs', 'Concluidos', 'Cancelamentos', 'Avaliacao', 'Pagamentos', 'Tickets', 'Stripe', 'Certificados'];
 
   const tableRows = paginatedUsers.map(user => {
     if (perfilFilter === 'profissional') {
@@ -207,12 +245,14 @@ export default function AdminUsersPage() {
         user.nome,
         especialidades,
         formatStatusBadge(user.ativo),
+        formatVerificacaoBadge(user.statusVerificacao),
         formatDateOrNA(user.createdAt),
         formatNumberOrNA(user.jobsAceitos),
         formatNumberOrNA(user.jobsConcluidos),
         formatNumberOrNA(user.jobsCancelados),
         formatRating(user.avaliacaoMedia, user.avaliacoesTotal),
         user.stripeAccountStatus || 'Nao disponivel',
+        formatCertificados(user.documentosCertificados),
       ];
     }
 
@@ -221,6 +261,7 @@ export default function AdminUsersPage() {
         user.id,
         user.nome,
         formatStatusBadge(user.ativo),
+        formatVerificacaoBadge(user.statusVerificacao),
         formatDateOrNA(user.createdAt),
         formatNumberOrNA(user.jobsCriados),
         formatNumberOrNA(user.jobsConcluidos),
@@ -239,6 +280,7 @@ export default function AdminUsersPage() {
       user.nome,
       user.perfil === 'profissional' ? 'Profissional' : 'Familia',
       formatStatusBadge(user.ativo),
+      formatVerificacaoBadge(user.statusVerificacao),
       formatDateOrNA(user.createdAt),
       formatNumberOrNA(jobsCriadosOuAceitos),
       formatNumberOrNA(user.jobsConcluidos),
@@ -247,17 +289,19 @@ export default function AdminUsersPage() {
       formatNumberOrNA(user.pagamentosRealizados),
       formatNumberOrNA(user.ticketsTotal),
       user.stripeAccountStatus || 'Nao disponivel',
+      formatCertificados(user.documentosCertificados),
     ];
   });
 
   return (
     <AdminLayout title="Gestao de Usuarios" subtitle="Profissionais e Familias" icon="👥">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <StatCard label="Total Usuarios" value={users.length} icon="👤" />
         <StatCard label="Profissionais" value={profissionais.length} icon="👨‍⚕️" />
         <StatCard label="Familias" value={clientes.length} icon="👨‍👩‍👧‍👦" />
-        <StatCard label="Perfil 100%" value={perfilCompleto.length} icon="✅" />
+        <StatCard label="Verificados" value={verificados.length} icon="✅" />
+        <StatCard label="Perfil 100%" value={perfilCompleto.length} icon="💯" />
       </div>
 
       {/* Tabs */}
@@ -272,26 +316,77 @@ export default function AdminUsersPage() {
 
       {/* Filters & Search */}
       <Card padding="md" className="mb-6">
-        <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
-          <div className="text-xs text-slate-600">
-            {perfilFilter === 'all' && 'Exibindo todos os usuarios'}
-            {perfilFilter === 'cliente' && 'Exibindo apenas familias'}
-            {perfilFilter === 'profissional' && 'Exibindo apenas profissionais'}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Nome</label>
+              <input
+                type="text"
+                placeholder="Filtrar por nome..."
+                value={columnFilters.nome}
+                onChange={(e) => {
+                  setColumnFilters({ ...columnFilters, nome: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+              <input
+                type="text"
+                placeholder="Filtrar por email..."
+                value={columnFilters.email}
+                onChange={(e) => {
+                  setColumnFilters({ ...columnFilters, email: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Status</label>
+              <select
+                value={columnFilters.status}
+                onChange={(e) => {
+                  setColumnFilters({ ...columnFilters, status: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Todos</option>
+                <option value="ativo">Ativo</option>
+                <option value="inativo">Inativo</option>
+                <option value="nao-definido">Não definido</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Verificação</label>
+              <select
+                value={columnFilters.verificacao}
+                onChange={(e) => {
+                  setColumnFilters({ ...columnFilters, verificacao: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Todos</option>
+                <option value="verificado">Verificado</option>
+                <option value="pendente">Pendente</option>
+                <option value="reprovado">Reprovado</option>
+              </select>
+            </div>
           </div>
 
-          <div className="flex gap-2 w-full md:w-auto">
-            <input
-              type="text"
-              placeholder="Buscar por nome, email..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="flex-1 md:w-64 px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+          <div className="flex justify-between items-center">
+            <div className="text-xs text-slate-600">
+              Exibindo {searchedUsers.length} de {filteredUsers.length} usuários
+            </div>
             <Button variant="secondary" size="sm" onClick={handleExport}>
-              Exportar
+              📥 Exportar CSV
             </Button>
           </div>
         </div>
@@ -309,7 +404,7 @@ export default function AdminUsersPage() {
           <EmptyState
             icon="🔍"
             title="Nenhum usuário encontrado"
-            description="Tente ajustar os filtros ou termos de busca"
+            description="Tente ajustar os filtros"
           />
         )}
 
@@ -347,17 +442,17 @@ export default function AdminUsersPage() {
       <Section title="Estatisticas Detalhadas">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Card padding="md">
+            <p className="text-xs text-slate-600 mb-1">Verificados</p>
+            <p className="text-2xl font-bold text-green-600">{verificados.length}</p>
+            <p className="text-xs text-slate-500 mt-1">
+              {users.length > 0 ? ((verificados.length / users.length) * 100).toFixed(1) : '0.0'}% do total
+            </p>
+          </Card>
+          <Card padding="md">
             <p className="text-xs text-slate-600 mb-1">Stripe Ativo</p>
             <p className="text-2xl font-bold text-green-600">{stripeAtivos.length}</p>
             <p className="text-xs text-slate-500 mt-1">
               {users.length > 0 ? ((stripeAtivos.length / users.length) * 100).toFixed(1) : '0.0'}% do total
-            </p>
-          </Card>
-          <Card padding="md">
-            <p className="text-xs text-slate-600 mb-1">Perfil Completo</p>
-            <p className="text-2xl font-bold text-blue-600">{perfilCompleto.length}</p>
-            <p className="text-xs text-slate-500 mt-1">
-              {users.length > 0 ? ((perfilCompleto.length / users.length) * 100).toFixed(1) : '0.0'}% do total
             </p>
           </Card>
           <Card padding="md">
@@ -373,3 +468,4 @@ export default function AdminUsersPage() {
     </AdminLayout>
   );
 }
+
