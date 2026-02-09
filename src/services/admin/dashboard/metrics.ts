@@ -9,7 +9,8 @@
  * - Stripe: charges (pagamentos)
  */
 
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getStripeClient } from '@/lib/server/stripe';
 import { normalizeJobStatus, isJobCompleted, hasJobProfessional } from '../statusNormalizer';
 import { getTimestampDaysAgo, isCurrentMonth, toDate } from '@/lib/admin/dateHelpers';
@@ -76,7 +77,7 @@ export async function getDashboardMetrics(windowDays: number = 30): Promise<Dash
       .where('createdAt', '>=', windowStart)
       .get();
     
-    const jobs = jobsSnapshot.docs.map(doc => ({
+    const jobs = jobsSnapshot.docs.map((doc: QueryDocumentSnapshot) => ({
       id: doc.id,
       ...(doc.data() as Record<string, unknown>),
     })) as Array<Record<string, any>>;

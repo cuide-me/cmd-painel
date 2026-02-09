@@ -1,7 +1,8 @@
 export * from './types';
 export * from './listUsers';
 
-import { getFirestore } from 'firebase-admin/firestore';
+import { type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 
 /**
@@ -13,7 +14,7 @@ import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 export async function getFamiliesSummary() {
   try {
     const app = getFirebaseAdmin();
-    const db = getFirestore(app);
+    const db = getFirestore();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -34,7 +35,7 @@ export async function getFamiliesSummary() {
     const activeFamilies = new Set<string>();
     const familiesWithRequests = new Set<string>();
 
-    recentRequestsSnap.docs.forEach(doc => {
+    recentRequestsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data();
       const userId = data.clientId || data.familyId || data.clienteId || data.userId;
       if (userId) {
@@ -45,7 +46,7 @@ export async function getFamiliesSummary() {
 
     // Todas as requests (histórico total)
     const allRequestsSnap = await db.collection('jobs').get();
-    allRequestsSnap.docs.forEach(doc => {
+    allRequestsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data();
       const userId = data.clientId || data.familyId || data.clienteId || data.userId;
       if (userId) familiesWithRequests.add(userId);
@@ -75,7 +76,7 @@ export async function getFamiliesSummary() {
 export async function getProfessionalsSummary() {
   try {
     const app = getFirebaseAdmin();
-    const db = getFirestore(app);
+    const db = getFirestore();
 
     // Total de profissionais
     const professionalsSnap = await db
@@ -87,7 +88,7 @@ export async function getProfessionalsSummary() {
 
     // Contar perfis completos
     let profileComplete = 0;
-    professionalsSnap.docs.forEach(doc => {
+    professionalsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data();
       
       // Considera completo se tiver profileComplete=true OU todos campos essenciais
@@ -105,7 +106,7 @@ export async function getProfessionalsSummary() {
       .get();
 
     const professionalsWithProposals = new Set<string>();
-    proposalsSnap.docs.forEach(doc => {
+    proposalsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data();
       const professionalId = data.specialistId || data.professionalId;
       if (professionalId) professionalsWithProposals.add(professionalId);

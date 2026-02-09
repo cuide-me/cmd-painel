@@ -1,5 +1,5 @@
-import { getFirestore } from 'firebase-admin/firestore';
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getStripeClient } from '@/lib/server/stripe';
 import { isJobCompleted, isJobCancelled } from '../statusNormalizer';
 import type { AdminUserRow, ListUsersParams, ListUsersResult } from './types';
@@ -89,7 +89,7 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
   // Jobs
   try {
     const jobsSnap = await db.collection('jobs').get();
-    jobsSnap.docs.forEach(doc => {
+    jobsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data() as Record<string, any>;
 
       const clientId = data.clientId || data.familyId || data.clienteId || data.userId;
@@ -122,7 +122,7 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
   // Payments (Firestore collection)
   try {
     const paymentsSnap = await db.collection('payments').get();
-    paymentsSnap.docs.forEach(doc => {
+    paymentsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data() as Record<string, any>;
       const userId = data.usuarioId || data.userId;
       if (userId && userIds.has(userId)) {
@@ -136,7 +136,7 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
   // Ratings (Firestore collection)
   try {
     const ratingsSnap = await db.collection('ratings').get();
-    ratingsSnap.docs.forEach(doc => {
+    ratingsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data() as Record<string, any>;
       const rating = typeof data.rating === 'number' ? data.rating : null;
       const professionalId = data.professionalId;
@@ -163,7 +163,7 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
   // Tickets (Firestore collection)
   try {
     const ticketsSnap = await db.collection('tickets').get();
-    ticketsSnap.docs.forEach(doc => {
+    ticketsSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data() as Record<string, any>;
       const userId = data.usuarioId || data.userId;
       if (userId && userIds.has(userId)) {

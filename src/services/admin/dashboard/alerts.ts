@@ -5,7 +5,8 @@
  * Gera alertas automáticos baseados em dados reais
  */
 
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getStripeClient } from '@/lib/server/stripe';
 import { normalizeJobStatus, hasJobProfessional } from '../statusNormalizer';
 import { hoursSince, toDate } from '@/lib/admin/dateHelpers';
@@ -35,7 +36,7 @@ export async function getDashboardAlerts(): Promise<DashboardAlert[]> {
     // ALERTA 1: Jobs sem match > 48h
     // ═══════════════════════════════════════════════════════
     const jobsSnapshot = await db.collection('jobs').get();
-    const jobs = jobsSnapshot.docs.map(doc => ({
+    const jobs = jobsSnapshot.docs.map((doc: QueryDocumentSnapshot) => ({
       id: doc.id,
       ...(doc.data() as Record<string, unknown>),
     })) as Array<Record<string, any>>;
@@ -95,7 +96,7 @@ export async function getDashboardAlerts(): Promise<DashboardAlert[]> {
     // ALERTA 3: Tickets críticos abertos
     // ═══════════════════════════════════════════════════════
     const ticketsSnapshot = await db.collection('tickets').get();
-    const tickets = ticketsSnapshot.docs.map(doc => ({
+    const tickets = ticketsSnapshot.docs.map((doc: QueryDocumentSnapshot) => ({
       id: doc.id,
       ...(doc.data() as Record<string, unknown>),
     })) as Array<Record<string, any>>;

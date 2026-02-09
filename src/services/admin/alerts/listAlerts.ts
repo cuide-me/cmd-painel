@@ -2,8 +2,8 @@
  * Alertas baseados em dados reais (Firebase + Stripe)
  */
 
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getStripeClient } from '@/lib/server/stripe';
 import { normalizeJobStatus, isJobCancelled, hasJobProfessional } from '../statusNormalizer';
 import { hoursSince, toDate } from '@/lib/admin/dateHelpers';
@@ -14,8 +14,7 @@ function clampItems<T>(items: T[], limit: number = 5): T[] {
 }
 
 export async function listAlerts(windowDays: number = 30): Promise<AlertsResponse> {
-  const app = getFirebaseAdmin();
-  const db = getFirestore(app);
+  const db = getFirestore();
 
   const alerts: AlertGroup[] = [];
   const windowStart = Timestamp.fromDate(
@@ -30,7 +29,7 @@ export async function listAlerts(windowDays: number = 30): Promise<AlertsRespons
       .where('createdAt', '>=', windowStart)
       .get();
 
-    jobs = jobsSnap.docs.map((doc) => ({
+    jobs = jobsSnap.docs.map((doc: QueryDocumentSnapshot) => ({
       id: doc.id,
       ...(doc.data() as Record<string, unknown>),
     })) as Array<Record<string, any>>;
@@ -91,7 +90,7 @@ export async function listAlerts(windowDays: number = 30): Promise<AlertsRespons
   let usersMap = new Map<string, Record<string, any>>();
   try {
     const usersSnap = await db.collection('users').get();
-    usersSnap.docs.forEach((doc) => {
+    usersSnap.docs.forEach((doc: QueryDocumentSnapshot) => {
       usersMap.set(doc.id, doc.data() as Record<string, any>);
     });
   } catch (error) {
@@ -168,7 +167,7 @@ export async function listAlerts(windowDays: number = 30): Promise<AlertsRespons
       .where('createdAt', '>=', windowStart)
       .get();
 
-    const tickets = ticketsSnap.docs.map((doc) => ({
+    const tickets = ticketsSnap.docs.map((doc: QueryDocumentSnapshot) => ({
       id: doc.id,
       ...(doc.data() as Record<string, unknown>),
     })) as Array<Record<string, any>>;

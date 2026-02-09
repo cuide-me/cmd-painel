@@ -2,8 +2,8 @@
  * Listagem de jobs com dados reais do Firestore
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
-import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { type QueryDocumentSnapshot, type DocumentSnapshot } from 'firebase-admin/firestore';
+import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { normalizeJobStatus, type NormalizedJobStatus, hasJobProfessional } from '../statusNormalizer';
 import { hoursSince, toDate } from '@/lib/admin/dateHelpers';
 import type { AdminJobRow, ListJobsParams, ListJobsResult } from './types';
@@ -21,7 +21,7 @@ async function fetchUsersByIds(ids: string[]): Promise<Map<string, Record<string
   if (ids.length === 0) return map;
 
   const app = getFirebaseAdmin();
-  const db = getFirestore(app);
+  const db = getFirestore();
 
   const chunks: string[][] = [];
   const chunkSize = 50;
@@ -32,7 +32,7 @@ async function fetchUsersByIds(ids: string[]): Promise<Map<string, Record<string
   for (const chunk of chunks) {
     const refs = chunk.map((id) => db.collection('users').doc(id));
     const docs = await db.getAll(...refs);
-    docs.forEach((doc) => {
+    docs.forEach((doc: DocumentSnapshot) => {
       if (doc.exists) {
         map.set(doc.id, doc.data() as Record<string, any>);
       }
@@ -44,7 +44,7 @@ async function fetchUsersByIds(ids: string[]): Promise<Map<string, Record<string
 
 export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult> {
   const app = getFirebaseAdmin();
-  const db = getFirestore(app);
+  const db = getFirestore();
 
   const pageSize = params?.pageSize || 500;
   const statusFilter = params?.statusFilter || 'all';
@@ -58,7 +58,7 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
 
   const snapshot = await query.get();
 
-  const jobsRaw = snapshot.docs.map((doc) => ({
+  const jobsRaw = snapshot.docs.map((doc: QueryDocumentSnapshot) => ({
     id: doc.id,
     ...(doc.data() as Record<string, unknown>),
   })) as Array<Record<string, any>>;
