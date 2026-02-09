@@ -198,23 +198,35 @@ export const utils = {
   },
 
   // Format date
-  formatDate: (date: string | Date): string => {
+  formatDate: (date: string | Date | number | { toDate?: () => Date }): string => {
+    if (!date) return 'Nao disponivel';
+    if (typeof date === 'object' && typeof (date as { toDate?: () => Date }).toDate === 'function') {
+      date = (date as { toDate: () => Date }).toDate();
+    }
+    const parsed = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+    if (!(parsed instanceof Date) || isNaN(parsed.getTime())) return 'Nao disponivel';
     return new Intl.DateTimeFormat('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
-    }).format(new Date(date));
+    }).format(parsed);
   },
 
   // Format datetime
-  formatDateTime: (date: string | Date): string => {
+  formatDateTime: (date: string | Date | number | { toDate?: () => Date }): string => {
+    if (!date) return 'Nao disponivel';
+    if (typeof date === 'object' && typeof (date as { toDate?: () => Date }).toDate === 'function') {
+      date = (date as { toDate: () => Date }).toDate();
+    }
+    const parsed = typeof date === 'string' || typeof date === 'number' ? new Date(date) : date;
+    if (!(parsed instanceof Date) || isNaN(parsed.getTime())) return 'Nao disponivel';
     return new Intl.DateTimeFormat('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    }).format(new Date(date));
+    }).format(parsed);
   },
 
   // Truncate text

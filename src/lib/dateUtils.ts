@@ -9,23 +9,31 @@
  */
 export function toDate(value: any): Date | null {
   if (!value) return null;
-  
+
   // Legacy Timestamp format
   if (typeof value === 'object' && typeof value.toDate === 'function') {
-    return value.toDate();
+    const d = value.toDate();
+    return d instanceof Date && !isNaN(d.getTime()) ? d : null;
   }
-  
+
   // ISO string format (current)
   if (typeof value === 'string') {
-    return new Date(value);
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
   }
-  
+
+  // Unix timestamp (seconds or milliseconds)
+  if (typeof value === 'number') {
+    const ts = value > 10000000000 ? value : value * 1000;
+    const d = new Date(ts);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
   // Already a Date object
   if (value instanceof Date) {
-    return value;
+    return isNaN(value.getTime()) ? null : value;
   }
-  
-  // Fallback
+
   return null;
 }
 
