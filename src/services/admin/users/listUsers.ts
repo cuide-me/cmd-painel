@@ -1,8 +1,51 @@
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { getFirestore } from '@/lib/server/firebaseAdmin';
+import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { getStorage } from 'firebase-admin/storage';
 import { getStripeClient } from '@/lib/server/stripe';
 import { isJobCompleted, isJobCancelled } from '../statusNormalizer';
 import type { AdminUserRow, ListUsersParams, ListUsersResult } from './types';
+
+/**
+ * Gera URLs de download dos certificados do Firebase Storage
+ */
+async function getCertificateDownloadUrls(paths: string[]): Promise<string[]> {
+  if (!paths || paths.length === 0) {
+    return [];
+  }
+
+  try {
+    const app = getFirebaseAdmin();
+    const storage = getStorage(app);
+    const bucket = storage.bucket();
+    const urls: string[] = [];
+
+    for (const path of paths) {
+      try {
+        // Remove barra inicial se existir
+        const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+        const file = bucket.file(cleanPath);
+        
+        // Gera URL assinada válida por 7 dias
+        const [url] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 dias
+        });
+        
+        urls.push(url);
+      } catch (fileError) {
+        console.warn(`[Storage] Erro ao gerar URL para ${path}:`, fileError);
+        // Adiciona o path original como fallback
+        urls.push(path);
+      }
+    }
+
+    return urls;
+  } catch (error) {
+    console.warn('[Storage] Erro ao acessar Firebase Storage:', error);
+    // Retorna os paths originais como fallback
+    return paths;
+  }
+}
 
 /**
  * Busca status REAL da conta Stripe Connect via API
@@ -240,7 +283,9 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
 
       // Verificação e Certificados
       statusVerificacao: data.statusVerificacao || undefined,
-      documentosCertificados: Array.isArray(data.documentosCertificados) ? data.documentosCertificados : undefined,
+      documentosCertificados: Array.isArray(data.documentosCertificados) 
+        ? await getCertificateDownloadUrls(data.documentosCertificados)
+        : undefined,
     } as AdminUserRow;
   });
 
