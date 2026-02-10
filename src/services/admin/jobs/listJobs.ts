@@ -87,8 +87,10 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
     const createdAt = job.createdAt || null;
     const semMatch48h = !hasJobProfessional(job) && hoursSince(createdAt) >= 48;
 
-    const cidade = job.cidade || usersMap.get(clienteId)?.cidade || '';
-    const estado = job.estado || usersMap.get(clienteId)?.estado || '';
+    // Buscar localização: preferência job.location > usuário
+    const location = job.location || {};
+    const cidade = location.cidade || usersMap.get(clienteId)?.cidade || '';
+    const estado = location.estado || usersMap.get(clienteId)?.estado || '';
 
     return {
       id: job.id,
