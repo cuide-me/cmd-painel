@@ -53,14 +53,19 @@ export async function listAlerts(windowDays: number = 30): Promise<AlertsRespons
       source: 'Firebase:jobs',
       description: 'Jobs pendentes sem profissional atribuido',
       count: jobsSemMatch.length,
-      items: clampItems(jobsSemMatch.map((job) => ({
-        id: job.id,
-        label: `Job ${job.id}`,
-        description: `${job.cidade || 'Nao informado'}/${job.estado || 'N/A'}`,
-        metadata: {
-          horas: Math.floor(hoursSince(job.createdAt)),
-        },
-      }))),
+      items: clampItems(jobsSemMatch.map((job) => {
+        const location = job.location || {};
+        const cidade = location.cidade || 'Nao informado';
+        const estado = location.estado || 'N/A';
+        return {
+          id: job.id,
+          label: `Job ${job.id}`,
+          description: `${cidade}/${estado}`,
+          metadata: {
+            horas: Math.floor(hoursSince(job.createdAt)),
+          },
+        };
+      })),
     });
   }
 
@@ -78,11 +83,16 @@ export async function listAlerts(windowDays: number = 30): Promise<AlertsRespons
       source: 'Firebase:jobs',
       description: 'Jobs com profissional atribuido e sem paymentId',
       count: matchSemPagamento.length,
-      items: clampItems(matchSemPagamento.map((job) => ({
-        id: job.id,
-        label: `Job ${job.id}`,
-        description: `${job.cidade || 'Nao informado'}/${job.estado || 'N/A'}`,
-      }))),
+      items: clampItems(matchSemPagamento.map((job) => {
+        const location = job.location || {};
+        const cidade = location.cidade || 'Nao informado';
+        const estado = location.estado || 'N/A';
+        return {
+          id: job.id,
+          label: `Job ${job.id}`,
+          description: `${cidade}/${estado}`,
+        };
+      })),
     });
   }
 

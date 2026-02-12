@@ -12,6 +12,11 @@ interface ColumnFilters {
   email: string;
   status: string;
   verificacao: string;
+  perfil: string;
+  cidade: string;
+  estado: string;
+  bairro: string;
+  especialidade: string;
 }
 
 export default function AdminUsersPage() {
@@ -26,6 +31,11 @@ export default function AdminUsersPage() {
     email: '',
     status: '',
     verificacao: '',
+    perfil: '',
+    cidade: '',
+    estado: '',
+    bairro: '',
+    especialidade: '',
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
@@ -55,10 +65,10 @@ export default function AdminUsersPage() {
 
   const handleExport = () => {
     const headers = perfilFilter === 'profissional'
-      ? ['ID', 'Nome', 'Tipo', 'Status', 'Verificacao', 'Cadastro', 'Jobs Aceitos', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Stripe', 'Certificados']
+      ? ['ID', 'Nome', 'Tipo', 'Bairro', 'Cidade', 'Estado', 'Status', 'Verificacao', 'Cadastro', 'Jobs Aceitos', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Stripe', 'Certificados']
       : perfilFilter === 'cliente'
-        ? ['ID', 'Nome', 'Status', 'Verificacao', 'Cadastro', 'Jobs Criados', 'Jobs Concluidos', 'Pagamentos', 'Avaliacoes', 'Tickets']
-        : ['ID', 'Nome', 'Perfil', 'Status', 'Verificacao', 'Cadastro', 'Jobs (Criados/Aceitos)', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Pagamentos', 'Tickets', 'Stripe', 'Certificados'];
+        ? ['ID', 'Nome', 'Bairro', 'Cidade', 'Estado', 'Status', 'Verificacao', 'Cadastro', 'Jobs Criados', 'Jobs Concluidos', 'Pagamentos', 'Avaliacoes', 'Tickets']
+        : ['ID', 'Nome', 'Perfil', 'Bairro', 'Cidade', 'Estado', 'Status', 'Verificacao', 'Cadastro', 'Jobs (Criados/Aceitos)', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Pagamentos', 'Tickets', 'Stripe', 'Certificados'];
 
     const rows = searchedUsers.map(u => {
       if (perfilFilter === 'profissional' || u.perfil === 'profissional') {
@@ -71,6 +81,9 @@ export default function AdminUsersPage() {
             u.id,
             u.nome,
             especialidades,
+            u.bairro || '-',
+            u.cidade || '-',
+            u.estado || '-',
             u.ativo === true ? 'Ativo' : u.ativo === false ? 'Inativo' : 'Nao disponivel',
             u.statusVerificacao || 'Nao disponivel',
             u.createdAt ? formatDate(u.createdAt) : 'Nao disponivel',
@@ -90,6 +103,9 @@ export default function AdminUsersPage() {
           u.id,
           u.nome,
           'Profissional',
+          u.bairro || '-',
+          u.cidade || '-',
+          u.estado || '-',
           u.ativo === true ? 'Ativo' : u.ativo === false ? 'Inativo' : 'Nao disponivel',
           u.statusVerificacao || 'Nao disponivel',
           u.createdAt ? formatDate(u.createdAt) : 'Nao disponivel',
@@ -110,6 +126,9 @@ export default function AdminUsersPage() {
         return [
           u.id,
           u.nome,
+          u.bairro || '-',
+          u.cidade || '-',
+          u.estado || '-',
           u.ativo === true ? 'Ativo' : u.ativo === false ? 'Inativo' : 'Nao disponivel',
           u.statusVerificacao || 'Nao disponivel',
           u.createdAt ? formatDate(u.createdAt) : 'Nao disponivel',
@@ -160,6 +179,14 @@ export default function AdminUsersPage() {
 
   const filteredUsers = perfilFilter === 'all' ? users : users.filter(u => u.perfil === perfilFilter);
   
+  // Extrair opções únicas para os filtros
+  const uniqueCidades = Array.from(new Set(users.map(u => u.cidade).filter(Boolean))).sort();
+  const uniqueEstados = Array.from(new Set(users.map(u => u.estado).filter(Boolean))).sort();
+  const uniqueBairros = Array.from(new Set(users.map(u => u.bairro).filter(Boolean))).sort();
+  const uniqueEspecialidades = Array.from(new Set(
+    users.flatMap(u => u.especialidades || []).concat(users.map(u => u.especialidade).filter(Boolean) as string[])
+  )).sort();
+  
   // Aplicar filtros de coluna
   const searchedUsers = filteredUsers.filter(u => {
     const nomeMatch = u.nome.toLowerCase().includes(columnFilters.nome.toLowerCase());
@@ -169,8 +196,16 @@ export default function AdminUsersPage() {
       (columnFilters.status === 'inativo' && u.ativo === false) ||
       (columnFilters.status === 'nao-definido' && u.ativo === undefined);
     const verificacaoMatch = columnFilters.verificacao === '' || u.statusVerificacao === columnFilters.verificacao;
+    const perfilMatch = columnFilters.perfil === '' || u.perfil === columnFilters.perfil;
+    const cidadeMatch = columnFilters.cidade === '' || u.cidade === columnFilters.cidade;
+    const estadoMatch = columnFilters.estado === '' || u.estado === columnFilters.estado;
+    const bairroMatch = columnFilters.bairro === '' || u.bairro === columnFilters.bairro;
+    const especialidadeMatch = columnFilters.especialidade === '' || 
+      u.especialidade === columnFilters.especialidade ||
+      u.especialidades?.includes(columnFilters.especialidade);
     
-    return nomeMatch && emailMatch && statusMatch && verificacaoMatch;
+    return nomeMatch && emailMatch && statusMatch && verificacaoMatch && 
+           perfilMatch && cidadeMatch && estadoMatch && bairroMatch && especialidadeMatch;
   });
 
   const totalPages = Math.ceil(searchedUsers.length / itemsPerPage);
@@ -230,10 +265,10 @@ export default function AdminUsersPage() {
   ];
 
   const tableHeaders = perfilFilter === 'profissional'
-    ? ['ID', 'Nome', 'Tipo', 'Status', 'Verificacao', 'Cadastro', 'Jobs Aceitos', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Stripe', 'Certificados']
+    ? ['ID', 'Nome', 'Tipo', 'Bairro', 'Cidade', 'Estado', 'Status', 'Verificacao', 'Cadastro', 'Jobs Aceitos', 'Jobs Concluidos', 'Cancelamentos', 'Avaliacao', 'Stripe', 'Certificados']
     : perfilFilter === 'cliente'
-      ? ['ID', 'Nome', 'Status', 'Verificacao', 'Cadastro', 'Jobs Criados', 'Jobs Concluidos', 'Pagamentos', 'Avaliacoes', 'Tickets']
-      : ['ID', 'Nome', 'Perfil', 'Status', 'Verificacao', 'Cadastro', 'Jobs', 'Concluidos', 'Cancelamentos', 'Avaliacao', 'Pagamentos', 'Tickets', 'Stripe', 'Certificados'];
+      ? ['ID', 'Nome', 'Bairro', 'Cidade', 'Estado', 'Status', 'Verificacao', 'Cadastro', 'Jobs Criados', 'Jobs Concluidos', 'Pagamentos', 'Avaliacoes', 'Tickets']
+      : ['ID', 'Nome', 'Perfil', 'Bairro', 'Cidade', 'Estado', 'Status', 'Verificacao', 'Cadastro', 'Jobs', 'Concluidos', 'Cancelamentos', 'Avaliacao', 'Pagamentos', 'Tickets', 'Stripe', 'Certificados'];
 
   const tableRows = paginatedUsers.map(user => {
     if (perfilFilter === 'profissional') {
@@ -244,6 +279,9 @@ export default function AdminUsersPage() {
         user.id,
         user.nome,
         especialidades,
+        user.bairro || '-',
+        user.cidade || '-',
+        user.estado || '-',
         formatStatusBadge(user.ativo),
         formatVerificacaoBadge(user.statusVerificacao),
         formatDateOrNA(user.createdAt),
@@ -260,6 +298,9 @@ export default function AdminUsersPage() {
       return [
         user.id,
         user.nome,
+        user.bairro || '-',
+        user.cidade || '-',
+        user.estado || '-',
         formatStatusBadge(user.ativo),
         formatVerificacaoBadge(user.statusVerificacao),
         formatDateOrNA(user.createdAt),
@@ -279,6 +320,9 @@ export default function AdminUsersPage() {
       user.id,
       user.nome,
       user.perfil === 'profissional' ? 'Profissional' : 'Familia',
+      user.bairro || '-',
+      user.cidade || '-',
+      user.estado || '-',
       formatStatusBadge(user.ativo),
       formatVerificacaoBadge(user.statusVerificacao),
       formatDateOrNA(user.createdAt),
@@ -317,7 +361,8 @@ export default function AdminUsersPage() {
       {/* Filters & Search */}
       <Card padding="md" className="mb-6">
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          {/* Primeira linha de filtros */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Nome</label>
               <input
@@ -344,6 +389,22 @@ export default function AdminUsersPage() {
                 }}
                 className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Perfil</label>
+              <select
+                value={columnFilters.perfil}
+                onChange={(e) => {
+                  setColumnFilters({ ...columnFilters, perfil: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Todos</option>
+                <option value="profissional">Profissional</option>
+                <option value="cliente">Cliente</option>
+              </select>
             </div>
 
             <div>
@@ -377,6 +438,77 @@ export default function AdminUsersPage() {
                 <option value="verificado">Verificado</option>
                 <option value="pendente">Pendente</option>
                 <option value="reprovado">Reprovado</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Segunda linha de filtros */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Bairro</label>
+              <select
+                value={columnFilters.bairro}
+                onChange={(e) => {
+                  setColumnFilters({ ...columnFilters, bairro: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Todos</option>
+                {uniqueBairros.map(bairro => (
+                  <option key={bairro} value={bairro}>{bairro}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Cidade</label>
+              <select
+                value={columnFilters.cidade}
+                onChange={(e) => {
+                  setColumnFilters({ ...columnFilters, cidade: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Todos</option>
+                {uniqueCidades.map(cidade => (
+                  <option key={cidade} value={cidade}>{cidade}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Estado</label>
+              <select
+                value={columnFilters.estado}
+                onChange={(e) => {
+                  setColumnFilters({ ...columnFilters, estado: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Todos</option>
+                {uniqueEstados.map(estado => (
+                  <option key={estado} value={estado}>{estado}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Especialidade</label>
+              <select
+                value={columnFilters.especialidade}
+                onChange={(e) => {
+                  setColumnFilters({ ...columnFilters, especialidade: e.target.value });
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Todos</option>
+                {uniqueEspecialidades.map(esp => (
+                  <option key={esp} value={esp}>{esp}</option>
+                ))}
               </select>
             </div>
           </div>

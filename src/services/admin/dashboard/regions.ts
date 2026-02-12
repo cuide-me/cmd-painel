@@ -44,8 +44,10 @@ export async function getTopRegions(limit: number = 5, windowDays: number = 30):
     const regionMap = new Map<string, RegionStats>();
     
     jobs.forEach(job => {
-      const cidade = job.cidade || 'Não informado';
-      const estado = job.estado || 'N/A';
+      // Extrair localização de job.location
+      const location = job.location || {};
+      const cidade = location.cidade || 'Não informado';
+      const estado = location.estado || 'N/A';
       const key = `${cidade}/${estado}`;
       
       if (!regionMap.has(key)) {
