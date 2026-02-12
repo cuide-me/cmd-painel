@@ -262,6 +262,7 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
       createdAt: data.createdAt || null,
       cidade: data.cidade || '',
       estado: data.estado || '',
+      bairro: data.bairro || '',
       especialidades,
       especialidade,
 

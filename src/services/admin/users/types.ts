@@ -10,6 +10,7 @@ export interface AdminUserRow {
   createdAt?: string | Date | null;
   cidade?: string;
   estado?: string;
+  bairro?: string;
   especialidades?: string[];
   especialidade?: string;
 
