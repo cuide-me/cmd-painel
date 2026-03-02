@@ -1,0 +1,29 @@
+{
+  "git": {
+    "deploymentEnabled": {
+      "cmd-master": false
+    }
+  },
+  "redirects": [
+    {
+      "source": "/admin/families",
+      "destination": "/admin/familias",
+      "permanent": false
+    },
+    {
+      "source": "/admin/caregivers",
+      "destination": "/admin/cuidadores",
+      "permanent": false
+    },
+    {
+      "source": "/admin/trust",
+      "destination": "/admin/confianca",
+      "permanent": false
+    },
+    {
+      "source": "/admin/friction",
+      "destination": "/admin/friccao",
+      "permanent": false
+    }
+  ]
+}

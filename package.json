@@ -1,0 +1,40 @@
+{
+  "name": "cmd-painel",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "jest",
+    "test:integrations": "tsx scripts/test-integrations.ts",
+    "check:env": "node scripts/check-env.js",
+    "check:health": "curl http://localhost:3001/api/health"
+  },
+  "dependencies": {
+    "@google-analytics/data": "^5.2.1",
+    "dotenv": "^17.2.3",
+    "firebase": "^12.6.0",
+    "firebase-admin": "^12.7.0",
+    "next": "^16.0.10",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "recharts": "^3.6.0",
+    "stripe": "^17.5.0",
+    "typescript": "^5.7.2",
+    "xlsx": "^0.18.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.23",
+    "eslint": "^9.13.0",
+    "eslint-config-next": "16.0.10",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18"
+  }
+}

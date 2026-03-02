@@ -1,0 +1,7 @@
+# Vercel Ignore File
+# Files to ignore during Vercel build
+
+.env.local
+.env*.local
+*.log
+.DS_Store
