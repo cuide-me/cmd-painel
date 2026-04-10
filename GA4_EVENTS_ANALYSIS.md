@@ -362,7 +362,7 @@ dimensions: [
 
 ### 3. **Dashboard de Funil:**
 ```typescript
-// src/app/admin/funil/page.tsx
+// LEGADO REMOVIDO: antiga tela src/app/admin/funil/page.tsx
 const funil = [
   { step: 'Visitantes', event: null, metric: 'activeUsers' },
   { step: 'Cadastros', event: 'register_success' },

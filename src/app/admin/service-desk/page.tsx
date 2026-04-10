@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import AdminLayout, { Section, Card, Button, LoadingSkeleton, EmptyState, Badge, Tabs } from '@/components/admin/AdminLayout';
 import { formatDate } from '@/lib/admin/formatters';
@@ -21,7 +21,7 @@ function statusBadge(status: TicketStatus) {
 }
 
 export default function AdminServiceDeskPage() {
-  const { authReady } = useFirebaseAuth();
+  const { isAdmin, loading: authLoading } = useAdminAuth();
   const [data, setData] = useState<TicketsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,9 +45,26 @@ export default function AdminServiceDeskPage() {
   }, [windowDays]);
 
   useEffect(() => {
-    if (!authReady) return;
-    fetchTickets();
-  }, [authReady, fetchTickets]);
+    if (!authLoading && isAdmin) {
+      fetchTickets();
+    }
+  }, [authLoading, isAdmin, fetchTickets]);
+
+  if (authLoading) {
+    return (
+      <AdminLayout title="Service Desk" subtitle="Tickets" icon="🎫">
+        <LoadingSkeleton lines={4} />
+      </AdminLayout>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <AdminLayout title="Service Desk" subtitle="Tickets" icon="🎫">
+        <EmptyState icon="🔒" title="Acesso restrito" description="Voce precisa estar autenticado como admin." />
+      </AdminLayout>
+    );
+  }
 
   if (loading) {
     return (

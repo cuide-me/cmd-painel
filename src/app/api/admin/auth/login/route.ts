@@ -4,10 +4,12 @@
  * ═══════════════════════════════════════════════════════
  * POST /api/admin/auth/login
  * 
- * Valida senha de admin e retorna token de sessão
+ * Valida senha de admin e retorna token customizado do Firebase
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 
 // Rate limiting simples em memória
 const loginAttempts = new Map<string, { count: number; blockedUntil: number }>();
@@ -116,15 +118,19 @@ export async function POST(request: NextRequest) {
     // Login bem sucedido
     clearAttempts(ip);
     console.log(`[Auth] ✅ Login bem sucedido de IP: ${ip}`);
-    
-    // Gerar token simples (em produção, usar JWT)
-    const sessionToken = Buffer.from(`admin:${Date.now()}:${Math.random().toString(36)}`).toString('base64');
+
+    // Gera custom token Firebase com claims de admin
+    getFirebaseAdmin();
+    const firebaseCustomToken = await getAuth().createCustomToken('admin-panel-user', {
+      admin: true,
+      role: 'admin',
+    });
     
     return NextResponse.json(
       { 
         success: true, 
         message: 'Login realizado com sucesso',
-        token: sessionToken
+        firebaseCustomToken,
       },
       { status: 200 }
     );

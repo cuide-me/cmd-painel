@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import AdminLayout, { StatCard, Section, Card, Badge, Button, Table, LoadingSkeleton, EmptyState, Tabs } from '@/components/admin/AdminLayout';
 import { formatDate } from '@/lib/admin/formatters';
@@ -20,7 +20,7 @@ interface ColumnFilters {
 }
 
 export default function AdminUsersPage() {
-  const { authReady } = useFirebaseAuth();
+  const { isAdmin, loading: authLoading } = useAdminAuth();
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,9 +59,10 @@ export default function AdminUsersPage() {
   }, [perfilFilter, searchTerm]);
 
   useEffect(() => {
-    if (!authReady) return;
-    fetchUsers();
-  }, [authReady, fetchUsers]);
+    if (!authLoading && isAdmin) {
+      fetchUsers();
+    }
+  }, [authLoading, isAdmin, fetchUsers]);
 
   const handleExport = () => {
     const headers = perfilFilter === 'profissional'
@@ -154,6 +155,22 @@ export default function AdminUsersPage() {
     link.download = `usuarios_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
+
+  if (authLoading) {
+    return (
+      <AdminLayout title="Gestão de Usuários" subtitle="Profissionais e Famílias" icon="👥">
+        <LoadingSkeleton lines={4} />
+      </AdminLayout>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <AdminLayout title="Gestão de Usuários" subtitle="Profissionais e Famílias" icon="👥">
+        <EmptyState icon="🔒" title="Acesso restrito" description="Voce precisa estar autenticado como admin." />
+      </AdminLayout>
+    );
+  }
 
   if (loading) {
     return (

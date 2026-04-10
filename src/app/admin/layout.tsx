@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface MenuItem {
   id: string;
@@ -11,18 +12,17 @@ interface MenuItem {
   href: string;
   badge?: number;
   description?: string;
+  hiddenInMenu?: boolean;
 }
 
 const mainMenuItems: MenuItem[] = [
   { id: 'torre', label: 'Torre de Controle', icon: '🎯', href: '/admin', description: 'Dashboard executivo com KPIs críticos' },
   { id: 'jobs', label: 'Atendimentos', icon: '💼', href: '/admin/jobs', description: 'Gestão de jobs e atendimentos' },
-  { id: 'funnel', label: 'Funil', icon: '📈', href: '/admin/funil', description: 'Análise de conversão e etapas' },
   { id: 'alerts', label: 'Alertas', icon: '🚨', href: '/admin/alertas', description: 'Monitoramento e alertas críticos' },
   { id: 'service-desk', label: 'Service Desk', icon: '🎫', href: '/admin/service-desk', description: 'Gestão de tickets e suporte' },
 ];
 
 const secondaryMenuItems: MenuItem[] = [
-  { id: 'torre-detail', label: 'Torre (Detalhes)', icon: '📊', href: '/admin/torre-de-controle', description: 'Visão detalhada com drill-down regional' },
   { id: 'users', label: 'Usuários', icon: '👥', href: '/admin/users', description: 'Gestão de familias e profissionais' },
 ];
 
@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
-  const [user, setUser] = useState({ name: 'Admin', email: 'admin@cuide.me' });
+  const { user, isAdmin, loading, logout } = useAdminAuth();
 
   useEffect(() => {
     // Não verificar autenticação na página de login
@@ -38,22 +38,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
 
-    // Verificar se está logado
-    const isLogged = localStorage.getItem('admin_logged');
-
-    if (!isLogged || isLogged !== 'true') {
+    if (!loading && !isAdmin) {
       router.push('/admin/login');
     }
-  }, [pathname, router]);
+  }, [pathname, router, isAdmin, loading]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('admin_logged');
-    router.push('/admin/login');
+  const handleLogout = async () => {
+    await logout();
   };
 
   // Se estiver na página de login, renderizar sem layout
   if (pathname === '/admin/login') {
     return <>{children}</>;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3" />
+          <p className="text-sm text-gray-600">Validando sessão...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -104,8 +111,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {/* User Menu */}
               <div className="flex items-center gap-2 pl-3 border-l border-gray-200">
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
+                  <p className="text-sm font-medium text-gray-900">{user?.displayName || 'Admin'}</p>
+                  <p className="text-xs text-gray-500">{user?.email || 'admin@cuide.me'}</p>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -156,7 +163,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     📊 Módulos Principais
                   </div>
                   <div className="grid grid-cols-5 gap-3">
-                    {mainMenuItems.map((item) => {
+                    {mainMenuItems.filter((item) => !item.hiddenInMenu).map((item) => {
                       const isActive = pathname === item.href;
                       return (
                         <Link
@@ -192,7 +199,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     ⚙️ Administração
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {secondaryMenuItems.map((item) => {
+                    {secondaryMenuItems.filter((item) => !item.hiddenInMenu).map((item) => {
                       const isActive = pathname === item.href;
                       return (
                         <Link

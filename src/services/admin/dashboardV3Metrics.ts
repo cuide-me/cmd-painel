@@ -1,905 +1,327 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * DASHBOARD V3 - METRICS SERVICE
+ * DASHBOARD V3 METRICS - NUCLEO MINIMO OPERACIONAL
  * ═══════════════════════════════════════════════════════════════════════════
- * 
- * Serviço enterprise para cálculo de métricas do painel administrativo.
- * 
- * Otimizações aplicadas:
- * - Single-pass data processing (evita múltiplas iterações)
- * - Batched queries para reduzir round-trips ao Firestore
- * - In-memory caching para períodos anteriores
- * - Parallel queries para dados independentes
+ *
+ * Este serviço retorna somente o contrato mínimo da nova home operacional:
+ * - cards operacionais reais
+ * - fila crítica
+ * - alertas ativos
+ * - ranking local
+ * - freshness por fonte
+ * - sinalização de base insuficiente/indisponibilidade
+ *
+ * Regras deste núcleo:
+ * - sem health score
+ * - sem métricas decorativas
+ * - sem placeholders/TODO/hardcoded
+ * - sem transformar indisponibilidade em zero falso
  */
 
 import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getFirestore } from '@/lib/server/firebaseAdmin';
-import { getRegionKey, type RegionData } from './region';
-import {
-  type DashboardV3Response,
-  type HealthScore,
-  type LiquidityMetrics,
-  type FinancialMetrics,
-  type QualityMetrics,
-  type ActivationMetrics,
-  type OperationalMetrics,
-  type RegionalMetrics,
-  type OperationalAlert,
-  type AlertSeverity,
-  type TimeWindow,
-  type TrendDirection,
-  type RegionBreakdown,
-  type JobSummary,
-  getHealthLevel,
-  getTrendDirection,
-  calculateChangePercent,
-  HEALTH_THRESHOLDS,
+import { getStripeClient } from '@/lib/server/stripe';
+import { getRegionKey } from './region';
+import type {
+  DashboardV3Response,
+  TimeWindow,
+  SourceFreshness,
+  OperationalCard,
+  CriticalQueueItem,
+  ActiveAlert,
+  LocalRankingItem,
+  SampleMeta,
 } from './dashboardV3Types';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════════════════
+interface LoadedFirebaseData {
+  jobs: Array<Record<string, any>>;
+  tickets: Array<Record<string, any>>;
+  loadedAt: string;
+}
+
+interface LoadedStripeData {
+  charges: Array<Record<string, any>>;
+  loadedAt: string;
+}
 
 function toDate(value: any): Date | null {
   if (!value) return null;
   if (value instanceof Timestamp) return value.toDate();
-  if (value.toDate) return value.toDate();
+  if (value?.toDate) return value.toDate();
   if (value instanceof Date) return value;
-  if (typeof value === 'string') return new Date(value);
-  if (typeof value === 'number') return new Date(value);
+  if (typeof value === 'string') {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value === 'number') {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
   return null;
 }
 
-function hoursSince(date: Date | null): number {
+function hoursSince(value: any): number {
+  const date = toDate(value);
   if (!date) return 0;
   return (Date.now() - date.getTime()) / (1000 * 60 * 60);
 }
 
-function daysSince(date: Date | null): number {
-  if (!date) return 0;
-  return hoursSince(date) / 24;
-}
-
-function normalizeStatus(status: string | undefined): string {
+function normalizeJobStatus(status: any): 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'unknown' {
   if (!status) return 'unknown';
-  const s = status.toLowerCase().trim();
-  
-  // Pending variants
+
+  const s = String(status).toLowerCase().trim();
+
   if (['pending', 'pendente', 'open', 'aberto', 'novo', 'new'].includes(s)) return 'pending';
-  // In progress
-  if (['in_progress', 'em_andamento', 'proposta_enviada', 'proposta_aceita', 'accepted', 'confirmed'].includes(s)) return 'in_progress';
-  // Completed
+  if (['matched', 'accepted', 'proposta_aceita', 'active', 'in_progress', 'em_andamento'].includes(s)) return 'in_progress';
   if (['completed', 'concluido', 'concluído', 'finalizado', 'done'].includes(s)) return 'completed';
-  // Cancelled
   if (['cancelled', 'cancelado', 'canceled'].includes(s)) return 'cancelled';
-  
-  return status;
+
+  return 'unknown';
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// DATA LOADER - Single batch load with parallel queries
-// ═══════════════════════════════════════════════════════════════════════════
-
-interface LoadedData {
-  jobs: any[];
-  users: any[];
-  payments: any[];
-  transacoes: any[];
-  tickets: any[];
-  feedbacks: any[];
-  currentPeriod: { start: Date; end: Date };
-  previousPeriod: { start: Date; end: Date };
+function hasProfessional(job: Record<string, any>): boolean {
+  return Boolean(job.professionalId || job.specialistId || job.profissionalId);
 }
 
-async function loadAllData(windowDays: TimeWindow): Promise<LoadedData> {
+function normalizeSpecialty(job: Record<string, any>): string | undefined {
+  const raw = job.specialty || job.especialidade || job.tipo;
+  if (!raw || typeof raw !== 'string') return undefined;
+  const normalized = raw.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function isEligibleForLiquidity(job: Record<string, any>): boolean {
+  const status = normalizeJobStatus(job.status);
+  return status !== 'cancelled';
+}
+
+function buildSample(sampleSize: number, minimumRequired: number, note?: string): SampleMeta {
+  return {
+    sampleSize,
+    minimumRequired,
+    isSufficient: sampleSize >= minimumRequired,
+    note,
+  };
+}
+
+function buildFreshness(
+  source: SourceFreshness['source'],
+  status: SourceFreshness['status'],
+  reason?: string,
+  loadedAt?: string
+): SourceFreshness {
+  const nowIso = new Date().toISOString();
+
+  if (status === 'fresh') {
+    return {
+      source,
+      status,
+      lastSuccessAt: loadedAt || nowIso,
+      lastAttemptAt: nowIso,
+      delayMinutes: 0,
+    };
+  }
+
+  return {
+    source,
+    status,
+    lastAttemptAt: nowIso,
+    reason,
+  };
+}
+
+async function loadFirebaseData(windowDays: TimeWindow): Promise<LoadedFirebaseData> {
   const db = getFirestore();
-  const now = new Date();
-  
-  const currentPeriod = {
-    start: new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000),
-    end: now,
-  };
-  
-  const previousPeriod = {
-    start: new Date(currentPeriod.start.getTime() - windowDays * 24 * 60 * 60 * 1000),
-    end: currentPeriod.start,
-  };
+  const periodStart = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
 
-  // Parallel queries para dados independentes
-  const [jobsSnapshot, usersSnapshot, paymentsSnapshot, transacoesSnapshot, ticketsSnapshot, feedbacksSnapshot] = 
-    await Promise.all([
-      // Jobs dos últimos 2 períodos (para comparação)
-      db.collection('jobs')
-        .where('createdAt', '>=', Timestamp.fromDate(previousPeriod.start))
-        .get(),
-      
-      // Todos os usuários
-      db.collection('users').get(),
-      
-      // Pagamentos dos últimos 60 dias
-      db.collection('payment_confirmations')
-        .where('confirmedAt', '>=', Timestamp.fromDate(previousPeriod.start))
-        .get(),
-      
-      // Transações dos últimos 60 dias
-      db.collection('transacoes')
-        .where('createdAt', '>=', Timestamp.fromDate(previousPeriod.start))
-        .get(),
-      
-      // Tickets ativos
-      db.collection('tickets')
-        .where('status', 'in', ['open', 'pending', 'in_progress', 'aberto', 'pendente'])
-        .get()
-        .catch(() => ({ docs: [] })),
-      
-      // Feedbacks recentes
-      db.collection('feedbacks')
-        .where('createdAt', '>=', Timestamp.fromDate(currentPeriod.start))
-        .get()
-        .catch(() => ({ docs: [] })),
-    ]);
+  const [jobsSnapshot, ticketsSnapshot] = await Promise.all([
+    db.collection('jobs')
+      .where('createdAt', '>=', Timestamp.fromDate(periodStart))
+      .get(),
+    db.collection('tickets')
+      .where('createdAt', '>=', Timestamp.fromDate(periodStart))
+      .get()
+      .catch(() => ({ docs: [] as QueryDocumentSnapshot[] })),
+  ]);
 
   return {
     jobs: jobsSnapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() })),
-    users: usersSnapshot.docs.map((doc: QueryDocumentSnapshot) => ({ uid: doc.id, ...doc.data() })),
-    payments: paymentsSnapshot.docs
-      .map((doc: QueryDocumentSnapshot) => doc.data())
-      .filter((p: any) => p.businessStatus === 'confirmed'),
-    transacoes: transacoesSnapshot.docs.map((doc: QueryDocumentSnapshot) => doc.data()),
     tickets: ticketsSnapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() })),
-    feedbacks: feedbacksSnapshot.docs.map((doc: QueryDocumentSnapshot) => doc.data()),
-    currentPeriod,
-    previousPeriod,
+    loadedAt: new Date().toISOString(),
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SINGLE-PASS PROCESSOR
-// ═══════════════════════════════════════════════════════════════════════════
+async function loadStripeData(windowDays: TimeWindow): Promise<LoadedStripeData> {
+  const stripe = getStripeClient();
+  const unixStart = Math.floor((Date.now() - windowDays * 24 * 60 * 60 * 1000) / 1000);
 
-interface ProcessedMetrics {
-  // Liquidez
-  uniqueFamilies: Set<string>;
-  uniqueCaregivers: Set<string>;
-  familiesByRegion: Map<string, { count: number; data: RegionData }>;
-  caregiversByRegion: Map<string, { count: number; data: RegionData }>;
-  
-  // Match timing
-  matchTimes: number[];
-  totalJobs: number;
-  jobsWithMatch: number;
-  
-  // Status counts
-  pendingJobs: any[];
-  completedJobs: any[];
-  cancelledJobs: any[];
-  
-  // Cancelamento por tipo
-  cancelledByFamily: number;
-  cancelledByCaregiver: number;
-  
-  // Ratings
-  ratings: number[];
-  ratingsByCaregiver: Map<string, number[]>;
-  
-  // Financeiro
-  gmvTotal: number;
-  transactionValues: number[];
-  
-  // Por região para ranking
-  regionStats: Map<string, RegionStats>;
-}
+  const charges = await stripe.charges.list({
+    created: { gte: unixStart },
+    limit: 100,
+  });
 
-interface RegionStats {
-  region: string;
-  label: string;
-  cidade?: string;
-  estado?: string;
-  gmv: number;
-  jobs: number;
-  completed: number;
-  pending: number;
-  matchTimes: number[];
-  families: Set<string>;
-  caregivers: Set<string>;
-}
-
-function processSinglePass(jobs: any[], payments: any[], transacoes: any[], currentPeriod: { start: Date; end: Date }): ProcessedMetrics {
-  const result: ProcessedMetrics = {
-    uniqueFamilies: new Set(),
-    uniqueCaregivers: new Set(),
-    familiesByRegion: new Map(),
-    caregiversByRegion: new Map(),
-    matchTimes: [],
-    totalJobs: 0,
-    jobsWithMatch: 0,
-    pendingJobs: [],
-    completedJobs: [],
-    cancelledJobs: [],
-    cancelledByFamily: 0,
-    cancelledByCaregiver: 0,
-    ratings: [],
-    ratingsByCaregiver: new Map(),
-    gmvTotal: 0,
-    transactionValues: [],
-    regionStats: new Map(),
+  return {
+    charges: charges.data as unknown as Array<Record<string, any>>,
+    loadedAt: new Date().toISOString(),
   };
-
-  // Processar jobs em single pass
-  for (const job of jobs) {
-    const createdAt = toDate(job.createdAt);
-    if (!createdAt || createdAt < currentPeriod.start || createdAt > currentPeriod.end) continue;
-
-    result.totalJobs++;
-    
-    const clientId = job.clientId || job.familyId;
-    const professionalId = job.specialistId || job.professionalId;
-    const region = getRegionKey(job);
-    const status = normalizeStatus(job.status);
-
-    // Contagem de famílias
-    if (clientId) {
-      result.uniqueFamilies.add(clientId);
-      if (!result.familiesByRegion.has(region.key)) {
-        result.familiesByRegion.set(region.key, { count: 0, data: region });
-      }
-      result.familiesByRegion.get(region.key)!.count++;
-    }
-
-    // Contagem de cuidadores e match
-    if (professionalId) {
-      result.uniqueCaregivers.add(professionalId);
-      result.jobsWithMatch++;
-      
-      if (!result.caregiversByRegion.has(region.key)) {
-        result.caregiversByRegion.set(region.key, { count: 0, data: region });
-      }
-      result.caregiversByRegion.get(region.key)!.count++;
-    }
-
-    // Tempo de match
-    if (job.proposal?.sentAt && createdAt) {
-      const sentAt = toDate(job.proposal.sentAt);
-      if (sentAt) {
-        const matchTimeHours = (sentAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-        if (matchTimeHours > 0 && matchTimeHours < 720) { // < 30 dias
-          result.matchTimes.push(matchTimeHours);
-        }
-      }
-    }
-
-    // Por status
-    if (status === 'pending' || status === 'in_progress') {
-      result.pendingJobs.push(job);
-    } else if (status === 'completed') {
-      result.completedJobs.push(job);
-    } else if (status === 'cancelled') {
-      result.cancelledJobs.push(job);
-      if (job.canceledBy === 'cliente' || job.cancelledBy === 'client') {
-        result.cancelledByFamily++;
-      } else if (job.canceledBy === 'profissional' || job.cancelledBy === 'professional') {
-        result.cancelledByCaregiver++;
-      }
-    }
-
-    // Ratings
-    if (job.reviews?.client?.rating) {
-      const rating = Number(job.reviews.client.rating);
-      if (rating >= 1 && rating <= 5) {
-        result.ratings.push(rating);
-        if (professionalId) {
-          if (!result.ratingsByCaregiver.has(professionalId)) {
-            result.ratingsByCaregiver.set(professionalId, []);
-          }
-          result.ratingsByCaregiver.get(professionalId)!.push(rating);
-        }
-      }
-    }
-
-    // Stats por região
-    if (!result.regionStats.has(region.key)) {
-      result.regionStats.set(region.key, {
-        region: region.key,
-        label: region.label,
-        cidade: region.cidade,
-        estado: region.estado,
-        gmv: 0,
-        jobs: 0,
-        completed: 0,
-        pending: 0,
-        matchTimes: [],
-        families: new Set(),
-        caregivers: new Set(),
-      });
-    }
-    const rStats = result.regionStats.get(region.key)!;
-    rStats.jobs++;
-    if (clientId) rStats.families.add(clientId);
-    if (professionalId) rStats.caregivers.add(professionalId);
-    if (status === 'completed') rStats.completed++;
-    if (status === 'pending') rStats.pending++;
-  }
-
-  // Processar transações (GMV)
-  for (const t of transacoes) {
-    const createdAt = toDate(t.createdAt);
-    if (!createdAt || createdAt < currentPeriod.start || createdAt > currentPeriod.end) continue;
-    
-    const value = Number(t.valor || t.amount || 0);
-    if (value > 0) {
-      result.gmvTotal += value;
-      result.transactionValues.push(value);
-    }
-  }
-
-  // Fallback para payments se não tem transações
-  if (result.gmvTotal === 0) {
-    for (const p of payments) {
-      const confirmedAt = toDate(p.confirmedAt);
-      if (!confirmedAt || confirmedAt < currentPeriod.start || confirmedAt > currentPeriod.end) continue;
-      
-      const value = Number(p.amount || p.valor || 0);
-      if (value > 0) {
-        result.gmvTotal += value;
-        result.transactionValues.push(value);
-      }
-    }
-  }
-
-  return result;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MÉTRICA: HEALTH SCORE
-// ═══════════════════════════════════════════════════════════════════════════
+function buildCards(
+  jobs: Array<Record<string, any>>,
+  tickets: Array<Record<string, any>>,
+  charges: Array<Record<string, any>>,
+  stripeAvailable: boolean
+): OperationalCard[] {
+  const totalJobs = jobs.length;
+  const matchedJobs = jobs.filter((job) => hasProfessional(job)).length;
+  const criticalJobs48h = jobs.filter((job) => !hasProfessional(job) && normalizeJobStatus(job.status) === 'pending' && hoursSince(job.createdAt) >= 48).length;
 
-function calculateHealthScore(
-  current: ProcessedMetrics,
-  previous: ProcessedMetrics
-): HealthScore {
-  // Calcular scores por dimensão (0-100)
-  
-  // 1. Liquidez: ratio demanda/oferta próximo de 1
-  const ratio = current.uniqueFamilies.size > 0 
-    ? current.uniqueCaregivers.size / current.uniqueFamilies.size 
-    : 0;
-  const liquidityScore = Math.max(0, Math.min(100, 
-    100 - Math.abs(ratio - 1) * 50
-  ));
+  const criticalTickets = tickets.filter((ticket) => {
+    const type = String(ticket.tipo || '').toUpperCase();
+    const status = String(ticket.status || '').toUpperCase();
+    return type === 'RECLAMAÇÃO' && !['CONCLUIDO', 'CLOSED', 'RESOLVED'].includes(status);
+  }).length;
 
-  // 2. Velocidade: tempo de match
-  const avgMatchTime = current.matchTimes.length > 0
-    ? current.matchTimes.reduce((a, b) => a + b, 0) / current.matchTimes.length
-    : 999;
-  const { excellent, good, warning } = HEALTH_THRESHOLDS.avgMatchTimeHours;
-  let velocityScore = 0;
-  if (avgMatchTime <= excellent) velocityScore = 100;
-  else if (avgMatchTime <= good) velocityScore = 80;
-  else if (avgMatchTime <= warning) velocityScore = 50;
-  else velocityScore = 20;
+  const matchRate = totalJobs > 0 ? (matchedJobs / totalJobs) * 100 : 0;
+  const matchSample = buildSample(totalJobs, 20, 'Taxa de match com base mínima de 20 jobs no período');
 
-  // 3. Qualidade: avaliações
-  const avgRating = current.ratings.length > 0
-    ? current.ratings.reduce((a, b) => a + b, 0) / current.ratings.length
-    : 0;
-  const qualityScore = avgRating > 0 ? (avgRating / 5) * 100 : 50;
+  const paymentSucceeded = stripeAvailable
+    ? charges.filter((charge) => String(charge.status).toLowerCase() === 'succeeded').length
+    : null;
 
-  // 4. Financeiro: GMV trend
-  const gmvGrowth = previous.gmvTotal > 0 
-    ? (current.gmvTotal - previous.gmvTotal) / previous.gmvTotal 
-    : 0;
-  const financialScore = Math.max(0, Math.min(100, 50 + gmvGrowth * 50));
-
-  // 5. Retenção: taxa de cancelamento
-  const cancelRate = current.totalJobs > 0 
-    ? (current.cancelledJobs.length / current.totalJobs) * 100 
-    : 0;
-  const retentionScore = Math.max(0, 100 - cancelRate * 5);
-
-  // Score geral (média ponderada)
-  const score = Math.round(
-    liquidityScore * 0.25 +
-    velocityScore * 0.25 +
-    qualityScore * 0.2 +
-    financialScore * 0.15 +
-    retentionScore * 0.15
-  );
-
-  // Trend vs período anterior
-  const previousScore = previous.totalJobs > 0 ? 50 : 0; // Simplificado
-  const changePercent = calculateChangePercent(score, previousScore);
-
-  // Top fatores
-  const factors = [
-    { name: 'Match Rate', score: velocityScore, isPositive: velocityScore > 70 },
-    { name: 'Avaliações', score: qualityScore, isPositive: qualityScore > 70 },
-    { name: 'Liquidez', score: liquidityScore, isPositive: liquidityScore > 70 },
-    { name: 'GMV Growth', score: financialScore, isPositive: financialScore > 60 },
-    { name: 'Retenção', score: retentionScore, isPositive: retentionScore > 80 },
+  return [
+    {
+      id: 'jobs_eligible',
+      title: 'Jobs Elegíveis',
+      value: totalJobs,
+      status: totalJobs > 0 ? 'ok' : 'info',
+      source: ['firebase'],
+      sample: buildSample(totalJobs, 10, 'Leitura de volume mínimo operacional'),
+    },
+    {
+      id: 'match_rate',
+      title: 'Taxa de Match',
+      value: matchSample.isSufficient ? Number(matchRate.toFixed(1)) : 'Base insuficiente',
+      unit: matchSample.isSufficient ? '%' : undefined,
+      status: !matchSample.isSufficient ? 'info' : matchRate < 60 ? 'warning' : 'ok',
+      source: ['firebase'],
+      sample: matchSample,
+    },
+    {
+      id: 'critical_jobs_48h',
+      title: 'Jobs Críticos +48h',
+      value: criticalJobs48h,
+      status: criticalJobs48h > 0 ? (criticalJobs48h >= 10 ? 'critical' : 'warning') : 'ok',
+      source: ['firebase'],
+      sample: buildSample(totalJobs, 10, 'Indicador calculado sobre jobs elegíveis no período'),
+    },
+    {
+      id: 'critical_tickets_open',
+      title: 'Tickets Críticos Abertos',
+      value: criticalTickets,
+      status: criticalTickets > 0 ? 'critical' : 'ok',
+      source: ['firebase'],
+      sample: buildSample(tickets.length, 1),
+    },
+    {
+      id: 'payments_confirmed',
+      title: 'Pagamentos Confirmados',
+      value: paymentSucceeded === null ? 'Indisponível' : paymentSucceeded,
+      status: paymentSucceeded === null ? 'info' : paymentSucceeded > 0 ? 'ok' : 'info',
+      source: ['stripe'],
+      sample: paymentSucceeded === null
+        ? buildSample(0, 1, 'Fonte Stripe indisponível')
+        : buildSample(charges.length, 5, 'Base mínima de 5 transações no período'),
+    },
   ];
-
-  return {
-    score,
-    level: getHealthLevel(score),
-    dimensions: {
-      liquidity: Math.round(liquidityScore),
-      velocity: Math.round(velocityScore),
-      quality: Math.round(qualityScore),
-      financial: Math.round(financialScore),
-      retention: Math.round(retentionScore),
-    },
-    trend: {
-      direction: getTrendDirection(score, previousScore),
-      changePercent,
-      previousScore,
-    },
-    topFactors: {
-      positive: factors.filter(f => f.isPositive).map(f => f.name).slice(0, 3),
-      negative: factors.filter(f => !f.isPositive).map(f => f.name).slice(0, 3),
-    },
-  };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MÉTRICA: LIQUIDEZ
-// ═══════════════════════════════════════════════════════════════════════════
+function buildCriticalQueue(jobs: Array<Record<string, any>>): { queue: CriticalQueueItem[]; sample: SampleMeta } {
+  const pending = jobs.filter((job) => !hasProfessional(job) && normalizeJobStatus(job.status) === 'pending');
 
-function calculateLiquidityMetrics(
-  current: ProcessedMetrics,
-  previous: ProcessedMetrics
-): LiquidityMetrics {
-  // Famílias ativas
-  const familiesBreakdown: RegionBreakdown[] = Array.from(current.familiesByRegion.entries())
-    .map(([key, { count, data }]) => ({
-      region: key,
-      value: count,
-      label: data.label,
-      cidade: data.cidade,
-      estado: data.estado,
-    }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 10);
-
-  // Cuidadores ativos
-  const caregiversBreakdown: RegionBreakdown[] = Array.from(current.caregiversByRegion.entries())
-    .map(([key, { count, data }]) => ({
-      region: key,
-      value: count,
-      label: data.label,
-      cidade: data.cidade,
-      estado: data.estado,
-    }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 10);
-
-  // Ratio demanda/oferta por região
-  const demandSupplyByRegion = Array.from(current.regionStats.entries()).map(([key, stats]) => {
-    const demand = stats.families.size;
-    const supply = stats.caregivers.size;
-    const ratio = supply > 0 ? demand / supply : (demand > 0 ? 999 : 1);
-    return {
-      region: key,
-      label: stats.label,
-      ratio: Math.round(ratio * 100) / 100,
-      status: ratio > 1.5 ? 'excess_demand' as const : ratio < 0.7 ? 'excess_supply' as const : 'balanced' as const,
-    };
-  });
-
-  // Tempo médio de match
-  const sortedMatchTimes = [...current.matchTimes].sort((a, b) => a - b);
-  const p50 = sortedMatchTimes[Math.floor(sortedMatchTimes.length * 0.5)] || 0;
-  const p75 = sortedMatchTimes[Math.floor(sortedMatchTimes.length * 0.75)] || 0;
-  const p90 = sortedMatchTimes[Math.floor(sortedMatchTimes.length * 0.9)] || 0;
-  const avgMatchTime = current.matchTimes.length > 0
-    ? current.matchTimes.reduce((a, b) => a + b, 0) / current.matchTimes.length
-    : 0;
-
-  // Jobs pendentes por faixa de tempo
-  const now = Date.now();
-  const pendingByTime = {
-    lessThan24h: 0,
-    between24and48h: 0,
-    moreThan48h: 0,
-    moreThan72h: 0,
-    oldestJobHours: 0,
-    urgentJobs: [] as JobSummary[],
-  };
-
-  for (const job of current.pendingJobs) {
-    const createdAt = toDate(job.createdAt);
-    if (!createdAt) continue;
-    
-    const hoursWaiting = (now - createdAt.getTime()) / (1000 * 60 * 60);
-    
-    if (hoursWaiting > pendingByTime.oldestJobHours) {
-      pendingByTime.oldestJobHours = hoursWaiting;
-    }
-
-    if (hoursWaiting < 24) {
-      pendingByTime.lessThan24h++;
-    } else if (hoursWaiting < 48) {
-      pendingByTime.between24and48h++;
-    } else if (hoursWaiting < 72) {
-      pendingByTime.moreThan48h++;
-    } else {
-      pendingByTime.moreThan72h++;
-    }
-
-    // Jobs urgentes (sem match por mais de 48h)
-    if (hoursWaiting >= 48 && !job.specialistId && !job.professionalId) {
+  const queue = pending
+    .map((job) => {
+      const waitHours = Math.round(hoursSince(job.createdAt));
       const region = getRegionKey(job);
-      pendingByTime.urgentJobs.push({
-        id: job.id,
-        region: region.label,
-        hoursWaiting: Math.round(hoursWaiting),
+
+      return {
+        id: String(job.id),
+        title: `Job ${String(job.id).slice(0, 8)}`,
+        region: {
+          region: region.key,
+          label: region.label,
+          cidade: region.cidade,
+          estado: region.estado,
+        },
         specialty: job.specialty || job.especialidade,
-        createdAt: createdAt.toISOString(),
-      });
-    }
-  }
-
-  // Ordenar urgentes por tempo
-  pendingByTime.urgentJobs.sort((a, b) => b.hoursWaiting - a.hoursWaiting);
-  pendingByTime.urgentJobs = pendingByTime.urgentJobs.slice(0, 20);
-
-  // Trends (vs período anterior)
-  const prevFamilies = previous.uniqueFamilies.size;
-  const prevCaregivers = previous.uniqueCaregivers.size;
-  const prevMatchTime = previous.matchTimes.length > 0
-    ? previous.matchTimes.reduce((a, b) => a + b, 0) / previous.matchTimes.length
-    : 0;
-  const prevMatchRate = previous.totalJobs > 0 
-    ? (previous.jobsWithMatch / previous.totalJobs) * 100 
-    : 0;
-  const currentMatchRate = current.totalJobs > 0 
-    ? (current.jobsWithMatch / current.totalJobs) * 100 
-    : 0;
+        shift: job.tipo,
+        status: String(job.status || 'pending'),
+        priority: waitHours >= 72 ? 'critical' : waitHours >= 48 ? 'high' : 'medium',
+        hoursWaiting: waitHours,
+        createdAt: toDate(job.createdAt)?.toISOString() || new Date().toISOString(),
+      } as CriticalQueueItem;
+    })
+    .filter((item) => item.hoursWaiting >= 24)
+    .sort((a, b) => b.hoursWaiting - a.hoursWaiting)
+    .slice(0, 20);
 
   return {
-    activeFamilies: {
-      count: current.uniqueFamilies.size,
-      trend: getTrendDirection(current.uniqueFamilies.size, prevFamilies),
-      changePercent: calculateChangePercent(current.uniqueFamilies.size, prevFamilies),
-      byRegion: familiesBreakdown,
-    },
-    activeCaregivers: {
-      count: current.uniqueCaregivers.size,
-      trend: getTrendDirection(current.uniqueCaregivers.size, prevCaregivers),
-      changePercent: calculateChangePercent(current.uniqueCaregivers.size, prevCaregivers),
-      byRegion: caregiversBreakdown,
-      availabilityRate: 75, // TODO: calcular de verdade
-    },
-    demandSupplyRatio: {
-      overall: current.uniqueCaregivers.size > 0 
-        ? current.uniqueFamilies.size / current.uniqueCaregivers.size 
-        : 0,
-      byRegion: demandSupplyByRegion,
-    },
-    avgMatchTime: {
-      hours: Math.round(avgMatchTime * 10) / 10,
-      trend: getTrendDirection(avgMatchTime, prevMatchTime),
-      changePercent: calculateChangePercent(avgMatchTime, prevMatchTime),
-      percentiles: {
-        p50: Math.round(p50 * 10) / 10,
-        p75: Math.round(p75 * 10) / 10,
-        p90: Math.round(p90 * 10) / 10,
-      },
-    },
-    matchRate: {
-      percent: Math.round(currentMatchRate * 10) / 10,
-      trend: getTrendDirection(currentMatchRate, prevMatchRate),
-      changePercent: calculateChangePercent(currentMatchRate, prevMatchRate),
-    },
-    pendingJobs: {
-      total: current.pendingJobs.length,
-      ...pendingByTime,
-    },
+    queue,
+    sample: buildSample(pending.length, 5, 'Fila crítica considera apenas jobs pendentes sem profissional'),
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MÉTRICA: FINANCEIRO
-// ═══════════════════════════════════════════════════════════════════════════
+function buildActiveAlerts(
+  jobs: Array<Record<string, any>>,
+  tickets: Array<Record<string, any>>,
+  queue: CriticalQueueItem[],
+  firebaseFreshness: SourceFreshness,
+  stripeFreshness: SourceFreshness
+): { alerts: ActiveAlert[]; sample: SampleMeta } {
+  const alerts: ActiveAlert[] = [];
 
-function calculateFinancialMetrics(
-  current: ProcessedMetrics,
-  previous: ProcessedMetrics,
-  currentPeriod: { start: Date; end: Date }
-): FinancialMetrics {
-  const avgTicket = current.transactionValues.length > 0
-    ? current.transactionValues.reduce((a, b) => a + b, 0) / current.transactionValues.length
-    : 0;
+  const critical48h = queue.filter((item) => item.hoursWaiting >= 48);
+  const critical72h = queue.filter((item) => item.hoursWaiting >= 72);
 
-  const prevAvgTicket = previous.transactionValues.length > 0
-    ? previous.transactionValues.reduce((a, b) => a + b, 0) / previous.transactionValues.length
-    : 0;
-
-  // Projeção para fim do mês
-  const now = new Date();
-  const daysElapsed = (now.getTime() - currentPeriod.start.getTime()) / (1000 * 60 * 60 * 24);
-  const daysInPeriod = (currentPeriod.end.getTime() - currentPeriod.start.getTime()) / (1000 * 60 * 60 * 24);
-  const projectedGMV = daysElapsed > 0 ? (current.gmvTotal / daysElapsed) * daysInPeriod : 0;
-
-  return {
-    gmv: {
-      mtd: current.gmvTotal,
-      ytd: current.gmvTotal * 12, // TODO: calcular YTD real
-      lastMonth: previous.gmvTotal,
-      trend: getTrendDirection(current.gmvTotal, previous.gmvTotal),
-      changePercent: calculateChangePercent(current.gmvTotal, previous.gmvTotal),
-      byRegion: Array.from(current.regionStats.entries())
-        .map(([key, stats]) => ({
-          region: key,
-          label: stats.label,
-          value: stats.gmv,
-        }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 10),
-      projection: {
-        estimated: Math.round(projectedGMV),
-        confidence: daysElapsed > 14 ? 'high' : daysElapsed > 7 ? 'medium' : 'low',
-      },
-    },
-    avgTicket: {
-      value: Math.round(avgTicket * 100) / 100,
-      trend: getTrendDirection(avgTicket, prevAvgTicket),
-      changePercent: calculateChangePercent(avgTicket, prevAvgTicket),
-      bySpecialty: [], // TODO: implementar
-    },
-    takeRate: {
-      percent: 15, // TODO: calcular real
-      trend: 'stable',
-      changePercent: 0,
-    },
-    netRevenue: {
-      mtd: Math.round(current.gmvTotal * 0.15), // 15% take rate
-      lastMonth: Math.round(previous.gmvTotal * 0.15),
-      trend: getTrendDirection(current.gmvTotal * 0.15, previous.gmvTotal * 0.15),
-      changePercent: calculateChangePercent(current.gmvTotal * 0.15, previous.gmvTotal * 0.15),
-    },
-    chargebacks: {
-      count: 0, // TODO: pegar do Stripe
-      totalValue: 0,
-      rate: 0,
-      trend: 'stable',
-      pending: 0,
-    },
-    paymentStatus: {
-      succeeded: { count: current.transactionValues.length, value: current.gmvTotal },
-      pending: { count: 0, value: 0 },
-      failed: { count: 0, value: 0 },
-      refunded: { count: 0, value: 0 },
-    },
-  };
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// MÉTRICA: QUALIDADE
-// ═══════════════════════════════════════════════════════════════════════════
-
-function calculateQualityMetrics(
-  current: ProcessedMetrics,
-  previous: ProcessedMetrics,
-  users: any[]
-): QualityMetrics {
-  const avgRating = current.ratings.length > 0
-    ? current.ratings.reduce((a, b) => a + b, 0) / current.ratings.length
-    : 0;
-
-  const prevAvgRating = previous.ratings.length > 0
-    ? previous.ratings.reduce((a, b) => a + b, 0) / previous.ratings.length
-    : 0;
-
-  // Distribuição de ratings
-  const distribution = { stars5: 0, stars4: 0, stars3: 0, stars2: 0, stars1: 0 };
-  for (const rating of current.ratings) {
-    if (rating >= 4.5) distribution.stars5++;
-    else if (rating >= 3.5) distribution.stars4++;
-    else if (rating >= 2.5) distribution.stars3++;
-    else if (rating >= 1.5) distribution.stars2++;
-    else distribution.stars1++;
-  }
-
-  // Top e bottom caregivers
-  const caregiverRatings = Array.from(current.ratingsByCaregiver.entries())
-    .map(([id, ratings]) => ({
-      id,
-      avgRating: ratings.reduce((a, b) => a + b, 0) / ratings.length,
-      count: ratings.length,
-    }))
-    .filter(c => c.count >= 3); // Mínimo 3 avaliações
-
-  const topCaregivers = caregiverRatings
-    .sort((a, b) => b.avgRating - a.avgRating)
-    .slice(0, 5)
-    .map(c => {
-      const user = users.find(u => u.uid === c.id);
-      return {
-        id: c.id,
-        name: user?.nome || user?.name || 'N/A',
-        rating: Math.round(c.avgRating * 10) / 10,
-        services: c.count,
-      };
-    });
-
-  const bottomCaregivers = caregiverRatings
-    .sort((a, b) => a.avgRating - b.avgRating)
-    .slice(0, 5)
-    .map(c => {
-      const user = users.find(u => u.uid === c.id);
-      return {
-        id: c.id,
-        name: user?.nome || user?.name || 'N/A',
-        rating: Math.round(c.avgRating * 10) / 10,
-        services: c.count,
-        flags: c.avgRating < 3 ? ['Baixa avaliação'] : [],
-      };
-    });
-
-  // Taxa de cancelamento
-  const currentCancelRate = current.totalJobs > 0 
-    ? (current.cancelledJobs.length / current.totalJobs) * 100 
-    : 0;
-  const prevCancelRate = previous.totalJobs > 0 
-    ? (previous.cancelledJobs.length / previous.totalJobs) * 100 
-    : 0;
-
-  return {
-    nps: {
-      score: 0, // TODO: implementar NPS
-      promoters: 0,
-      passives: 0,
-      detractors: 0,
-      responses: 0,
-      trend: 'stable',
-      changePoints: 0,
-    },
-    avgRating: {
-      overall: Math.round(avgRating * 10) / 10,
-      trend: getTrendDirection(avgRating, prevAvgRating),
-      changePercent: calculateChangePercent(avgRating, prevAvgRating),
-      distribution,
-      topCaregivers,
-      bottomCaregivers,
-    },
-    rehireRate: {
-      percent: 0, // TODO: calcular
-      trend: 'stable',
-      changePercent: 0,
-      distribution: { once: 0, twice: 0, threeOrMore: 0 },
-    },
-    complaints: {
-      count: 0,
-      rate: 0,
-      trend: 'stable',
-      changePercent: 0,
-      byType: [],
-      unresolved: 0,
-    },
-    cancellations: {
-      count: current.cancelledJobs.length,
-      rate: Math.round(currentCancelRate * 10) / 10,
-      trend: getTrendDirection(currentCancelRate, prevCancelRate),
-      changePercent: calculateChangePercent(currentCancelRate, prevCancelRate),
-      byReason: [],
-      byInitiator: {
-        family: current.cancelledByFamily,
-        caregiver: current.cancelledByCaregiver,
-        system: current.cancelledJobs.length - current.cancelledByFamily - current.cancelledByCaregiver,
-      },
-    },
-  };
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// MÉTRICA: ATIVAÇÃO
-// ═══════════════════════════════════════════════════════════════════════════
-
-function calculateActivationMetrics(
-  current: ProcessedMetrics,
-  users: any[],
-  currentPeriod: { start: Date; end: Date }
-): ActivationMetrics {
-  const families = users.filter(u => u.perfil === 'cliente' || u.role === 'user');
-  const caregivers = users.filter(u => u.perfil === 'profissional' || u.role === 'professional');
-
-  // Famílias cadastradas no período
-  const newFamilies = families.filter(u => {
-    const cadastro = toDate(u.dataCadastro || u.createdAt);
-    return cadastro && cadastro >= currentPeriod.start && cadastro <= currentPeriod.end;
+  const criticalTickets = tickets.filter((ticket) => {
+    const type = String(ticket.tipo || '').toUpperCase();
+    const status = String(ticket.status || '').toUpperCase();
+    return type === 'RECLAMAÇÃO' && !['CONCLUIDO', 'CLOSED', 'RESOLVED'].includes(status);
   });
 
-  // Cuidadores cadastrados no período
-  const newCaregivers = caregivers.filter(u => {
-    const cadastro = toDate(u.dataCadastro || u.createdAt);
-    return cadastro && cadastro >= currentPeriod.start && cadastro <= currentPeriod.end;
-  });
-
-  // Cuidadores com perfil completo
-  const caregiversComplete = caregivers.filter(u => 
-    u.porcentagemPerfil >= 100 || u.profileComplete === true
-  );
-
-  return {
-    familyFunnel: {
-      signups: newFamilies.length,
-      firstOrder: {
-        count: current.uniqueFamilies.size,
-        conversionRate: newFamilies.length > 0 
-          ? (current.uniqueFamilies.size / newFamilies.length) * 100 
-          : 0,
-        avgDaysToConvert: 0, // TODO: calcular
-      },
-      secondOrder: {
-        count: 0,
-        conversionRate: 0,
-        avgDaysBetweenOrders: 0,
-      },
-      recurring: {
-        count: 0,
-        conversionRate: 0,
-      },
-    },
-    caregiverFunnel: {
-      signups: newCaregivers.length,
-      profileComplete: {
-        count: caregiversComplete.length,
-        conversionRate: caregivers.length > 0 
-          ? (caregiversComplete.length / caregivers.length) * 100 
-          : 0,
-        avgDaysToComplete: 0,
-      },
-      documentsVerified: {
-        count: 0,
-        conversionRate: 0,
-        avgDaysToVerify: 0,
-      },
-      firstService: {
-        count: current.uniqueCaregivers.size,
-        conversionRate: caregiversComplete.length > 0 
-          ? (current.uniqueCaregivers.size / caregiversComplete.length) * 100 
-          : 0,
-        avgDaysToFirstService: 0,
-      },
-    },
-    retentionCohorts: [], // TODO: implementar cohorts
-  };
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// MÉTRICA: OPERACIONAL
-// ═══════════════════════════════════════════════════════════════════════════
-
-function calculateOperationalMetrics(
-  current: ProcessedMetrics,
-  tickets: any[],
-  users: any[]
-): OperationalMetrics {
-  const alerts: OperationalAlert[] = [];
-
-  // Alerta: Jobs sem match há mais de 48h
-  const urgentJobs = current.pendingJobs.filter(job => {
-    const createdAt = toDate(job.createdAt);
-    if (!createdAt) return false;
-    const hoursWaiting = hoursSince(createdAt);
-    return hoursWaiting >= 48 && !job.specialistId && !job.professionalId;
-  });
-
-  if (urgentJobs.length > 0) {
+  if (firebaseFreshness.status !== 'fresh') {
     alerts.push({
-      id: 'jobs-sem-match',
-      type: 'liquidity',
-      severity: urgentJobs.length >= 10 ? 'critical' : urgentJobs.length >= 5 ? 'high' : 'medium',
-      title: `${urgentJobs.length} Jobs sem profissional há +48h`,
-      description: 'Pedidos aguardando profissional há mais de 48 horas',
-      count: urgentJobs.length,
+      id: 'firebase_unavailable',
+      type: 'data',
+      severity: 'critical',
+      title: 'Fonte Firebase indisponível',
+      description: firebaseFreshness.reason || 'Não foi possível carregar dados operacionais',
+      count: 1,
       createdAt: new Date().toISOString(),
-      affectedItems: urgentJobs.slice(0, 10).map(job => ({
-        id: job.id,
-        label: `Job ${job.id.slice(0, 8)}`,
+      source: ['firebase'],
+      reactionSlaMinutes: 15,
+      sample: buildSample(0, 1, 'Sem dados operacionais disponíveis'),
+    });
+  }
+
+  if (critical48h.length > 0) {
+    alerts.push({
+      id: 'jobs_without_match_48h',
+      type: 'liquidity',
+      severity: critical48h.length >= 10 ? 'critical' : 'high',
+      title: `${critical48h.length} jobs sem match há +48h`,
+      description: 'Pedidos aguardando profissional além do limite operacional',
+      count: critical48h.length,
+      createdAt: new Date().toISOString(),
+      source: ['firebase'],
+      reactionSlaMinutes: 30,
+      sample: buildSample(jobs.length, 10),
+      affectedItems: critical48h.slice(0, 10).map((item) => ({
+        id: item.id,
+        label: item.title,
         metadata: {
-          region: getRegionKey(job).label,
-          hoursWaiting: Math.round(hoursSince(toDate(job.createdAt))),
+          region: item.region.label,
+          hoursWaiting: item.hoursWaiting,
         },
       })),
       actions: [
@@ -908,278 +330,324 @@ function calculateOperationalMetrics(
     });
   }
 
-  // Alerta: Jobs sem match há mais de 72h (crítico)
-  const criticalJobs = urgentJobs.filter(job => {
-    const createdAt = toDate(job.createdAt);
-    return createdAt && hoursSince(createdAt) >= 72;
-  });
-
-  if (criticalJobs.length > 0) {
+  if (critical72h.length > 0) {
     alerts.push({
-      id: 'jobs-sem-match-critico',
+      id: 'jobs_without_match_72h',
       type: 'liquidity',
       severity: 'critical',
-      title: `🚨 ${criticalJobs.length} Jobs CRÍTICOS (+72h sem match)`,
-      description: 'Pedidos aguardando profissional há mais de 72 horas - ação urgente necessária',
-      count: criticalJobs.length,
+      title: `${critical72h.length} jobs críticos há +72h`,
+      description: 'Pedidos sem profissional exigindo intervenção imediata',
+      count: critical72h.length,
       createdAt: new Date().toISOString(),
-      affectedItems: criticalJobs.slice(0, 5).map(job => ({
-        id: job.id,
-        label: `Job ${job.id.slice(0, 8)}`,
+      source: ['firebase'],
+      reactionSlaMinutes: 15,
+      sample: buildSample(jobs.length, 10),
+      affectedItems: critical72h.slice(0, 5).map((item) => ({
+        id: item.id,
+        label: item.title,
         metadata: {
-          region: getRegionKey(job).label,
-          hoursWaiting: Math.round(hoursSince(toDate(job.createdAt))),
+          region: item.region.label,
+          hoursWaiting: item.hoursWaiting,
         },
       })),
     });
   }
 
-  // Alerta: Taxa de cancelamento alta
-  const cancelRate = current.totalJobs > 0 
-    ? (current.cancelledJobs.length / current.totalJobs) * 100 
-    : 0;
-
-  if (cancelRate > 20) {
+  if (criticalTickets.length > 0) {
     alerts.push({
-      id: 'cancel-rate-high',
-      type: 'quality',
-      severity: cancelRate > 30 ? 'critical' : 'high',
-      title: `Taxa de cancelamento ${cancelRate.toFixed(1)}%`,
-      description: 'Taxa de cancelamento acima do esperado (>20%)',
-      count: current.cancelledJobs.length,
+      id: 'critical_tickets_open',
+      type: 'support',
+      severity: 'high',
+      title: `${criticalTickets.length} tickets críticos em aberto`,
+      description: 'Reclamações abertas sem resolução',
+      count: criticalTickets.length,
       createdAt: new Date().toISOString(),
+      source: ['firebase'],
+      reactionSlaMinutes: 30,
+      sample: buildSample(tickets.length, 1),
+      affectedItems: criticalTickets.slice(0, 10).map((ticket) => ({
+        id: String(ticket.id),
+        label: String(ticket.titulo || 'Ticket'),
+        metadata: {
+          user: ticket.usuarioNome || ticket.usuarioId || 'N/A',
+        },
+      })),
+      actions: [
+        { label: 'Ver service desk', href: '/admin/service-desk' },
+      ],
     });
   }
 
-  // Alerta: Cuidadores com baixa avaliação
-  const lowRatingCaregivers = Array.from(current.ratingsByCaregiver.entries())
-    .filter(([, ratings]) => {
-      const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
-      return avg < 3.5 && ratings.length >= 3;
-    });
-
-  if (lowRatingCaregivers.length > 0) {
+  if (stripeFreshness.status !== 'fresh') {
     alerts.push({
-      id: 'low-rating-caregivers',
-      type: 'quality',
-      severity: lowRatingCaregivers.length >= 5 ? 'high' : 'medium',
-      title: `${lowRatingCaregivers.length} cuidadores com avaliação baixa`,
-      description: 'Cuidadores com avaliação média abaixo de 3.5 estrelas',
-      count: lowRatingCaregivers.length,
+      id: 'stripe_unavailable',
+      type: 'financial',
+      severity: 'medium',
+      title: 'Fonte Stripe indisponível',
+      description: stripeFreshness.reason || 'Não foi possível carregar dados financeiros',
+      count: 1,
       createdAt: new Date().toISOString(),
+      source: ['stripe'],
+      reactionSlaMinutes: 60,
+      sample: buildSample(0, 1, 'Sem dados financeiros confiáveis no período'),
     });
   }
 
-  // Contar alertas por severidade
-  const alertCounts = {
-    critical: alerts.filter(a => a.severity === 'critical').length,
-    high: alerts.filter(a => a.severity === 'high').length,
-    medium: alerts.filter(a => a.severity === 'medium').length,
-    low: alerts.filter(a => a.severity === 'low').length,
-  };
+  if (jobs.length < 10) {
+    alerts.push({
+      id: 'insufficient_sample_jobs',
+      type: 'data',
+      severity: 'low',
+      title: 'Base insuficiente para leitura robusta',
+      description: `A janela atual possui apenas ${jobs.length} jobs elegíveis`,
+      count: jobs.length,
+      createdAt: new Date().toISOString(),
+      source: ['firebase'],
+      sample: buildSample(jobs.length, 10),
+    });
+  }
 
   return {
-    alerts: {
-      ...alertCounts,
-      items: alerts.sort((a, b) => {
-        const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
-        return severityOrder[a.severity] - severityOrder[b.severity];
-      }),
-    },
-    matchSLA: {
-      target: 24,
-      achieved: current.matchTimes.length > 0 
-        ? (current.matchTimes.filter(t => t <= 24).length / current.matchTimes.length) * 100 
-        : 0,
-      breached: current.matchTimes.filter(t => t > 24).length,
-    },
-    supportSLA: {
-      avgResponseTime: 0, // TODO: calcular
-      avgResolutionTime: 0,
-      openTickets: tickets.length,
-      ticketsByPriority: {
-        urgent: tickets.filter((t: any) => t.priority === 'urgent').length,
-        high: tickets.filter((t: any) => t.priority === 'high').length,
-        medium: tickets.filter((t: any) => t.priority === 'medium').length,
-        low: tickets.filter((t: any) => t.priority === 'low').length,
-      },
-    },
-    caregiverIssues: {
-      inactive: 0, // TODO: calcular
-      lowRating: lowRatingCaregivers.length,
-      highCancelRate: 0, // TODO: calcular
-      documentsExpiring: 0, // TODO: calcular
-    },
+    alerts,
+    sample: buildSample(jobs.length, 10),
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MÉTRICA: REGIONAL
-// ═══════════════════════════════════════════════════════════════════════════
+function buildLocalRanking(
+  jobs: Array<Record<string, any>>,
+  firebaseFreshness: SourceFreshness,
+  specialtyFilter?: string
+): {
+  items: LocalRankingItem[];
+  sample: SampleMeta;
+  freshness: SourceFreshness;
+  observation: {
+    supplyDefinition: string;
+    ratioPolicy: string;
+    limitations: string[];
+  };
+} {
+  const normalizedSpecialtyFilter = specialtyFilter?.trim().toLowerCase();
 
-function calculateRegionalMetrics(current: ProcessedMetrics): RegionalMetrics {
-  const regionArray = Array.from(current.regionStats.entries());
+  const regionMap = new Map<string, {
+    ref: ReturnType<typeof getRegionKey>;
+    eligibleJobs: number;
+    localCriticalJobs: number;
+    professionalIds: Set<string>;
+    specialtyCount: Map<string, number>;
+    jobsWithoutSpecialty: number;
+  }>();
 
-  // Top regiões por jobs (GMV quando disponível)
-  const topRegionsByGMV = regionArray
-    .map(([key, stats]) => {
-      const matchRate = stats.jobs > 0 ? (stats.completed / stats.jobs) * 100 : 0;
-      const avgMatchTime = stats.matchTimes.length > 0
-        ? stats.matchTimes.reduce((a, b) => a + b, 0) / stats.matchTimes.length
-        : 0;
-      const dsRatio = stats.caregivers.size > 0 
-        ? stats.families.size / stats.caregivers.size 
-        : 0;
+  for (const job of jobs) {
+    if (!isEligibleForLiquidity(job)) continue;
+
+    const specialty = normalizeSpecialty(job);
+    if (normalizedSpecialtyFilter) {
+      if (!specialty || specialty.toLowerCase() !== normalizedSpecialtyFilter) continue;
+    }
+
+    const ref = getRegionKey(job);
+
+    if (!regionMap.has(ref.key)) {
+      regionMap.set(ref.key, {
+        ref,
+        eligibleJobs: 0,
+        localCriticalJobs: 0,
+        professionalIds: new Set<string>(),
+        specialtyCount: new Map<string, number>(),
+        jobsWithoutSpecialty: 0,
+      });
+    }
+
+    const item = regionMap.get(ref.key)!;
+    item.eligibleJobs += 1;
+
+    if (specialty) {
+      item.specialtyCount.set(specialty, (item.specialtyCount.get(specialty) || 0) + 1);
+    } else {
+      item.jobsWithoutSpecialty += 1;
+    }
+
+    if (hasProfessional(job)) {
+      const professionalId = job.professionalId || job.specialistId || job.profissionalId;
+      if (professionalId) item.professionalIds.add(String(professionalId));
+    }
+
+    const status = normalizeJobStatus(job.status);
+    const wait = hoursSince(job.createdAt);
+    if (status === 'pending' && !hasProfessional(job) && wait >= 48) {
+      item.localCriticalJobs += 1;
+    }
+  }
+
+  const items: LocalRankingItem[] = Array.from(regionMap.values())
+    .map((item) => {
+      const observedSupply = item.professionalIds.size;
+      const demandSupplyRatio = observedSupply > 0
+        ? Number((item.eligibleJobs / observedSupply).toFixed(2))
+        : undefined;
+
+      const dominantSpecialty = Array.from(item.specialtyCount.entries())
+        .sort((a, b) => b[1] - a[1])[0]?.[0];
+
+      const notes: string[] = [];
+      if (observedSupply === 0 && item.eligibleJobs > 0) {
+        notes.push('Sem oferta observada no periodo/filtro.');
+      }
+      if (item.jobsWithoutSpecialty > 0) {
+        notes.push('Parte dos jobs sem especialidade estruturada.');
+      }
+
+      let localCriticality: LocalRankingItem['localCriticality'] = 'stable';
+      if (
+        item.localCriticalJobs >= 3 ||
+        (demandSupplyRatio !== undefined && demandSupplyRatio >= 2) ||
+        (observedSupply === 0 && item.eligibleJobs >= 3)
+      ) {
+        localCriticality = 'critical';
+      } else if (
+        item.localCriticalJobs >= 1 ||
+        (demandSupplyRatio !== undefined && demandSupplyRatio >= 1.2) ||
+        (observedSupply === 0 && item.eligibleJobs > 0)
+      ) {
+        localCriticality = 'attention';
+      }
 
       return {
-        region: key,
-        label: stats.label,
-        cidade: stats.cidade,
-        estado: stats.estado,
-        gmv: stats.gmv,
-        jobs: stats.jobs,
-        avgTicket: stats.jobs > 0 ? stats.gmv / stats.jobs : 0,
-        matchRate: Math.round(matchRate * 10) / 10,
-        avgMatchTimeHours: Math.round(avgMatchTime * 10) / 10,
-        activeFamilies: stats.families.size,
-        activeCaregivers: stats.caregivers.size,
-        demandSupplyRatio: Math.round(dsRatio * 100) / 100,
-        trend: 'stable' as TrendDirection, // TODO: calcular trend
+        region: item.ref.key,
+        label: item.ref.label,
+        cidade: item.ref.cidade,
+        estado: item.ref.estado,
+        specialty: dominantSpecialty,
+        eligibleJobs: item.eligibleJobs,
+        observedSupply,
+        demandSupplyRatio,
+        localCriticalJobs: item.localCriticalJobs,
+        localCriticality,
+        notes: notes.length > 0 ? notes : undefined,
+        sample: buildSample(item.eligibleJobs, 5, 'Base local minima de 5 jobs elegiveis.'),
       };
     })
-    .sort((a, b) => b.jobs - a.jobs)
-    .slice(0, 15);
-
-  // Regiões com problemas
-  const problemRegions = regionArray
-    .map(([key, stats]) => {
-      const issues: string[] = [];
-      const dsRatio = stats.caregivers.size > 0 
-        ? stats.families.size / stats.caregivers.size 
-        : 0;
-
-      if (dsRatio > 2) issues.push('Alta demanda, poucos profissionais');
-      if (stats.pending > 5) issues.push(`${stats.pending} jobs pendentes`);
-      
-      return {
-        region: key,
-        label: stats.label,
-        issues,
-        severity: (issues.length >= 2 ? 'high' : issues.length === 1 ? 'medium' : 'low') as AlertSeverity,
-      };
-    })
-    .filter(r => r.issues.length > 0)
     .sort((a, b) => {
-      const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
-      return severityOrder[a.severity] - severityOrder[b.severity];
+      if (a.localCriticality !== b.localCriticality) {
+        const rank = { critical: 0, attention: 1, stable: 2 };
+        return rank[a.localCriticality] - rank[b.localCriticality];
+      }
+      if (a.localCriticalJobs !== b.localCriticalJobs) {
+        return b.localCriticalJobs - a.localCriticalJobs;
+      }
+      return b.eligibleJobs - a.eligibleJobs;
     })
-    .slice(0, 10);
+    .slice(0, 20);
 
-  // Cobertura
-  const totalRegions = regionArray.length;
-  const activeRegions = regionArray.filter(([, s]) => s.jobs > 0).length;
-  const regionsWithSupply = regionArray.filter(([, s]) => s.caregivers.size > 0).length;
-  const regionsWithDemand = regionArray.filter(([, s]) => s.families.size > 0).length;
-  const regionsBalanced = regionArray.filter(([, s]) => {
-    const ratio = s.caregivers.size > 0 ? s.families.size / s.caregivers.size : 0;
-    return ratio >= 0.5 && ratio <= 2;
-  }).length;
+  const totalEligibleJobs = items.reduce((sum, item) => sum + item.eligibleJobs, 0);
 
   return {
-    topRegionsByGMV,
-    problemRegions,
-    coverage: {
-      totalRegions,
-      activeRegions,
-      regionsWithSupply,
-      regionsWithDemand,
-      regionsBalanced,
+    items,
+    sample: buildSample(totalEligibleJobs, 20, 'Base minima de 20 jobs elegiveis para leitura local robusta.'),
+    freshness: {
+      ...firebaseFreshness,
+      source: 'firebase',
+    },
+    observation: {
+      supplyDefinition: 'Oferta observada = profissionais unicos associados a jobs elegiveis no periodo/filtro.',
+      ratioPolicy: 'Razao demanda/oferta exibida somente quando oferta observada > 0.',
+      limitations: [
+        'Oferta observada nao representa disponibilidade em tempo real.',
+        'Especialidade pode estar ausente em parte dos jobs.',
+        'Sem modelagem de capacidade por turno neste ciclo.',
+      ],
     },
   };
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FUNÇÃO PRINCIPAL
-// ═══════════════════════════════════════════════════════════════════════════
 
 export async function calculateDashboardV3Metrics(
   windowDays: TimeWindow = 30,
-  regionFilter?: string
+  regionFilter?: string,
+  specialtyFilter?: string
 ): Promise<DashboardV3Response> {
-  console.log('[DashboardV3] Iniciando cálculo, window:', windowDays, 'region:', regionFilter);
-  const startTime = Date.now();
+  let firebaseFreshness = buildFreshness('firebase', 'unavailable', 'Leitura ainda não executada');
+  let stripeFreshness = buildFreshness('stripe', 'unavailable', 'Leitura ainda não executada');
+  const ga4Freshness = buildFreshness(
+    'ga4',
+    'unavailable',
+    'GA4 fora do escopo da home operacional neste ciclo (evita funil com confiança baixa)'
+  );
+
+  let jobs: Array<Record<string, any>> = [];
+  let tickets: Array<Record<string, any>> = [];
+  let charges: Array<Record<string, any>> = [];
 
   try {
-    // Load all data in parallel
-    const data = await loadAllData(windowDays);
-    console.log('[DashboardV3] Dados carregados em', Date.now() - startTime, 'ms');
-    console.log('[DashboardV3] Jobs:', data.jobs.length, 'Users:', data.users.length);
-
-    // Filter by region if specified
-    const filteredJobs = regionFilter
-      ? data.jobs.filter(job => getRegionKey(job).key === regionFilter)
-      : data.jobs;
-
-    // Process current period
-    const currentData = processSinglePass(
-      filteredJobs,
-      data.payments,
-      data.transacoes,
-      data.currentPeriod
-    );
-
-    // Process previous period for trends
-    const previousJobs = regionFilter
-      ? data.jobs.filter(job => {
-          const region = getRegionKey(job);
-          const createdAt = toDate(job.createdAt);
-          return region.key === regionFilter && 
-                 createdAt && 
-                 createdAt >= data.previousPeriod.start && 
-                 createdAt < data.previousPeriod.end;
-        })
-      : data.jobs.filter(job => {
-          const createdAt = toDate(job.createdAt);
-          return createdAt && 
-                 createdAt >= data.previousPeriod.start && 
-                 createdAt < data.previousPeriod.end;
-        });
-
-    const previousData = processSinglePass(
-      previousJobs,
-      data.payments,
-      data.transacoes,
-      data.previousPeriod
-    );
-
-    console.log('[DashboardV3] Single-pass processado em', Date.now() - startTime, 'ms');
-
-    // Calculate all metrics
-    const healthScore = calculateHealthScore(currentData, previousData);
-    const liquidity = calculateLiquidityMetrics(currentData, previousData);
-    const financial = calculateFinancialMetrics(currentData, previousData, data.currentPeriod);
-    const quality = calculateQualityMetrics(currentData, previousData, data.users);
-    const activation = calculateActivationMetrics(currentData, data.users, data.currentPeriod);
-    const operational = calculateOperationalMetrics(currentData, data.tickets, data.users);
-    const regional = calculateRegionalMetrics(currentData);
-
-    console.log('[DashboardV3] Métricas calculadas em', Date.now() - startTime, 'ms');
-
-    return {
-      timestamp: new Date().toISOString(),
-      window: windowDays,
-      regionFilter,
-      cached: false,
-      healthScore,
-      liquidity,
-      financial,
-      quality,
-      activation,
-      operational,
-      regional,
-    };
+    const firebaseData = await loadFirebaseData(windowDays);
+    firebaseFreshness = buildFreshness('firebase', 'fresh', undefined, firebaseData.loadedAt);
+    jobs = firebaseData.jobs;
+    tickets = firebaseData.tickets;
   } catch (error) {
-    console.error('[DashboardV3] ERRO:', error);
-    throw error;
+    const reason = error instanceof Error ? error.message : 'Erro ao carregar Firebase';
+    firebaseFreshness = buildFreshness('firebase', 'unavailable', reason);
   }
+
+  try {
+    const stripeData = await loadStripeData(windowDays);
+    stripeFreshness = buildFreshness('stripe', 'fresh', undefined, stripeData.loadedAt);
+    charges = stripeData.charges;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'Erro ao carregar Stripe';
+    stripeFreshness = buildFreshness('stripe', 'unavailable', reason);
+  }
+
+  const filteredJobs = regionFilter
+    ? jobs.filter((job) => getRegionKey(job).key === regionFilter)
+    : jobs;
+
+  const cards = buildCards(
+    filteredJobs,
+    tickets,
+    charges,
+    stripeFreshness.status === 'fresh'
+  );
+
+  const criticalQueueData = buildCriticalQueue(filteredJobs);
+  const activeAlertsData = buildActiveAlerts(
+    filteredJobs,
+    tickets,
+    criticalQueueData.queue,
+    firebaseFreshness,
+    stripeFreshness
+  );
+  const localRankingData = buildLocalRanking(filteredJobs, firebaseFreshness, specialtyFilter);
+
+  return {
+    timestamp: new Date().toISOString(),
+    window: windowDays,
+    regionFilter,
+    specialtyFilter,
+    cached: false,
+    freshness: {
+      firebase: firebaseFreshness,
+      stripe: stripeFreshness,
+      ga4: ga4Freshness,
+    },
+    cards,
+    criticalQueue: {
+      total: criticalQueueData.queue.length,
+      items: criticalQueueData.queue,
+      sample: criticalQueueData.sample,
+    },
+    activeAlerts: {
+      critical: activeAlertsData.alerts.filter((alert) => alert.severity === 'critical').length,
+      high: activeAlertsData.alerts.filter((alert) => alert.severity === 'high').length,
+      medium: activeAlertsData.alerts.filter((alert) => alert.severity === 'medium').length,
+      low: activeAlertsData.alerts.filter((alert) => alert.severity === 'low').length,
+      items: activeAlertsData.alerts,
+      sample: activeAlertsData.sample,
+    },
+    localRanking: {
+      items: localRankingData.items,
+      freshness: localRankingData.freshness,
+      observation: localRankingData.observation,
+      sample: localRankingData.sample,
+    },
+  };
 }
