@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
           },
           sample: cachedData.localRanking.sample,
         },
+        agingExtreme: cachedData.agingExtreme,
       };
 
       return NextResponse.json(cachedResponse, {
@@ -109,6 +110,7 @@ export async function GET(request: NextRequest) {
       criticalQueue: result.criticalQueue,
       activeAlerts: result.activeAlerts,
       localRanking: result.localRanking,
+      agingExtreme: result.agingExtreme,
     };
 
     cache.set(cacheKey, freshResponse, CACHE_TTL_SECONDS[windowDays]);

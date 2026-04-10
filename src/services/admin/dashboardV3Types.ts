@@ -36,10 +36,9 @@ export interface SampleMeta {
 export interface SourceFreshness {
   source: 'firebase' | 'stripe' | 'ga4';
   status: 'fresh' | 'stale' | 'unavailable';
-  lastSuccessAt?: string;
-  lastAttemptAt?: string;
-  delayMinutes?: number;
-  reason?: string;
+  lastSuccessAt: string | null;
+  delayMinutes: number | null;
+  reason: string | null;
 }
 
 export interface RegionRef {
@@ -170,6 +169,48 @@ export interface LocalRanking {
   sample?: SampleMeta;
 }
 
+export interface AgingExtremeSeriesPoint {
+  day: string;
+  referenceWindowDays: TimeWindow;
+  extremeItems: number;
+  collectedAt: string;
+}
+
+export interface AgingExtremeVariation {
+  current: number;
+  previous: number | null;
+  absolute: number | null;
+  percent: number | null;
+  hasBaseline: boolean;
+  baselineDay: string | null;
+}
+
+export interface AgingExtremeRolling14dVariation {
+  currentAverage: number;
+  previousAverage: number | null;
+  absolute: number | null;
+  percent: number | null;
+  hasBaseline: boolean;
+  sampleDays: number;
+}
+
+export interface AgingExtremeMetrics {
+  thresholdHours: number;
+  methodologyVersion: 'v1';
+  windowDays: TimeWindow;
+  current: {
+    extremeItems: number | null;
+    collectedAt: string | null;
+    status: 'available' | 'unavailable';
+    reason: string | null;
+  };
+  seriesDaily: AgingExtremeSeriesPoint[];
+  variation: {
+    weekly: AgingExtremeVariation;
+    rolling14d: AgingExtremeRolling14dVariation;
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // RESPONSE DA HOME OPERACIONAL
 // ═══════════════════════════════════════════════════════════════════════════
@@ -204,6 +245,9 @@ export interface DashboardV3Response {
 
   /** Ranking local */
   localRanking: LocalRanking;
+
+  /** Serie temporal e variacao de aging extremo (>72h) */
+  agingExtreme: AgingExtremeMetrics;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
