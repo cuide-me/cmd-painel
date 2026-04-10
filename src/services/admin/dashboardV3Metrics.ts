@@ -22,6 +22,7 @@ import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore'
 import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getStripeClient } from '@/lib/server/stripe';
 import { getRegionKey } from './region';
+import { buildAgingExtremeMetrics } from './agingExtremeMetrics';
 import type {
   DashboardV3Response,
   TimeWindow,
@@ -110,23 +111,22 @@ function buildFreshness(
   reason?: string,
   loadedAt?: string
 ): SourceFreshness {
-  const nowIso = new Date().toISOString();
-
   if (status === 'fresh') {
     return {
       source,
       status,
-      lastSuccessAt: loadedAt || nowIso,
-      lastAttemptAt: nowIso,
+      lastSuccessAt: loadedAt || new Date().toISOString(),
       delayMinutes: 0,
+      reason: null,
     };
   }
 
   return {
     source,
     status,
-    lastAttemptAt: nowIso,
-    reason,
+    lastSuccessAt: null,
+    delayMinutes: null,
+    reason: reason || 'Fonte indisponivel',
   };
 }
 
@@ -617,6 +617,7 @@ export async function calculateDashboardV3Metrics(
     stripeFreshness
   );
   const localRankingData = buildLocalRanking(filteredJobs, firebaseFreshness, specialtyFilter);
+  const agingExtreme = await buildAgingExtremeMetrics(windowDays, jobs);
 
   return {
     timestamp: new Date().toISOString(),
@@ -649,5 +650,6 @@ export async function calculateDashboardV3Metrics(
       observation: localRankingData.observation,
       sample: localRankingData.sample,
     },
+    agingExtreme,
   };
 }
