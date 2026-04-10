@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signInWithCustomToken } from 'firebase/auth';
+import { getFirebaseAuth } from '@/firebase/firebaseApp';
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
@@ -24,11 +26,9 @@ export default function AdminLoginPage() {
       
       const data = await response.json();
       
-      if (response.ok && data.success) {
-        // Salva autenticação com token
-        localStorage.setItem('admin_logged', 'true');
-        localStorage.setItem('admin_email', 'admin@cuide-me.com');
-        localStorage.setItem('admin_session_token', data.token);
+      if (response.ok && data.success && data.firebaseCustomToken) {
+        const auth = getFirebaseAuth();
+        await signInWithCustomToken(auth, data.firebaseCustomToken);
         
         console.log('[Login] Acesso concedido');
         router.push('/admin');

@@ -307,8 +307,5 @@ export type { KpiCardProps } from './KpiCard';
 
 export { StatusBadge } from './StatusBadge';
 
-export { AlertBanner } from './AlertBanner';
-export type { AlertBannerProps } from './AlertBanner';
-
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';

@@ -36,21 +36,19 @@ export function useAdminAuth() {
       }
 
       try {
+        const tokenResult = await user.getIdTokenResult();
+        const hasAdminClaim = tokenResult.claims.admin === true || tokenResult.claims.role === 'admin';
+
         // Verifica se o usuário tem role de admin no Firestore
         const userDoc = await getDoc(doc(db, 'users', user.uid));
 
-        if (!userDoc.exists()) {
-          setState({
-            user: null,
-            isAdmin: false,
-            loading: false,
-            error: 'Usuário não encontrado',
-          });
-          return;
-        }
+        const userData = userDoc.exists() ? userDoc.data() : null;
+        const hasFirestoreAdmin =
+          userData?.role === 'admin' ||
+          userData?.perfil === 'admin' ||
+          userData?.isAdmin === true;
 
-        const userData = userDoc.data();
-        const isAdmin = userData?.role === 'admin';
+        const isAdmin = hasAdminClaim || hasFirestoreAdmin;
 
         setState({
           user,
@@ -82,5 +80,5 @@ export function useAdminAuth() {
     }
   };
 
-  return { ...state, logout };
+  return { ...state, authReady: !state.loading && state.isAdmin, logout };
 }

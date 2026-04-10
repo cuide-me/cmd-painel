@@ -31,53 +31,15 @@ export interface AdminAuthResult {
 /**
  * Verifies admin authentication and returns result with authorized flag
  * Returns null if authentication fails
- * Supports: Bearer token, x-admin-password header, Firebase auth
+ * Uses Firebase ID token + admin privilege checks only
  */
 export async function verifyAdminAuth(request: NextRequest): Promise<AdminAuthResult | null> {
-  // Check for Bearer token first (from login endpoint)
-  const authHeader = request.headers.get('authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7);
-    // Validate token format (basic check)
-    if (token && token.length > 10) {
-      try {
-        // Decode and verify token
-        const decoded = Buffer.from(token, 'base64').toString('utf-8');
-        if (decoded.startsWith('admin:')) {
-          return {
-            authorized: true,
-            uid: 'admin',
-            decodedToken: undefined
-          };
-        }
-      } catch {
-        // Invalid token, continue to other methods
-      }
-    }
-  }
-  
-  // Check for simple password auth
-  const simpleAuth = request.headers.get('x-admin-password');
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-  
-  if (!ADMIN_PASSWORD) {
-    console.error('[AUTH] ❌ ADMIN_PASSWORD env var not configured!');
-    // Don't fail completely - try Firebase auth as fallback
-  } else if (simpleAuth === ADMIN_PASSWORD) {
-    return {
-      authorized: true,
-      uid: 'admin',
-      decodedToken: undefined
-    };
-  }
-  
-  // Fallback to Firebase auth
   const auth = await requireAdmin(request);
-  
+
   if ('error' in auth) {
     return null;
   }
-  
+
   return {
     authorized: true,
     uid: auth.uid,

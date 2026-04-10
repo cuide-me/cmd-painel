@@ -1,7 +1,9 @@
 /**
  * Authenticated fetch wrapper for admin routes
- * Uses session token from login
+ * Uses Firebase ID token from authenticated admin session
  */
+
+import { getFirebaseAuth } from '@/firebase/firebaseApp';
 
 /**
  * Fetch with simple authentication
@@ -11,20 +13,18 @@
  */
 export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   try {
-    // Verificação de login
-    const isLogged = localStorage.getItem('admin_logged') === 'true';
-    const sessionToken = localStorage.getItem('admin_session_token');
+    const auth = getFirebaseAuth();
+    const currentUser = auth.currentUser;
 
-    if (!isLogged) {
+    if (!currentUser) {
       throw new Error('User not authenticated');
     }
 
+    const idToken = await currentUser.getIdToken();
+
     // Add auth headers
     const headers = new Headers(options.headers);
-    headers.set('X-Admin-Auth', 'authenticated');
-    if (sessionToken) {
-      headers.set('Authorization', `Bearer ${sessionToken}`);
-    }
+    headers.set('Authorization', `Bearer ${idToken}`);
 
     // Make request
     return fetch(url, {
