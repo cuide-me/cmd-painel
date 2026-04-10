@@ -86,6 +86,14 @@ export async function GET(request: NextRequest) {
           sample: cachedData.localRanking.sample,
         },
         agingExtreme: cachedData.agingExtreme,
+        executivePanel: cachedData.executivePanel || {
+          reference: {
+            weeklyStartAt: cachedData.timestamp,
+            weeklyEndAt: cachedData.timestamp,
+          },
+          indicators: [],
+          supplyDemandByBairro: [],
+        },
       };
 
       return NextResponse.json(cachedResponse, {
@@ -111,6 +119,7 @@ export async function GET(request: NextRequest) {
       activeAlerts: result.activeAlerts,
       localRanking: result.localRanking,
       agingExtreme: result.agingExtreme,
+      executivePanel: result.executivePanel,
     };
 
     cache.set(cacheKey, freshResponse, CACHE_TTL_SECONDS[windowDays]);

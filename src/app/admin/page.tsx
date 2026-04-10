@@ -52,6 +52,17 @@ function formatCardValue(value: number | string, unit?: string): string {
   return unit ? `${value.toLocaleString('pt-BR')} ${unit}` : value.toLocaleString('pt-BR');
 }
 
+function formatExecutiveValue(value: number | string, unit?: '%' | 'h' | 'BRL'): string {
+  if (typeof value === 'string') return value;
+  if (unit === 'BRL') {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  }
+  if (unit) {
+    return `${value.toLocaleString('pt-BR')} ${unit}`;
+  }
+  return value.toLocaleString('pt-BR');
+}
+
 function DataIntegrityBanner({
   freshness,
   hasInsufficientSamples,
@@ -249,6 +260,72 @@ export default function AdminOperationalHomePage() {
       </header>
 
       <DataIntegrityBanner freshness={data.freshness} hasInsufficientSamples={hasInsufficientSamples} />
+
+      <section className="rounded-lg border border-gray-200 bg-white p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Painel executivo prioritário</h2>
+          <span className="text-xs text-gray-500">
+            Semana: {formatDateTime(data.executivePanel.reference.weeklyStartAt)} até {formatDateTime(data.executivePanel.reference.weeklyEndAt)}
+          </span>
+        </div>
+
+        {data.executivePanel.indicators.length === 0 ? (
+          <p className="text-sm text-gray-600">Sem indicadores executivos disponíveis para a janela atual.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {data.executivePanel.indicators.map((indicator) => (
+              <article key={indicator.id} className="rounded-lg border border-gray-200 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-sm font-medium text-gray-700">{indicator.title}</h3>
+                  <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusPillClass(indicator.status)}`}>
+                    {indicator.status}
+                  </span>
+                </div>
+
+                <p className="mt-2 text-2xl font-semibold text-gray-900">
+                  {formatExecutiveValue(indicator.value, indicator.unit)}
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">Fonte: {indicator.source.join(', ')}</p>
+                {indicator.note && <p className="mt-2 text-xs text-amber-700">{indicator.note}</p>}
+              </article>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-6">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900">Relação oferta/demanda por bairro</h3>
+            <span className="text-xs text-gray-500">Top bairros por demanda na semana</span>
+          </div>
+          {data.executivePanel.supplyDemandByBairro.length === 0 ? (
+            <p className="text-sm text-gray-600">Sem base de bairro suficiente para cálculo na semana.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
+                    <th className="px-2 py-2">Bairro</th>
+                    <th className="px-2 py-2">Demanda</th>
+                    <th className="px-2 py-2">Oferta observada</th>
+                    <th className="px-2 py-2">Relação O/D</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.executivePanel.supplyDemandByBairro.map((row) => (
+                    <tr key={row.bairro} className="border-b border-gray-100">
+                      <td className="px-2 py-2 text-gray-900">{row.bairro}</td>
+                      <td className="px-2 py-2">{row.demandOrders.toLocaleString('pt-BR')}</td>
+                      <td className="px-2 py-2">{row.observedSupplyProfessionals.toLocaleString('pt-BR')}</td>
+                      <td className="px-2 py-2">{row.demandSupplyRatio === null ? 'Sem oferta' : row.demandSupplyRatio.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
 
       {error && (
         <section className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

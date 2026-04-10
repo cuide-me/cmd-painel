@@ -211,6 +211,43 @@ export interface AgingExtremeMetrics {
   };
 }
 
+export interface ExecutiveIndicator {
+  id:
+    | 'weekly_orders_created'
+    | 'weekly_active_eligible_professionals'
+    | 'orders_with_proposal_24h_rate'
+    | 'avg_time_to_first_proposal_hours'
+    | 'hiring_rate'
+    | 'repurchase_rate'
+    | 'cancellation_rate'
+    | 'weekly_gmv'
+    | 'platform_revenue'
+    | 'verified_and_payout_enabled_professionals_rate'
+    | 'critical_jobs_open_24h';
+  title: string;
+  value: number | string;
+  unit?: '%' | 'h' | 'BRL';
+  status: OperationalStatus;
+  source: Array<'firebase' | 'stripe' | 'ga4'>;
+  note?: string;
+}
+
+export interface BairroSupplyDemandItem {
+  bairro: string;
+  demandOrders: number;
+  observedSupplyProfessionals: number;
+  demandSupplyRatio: number | null;
+}
+
+export interface ExecutivePanel {
+  reference: {
+    weeklyStartAt: string;
+    weeklyEndAt: string;
+  };
+  indicators: ExecutiveIndicator[];
+  supplyDemandByBairro: BairroSupplyDemandItem[];
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // RESPONSE DA HOME OPERACIONAL
 // ═══════════════════════════════════════════════════════════════════════════
@@ -248,6 +285,9 @@ export interface DashboardV3Response {
 
   /** Serie temporal e variacao de aging extremo (>72h) */
   agingExtreme: AgingExtremeMetrics;
+
+  /** Painel executivo priorizado com indicadores operacionais essenciais */
+  executivePanel: ExecutivePanel;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

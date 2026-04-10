@@ -18,7 +18,7 @@
  * - sem transformar indisponibilidade em zero falso
  */
 
-import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { Timestamp, type QueryDocumentSnapshot, type DocumentSnapshot } from 'firebase-admin/firestore';
 import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getStripeClient } from '@/lib/server/stripe';
 import { getRegionKey } from './region';
@@ -32,6 +32,10 @@ import type {
   ActiveAlert,
   LocalRankingItem,
   SampleMeta,
+  ExecutivePanel,
+  ExecutiveIndicator,
+  OperationalStatus,
+  BairroSupplyDemandItem,
 } from './dashboardV3Types';
 
 interface LoadedFirebaseData {
@@ -89,6 +93,56 @@ function normalizeSpecialty(job: Record<string, any>): string | undefined {
   if (!raw || typeof raw !== 'string') return undefined;
   const normalized = raw.trim();
   return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeBairro(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, ' ');
+  return normalized.length > 0 ? normalized : null;
+}
+
+function getJobProfessionalId(job: Record<string, any>): string | null {
+  const raw = job.professionalId || job.specialistId || job.profissionalId;
+  return raw ? String(raw) : null;
+}
+
+function getJobClientId(job: Record<string, any>): string | null {
+  const raw = job.clientId || job.familyId || job.clienteId || job.userId;
+  return raw ? String(raw) : null;
+}
+
+function getFirstProposalAt(job: Record<string, any>): Date | null {
+  const direct = toDate(job.firstProposalAt || job.proposalCreatedAt || job.propostaCriadaEm || job.proposedAt);
+  if (direct) return direct;
+
+  const proposalDates: Date[] = [];
+
+  if (Array.isArray(job.matches)) {
+    for (const match of job.matches) {
+      const date = toDate(match?.createdAt || match?.acceptedAt || match?.proposedAt);
+      if (date) proposalDates.push(date);
+    }
+  }
+
+  if (Array.isArray(job.proposals)) {
+    for (const proposal of job.proposals) {
+      const date = toDate(proposal?.createdAt || proposal?.proposedAt);
+      if (date) proposalDates.push(date);
+    }
+  }
+
+  if (proposalDates.length === 0) return null;
+  proposalDates.sort((a, b) => a.getTime() - b.getTime());
+  return proposalDates[0];
+}
+
+function buildExecutiveIndicator(
+  indicator: Omit<ExecutiveIndicator, 'status'> & { status?: OperationalStatus }
+): ExecutiveIndicator {
+  return {
+    ...indicator,
+    status: indicator.status || 'info',
+  };
 }
 
 function isEligibleForLiquidity(job: Record<string, any>): boolean {
@@ -163,6 +217,283 @@ async function loadStripeData(windowDays: TimeWindow): Promise<LoadedStripeData>
   return {
     charges: charges.data as unknown as Array<Record<string, any>>,
     loadedAt: new Date().toISOString(),
+  };
+}
+
+async function loadUsersByIds(ids: string[]): Promise<Map<string, Record<string, any>>> {
+  const map = new Map<string, Record<string, any>>();
+  if (ids.length === 0) return map;
+
+  const db = getFirestore();
+  const chunkSize = 50;
+
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    const refs = chunk.map((id) => db.collection('users').doc(id));
+    const docs = await db.getAll(...refs);
+
+    docs.forEach((doc: DocumentSnapshot) => {
+      if (doc.exists) {
+        map.set(doc.id, doc.data() as Record<string, any>);
+      }
+    });
+  }
+
+  return map;
+}
+
+async function buildExecutivePanel(
+  jobs: Array<Record<string, any>>,
+  charges: Array<Record<string, any>>,
+  stripeFreshness: SourceFreshness,
+): Promise<ExecutivePanel> {
+  const now = new Date();
+  const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const jobsWeek = jobs.filter((job) => {
+    const createdAt = toDate(job.createdAt);
+    return Boolean(createdAt && createdAt >= weekStart && createdAt <= now);
+  });
+
+  const weeklyOrders = jobsWeek.length;
+
+  const professionalIdsWeek = Array.from(
+    new Set(
+      jobsWeek
+        .map((job) => getJobProfessionalId(job))
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  const professionalUsers = await loadUsersByIds(professionalIdsWeek);
+
+  const eligibleActiveProfessionals = professionalIdsWeek.filter((id) => {
+    const user = professionalUsers.get(id);
+    return user?.ativo === true;
+  }).length;
+
+  const supplyDemandMap = new Map<string, { demandOrders: number; professionals: Set<string> }>();
+  for (const job of jobsWeek) {
+    const bairro = normalizeBairro(job?.location?.bairro || job?.location?.neighborhood || job?.bairro);
+    if (!bairro) continue;
+
+    if (!supplyDemandMap.has(bairro)) {
+      supplyDemandMap.set(bairro, { demandOrders: 0, professionals: new Set<string>() });
+    }
+
+    const item = supplyDemandMap.get(bairro)!;
+    item.demandOrders += 1;
+
+    const professionalId = getJobProfessionalId(job);
+    if (professionalId) item.professionals.add(professionalId);
+  }
+
+  const supplyDemandByBairro: BairroSupplyDemandItem[] = Array.from(supplyDemandMap.entries())
+    .map(([bairro, item]) => {
+      const observedSupplyProfessionals = item.professionals.size;
+      return {
+        bairro,
+        demandOrders: item.demandOrders,
+        observedSupplyProfessionals,
+        demandSupplyRatio: observedSupplyProfessionals > 0
+          ? Number((item.demandOrders / observedSupplyProfessionals).toFixed(2))
+          : null,
+      };
+    })
+    .sort((a, b) => b.demandOrders - a.demandOrders)
+    .slice(0, 12);
+
+  let jobsWithProposalWithin24h = 0;
+  let proposalLeadTimeHoursSum = 0;
+  let jobsWithProposalTimestamp = 0;
+
+  for (const job of jobsWeek) {
+    const createdAt = toDate(job.createdAt);
+    const firstProposalAt = getFirstProposalAt(job);
+
+    if (!createdAt || !firstProposalAt) continue;
+
+    const leadHours = (firstProposalAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+    if (leadHours < 0) continue;
+
+    jobsWithProposalTimestamp += 1;
+    proposalLeadTimeHoursSum += leadHours;
+
+    if (leadHours <= 24) {
+      jobsWithProposalWithin24h += 1;
+    }
+  }
+
+  const ordersWithProposal24hRate = weeklyOrders > 0
+    ? Number(((jobsWithProposalWithin24h / weeklyOrders) * 100).toFixed(1))
+    : null;
+
+  const avgTimeToFirstProposalHours = jobsWithProposalTimestamp > 0
+    ? Number((proposalLeadTimeHoursSum / jobsWithProposalTimestamp).toFixed(1))
+    : null;
+
+  const hiredWeek = jobsWeek.filter((job) => hasProfessional(job)).length;
+  const hiringRate = weeklyOrders > 0
+    ? Number(((hiredWeek / weeklyOrders) * 100).toFixed(1))
+    : null;
+
+  const clientsCountMap = new Map<string, number>();
+  for (const job of jobsWeek) {
+    const clientId = getJobClientId(job);
+    if (!clientId) continue;
+    clientsCountMap.set(clientId, (clientsCountMap.get(clientId) || 0) + 1);
+  }
+  const uniqueClients = clientsCountMap.size;
+  const clientsWithRepurchase = Array.from(clientsCountMap.values()).filter((count) => count >= 2).length;
+  const repurchaseRate = uniqueClients > 0
+    ? Number(((clientsWithRepurchase / uniqueClients) * 100).toFixed(1))
+    : null;
+
+  const cancelledWeek = jobsWeek.filter((job) => normalizeJobStatus(job.status) === 'cancelled').length;
+  const cancellationRate = weeklyOrders > 0
+    ? Number(((cancelledWeek / weeklyOrders) * 100).toFixed(1))
+    : null;
+
+  const unixWeekStart = Math.floor(weekStart.getTime() / 1000);
+  const gmvWeekly = stripeFreshness.status === 'fresh'
+    ? Number(
+      charges
+        .filter((charge) => charge.created >= unixWeekStart)
+        .filter((charge) => String(charge.status).toLowerCase() === 'succeeded')
+        .reduce((sum, charge) => sum + ((Number(charge.amount) || 0) / 100), 0)
+        .toFixed(2)
+    )
+    : null;
+
+  const takeRateRaw = process.env.PLATFORM_TAKE_RATE;
+  const takeRate = takeRateRaw ? Number(takeRateRaw) : NaN;
+  const hasValidTakeRate = Number.isFinite(takeRate) && takeRate > 0 && takeRate <= 1;
+  const platformRevenue = gmvWeekly !== null && hasValidTakeRate
+    ? Number((gmvWeekly * takeRate).toFixed(2))
+    : null;
+
+  const verifiedAndPayoutEnabledProfessionals = professionalIdsWeek.filter((id) => {
+    const user = professionalUsers.get(id);
+    if (!user || user.ativo !== true) return false;
+
+    const verification = String(user.statusVerificacao || '').toLowerCase();
+    const isVerified = verification === 'verificado';
+
+    const stripeAccountStatus = String(user.stripeAccountStatus || '').toLowerCase();
+    const payoutEnabledFromStatus = ['ativada', 'active', 'enabled'].includes(stripeAccountStatus);
+    const payoutEnabledFromFlags = user?.stripeStatus?.charges_enabled === true && user?.stripeStatus?.payouts_enabled === true;
+
+    return isVerified && (payoutEnabledFromStatus || payoutEnabledFromFlags);
+  }).length;
+
+  const verifiedAndPayoutEnabledRate = eligibleActiveProfessionals > 0
+    ? Number(((verifiedAndPayoutEnabledProfessionals / eligibleActiveProfessionals) * 100).toFixed(1))
+    : null;
+
+  const criticalJobsOpen24h = jobs.filter((job) =>
+    !hasProfessional(job)
+    && normalizeJobStatus(job.status) === 'pending'
+    && hoursSince(job.createdAt) >= 24
+  ).length;
+
+  const indicators: ExecutiveIndicator[] = [
+    buildExecutiveIndicator({
+      id: 'weekly_orders_created',
+      title: 'Pedidos criados na semana',
+      value: weeklyOrders,
+      status: weeklyOrders > 0 ? 'ok' : 'info',
+      source: ['firebase'],
+    }),
+    buildExecutiveIndicator({
+      id: 'weekly_active_eligible_professionals',
+      title: 'Profissionais elegíveis ativos na semana',
+      value: eligibleActiveProfessionals,
+      status: eligibleActiveProfessionals > 0 ? 'ok' : 'warning',
+      source: ['firebase'],
+    }),
+    buildExecutiveIndicator({
+      id: 'orders_with_proposal_24h_rate',
+      title: '% de pedidos com proposta em até 24h',
+      value: ordersWithProposal24hRate ?? 'Indisponível',
+      unit: ordersWithProposal24hRate === null ? undefined : '%',
+      status: ordersWithProposal24hRate === null ? 'info' : ordersWithProposal24hRate < 40 ? 'warning' : 'ok',
+      source: ['firebase'],
+      note: jobsWithProposalTimestamp === 0 ? 'Sem timestamp confiável de proposta na janela.' : undefined,
+    }),
+    buildExecutiveIndicator({
+      id: 'avg_time_to_first_proposal_hours',
+      title: 'Tempo médio até 1ª proposta',
+      value: avgTimeToFirstProposalHours ?? 'Indisponível',
+      unit: avgTimeToFirstProposalHours === null ? undefined : 'h',
+      status: avgTimeToFirstProposalHours === null ? 'info' : avgTimeToFirstProposalHours > 24 ? 'warning' : 'ok',
+      source: ['firebase'],
+    }),
+    buildExecutiveIndicator({
+      id: 'hiring_rate',
+      title: 'Taxa de contratação',
+      value: hiringRate ?? 'Indisponível',
+      unit: hiringRate === null ? undefined : '%',
+      status: hiringRate === null ? 'info' : hiringRate < 50 ? 'warning' : 'ok',
+      source: ['firebase'],
+    }),
+    buildExecutiveIndicator({
+      id: 'repurchase_rate',
+      title: 'Taxa de recompra',
+      value: repurchaseRate ?? 'Indisponível',
+      unit: repurchaseRate === null ? undefined : '%',
+      status: repurchaseRate === null ? 'info' : repurchaseRate < 15 ? 'warning' : 'ok',
+      source: ['firebase'],
+    }),
+    buildExecutiveIndicator({
+      id: 'cancellation_rate',
+      title: 'Taxa de cancelamento',
+      value: cancellationRate ?? 'Indisponível',
+      unit: cancellationRate === null ? undefined : '%',
+      status: cancellationRate === null ? 'info' : cancellationRate > 25 ? 'critical' : cancellationRate > 15 ? 'warning' : 'ok',
+      source: ['firebase'],
+    }),
+    buildExecutiveIndicator({
+      id: 'weekly_gmv',
+      title: 'GMV semanal',
+      value: gmvWeekly ?? 'Indisponível',
+      unit: gmvWeekly === null ? undefined : 'BRL',
+      status: gmvWeekly === null ? 'info' : gmvWeekly > 0 ? 'ok' : 'warning',
+      source: ['stripe'],
+      note: stripeFreshness.status !== 'fresh' ? 'Stripe indisponível para cálculo confiável.' : undefined,
+    }),
+    buildExecutiveIndicator({
+      id: 'platform_revenue',
+      title: 'Receita da plataforma',
+      value: platformRevenue ?? 'Indisponível',
+      unit: platformRevenue === null ? undefined : 'BRL',
+      status: platformRevenue === null ? 'info' : platformRevenue > 0 ? 'ok' : 'warning',
+      source: ['stripe'],
+      note: !hasValidTakeRate ? 'Definir PLATFORM_TAKE_RATE para cálculo de receita.' : undefined,
+    }),
+    buildExecutiveIndicator({
+      id: 'verified_and_payout_enabled_professionals_rate',
+      title: '% de profissionais verificados e aptos para receber',
+      value: verifiedAndPayoutEnabledRate ?? 'Indisponível',
+      unit: verifiedAndPayoutEnabledRate === null ? undefined : '%',
+      status: verifiedAndPayoutEnabledRate === null ? 'info' : verifiedAndPayoutEnabledRate < 70 ? 'warning' : 'ok',
+      source: ['firebase', 'stripe'],
+    }),
+    buildExecutiveIndicator({
+      id: 'critical_jobs_open_24h',
+      title: 'Jobs críticos abertos há mais de 24h',
+      value: criticalJobsOpen24h,
+      status: criticalJobsOpen24h > 0 ? (criticalJobsOpen24h >= 10 ? 'critical' : 'warning') : 'ok',
+      source: ['firebase'],
+    }),
+  ];
+
+  return {
+    reference: {
+      weeklyStartAt: weekStart.toISOString(),
+      weeklyEndAt: now.toISOString(),
+    },
+    indicators,
+    supplyDemandByBairro,
   };
 }
 
@@ -618,6 +949,7 @@ export async function calculateDashboardV3Metrics(
   );
   const localRankingData = buildLocalRanking(filteredJobs, firebaseFreshness, specialtyFilter);
   const agingExtreme = await buildAgingExtremeMetrics(windowDays, jobs);
+  const executivePanel = await buildExecutivePanel(filteredJobs, charges, stripeFreshness);
 
   return {
     timestamp: new Date().toISOString(),
@@ -651,5 +983,6 @@ export async function calculateDashboardV3Metrics(
       sample: localRankingData.sample,
     },
     agingExtreme,
+    executivePanel,
   };
 }
