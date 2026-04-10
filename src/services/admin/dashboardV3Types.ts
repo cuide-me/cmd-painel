@@ -247,7 +247,6 @@ export interface ExecutivePanel {
   indicators: ExecutiveIndicator[];
   supplyDemandByBairro: BairroSupplyDemandItem[];
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // RESPONSE DA HOME OPERACIONAL
 // ═══════════════════════════════════════════════════════════════════════════
