@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Torre de Controle | Cuide-me',
+  title: 'Painel de KPI | Cuide-me',
   description: 'Painel administrativo executivo da plataforma Cuide-me',
 };
 

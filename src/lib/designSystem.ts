@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════
- * DESIGN SYSTEM - TORRE DE CONTROLE V2
+ * DESIGN SYSTEM - PAINEL DE KPI
  * ═══════════════════════════════════════════════════════
  * 
  * Sistema de design unificado com tokens, componentes e utilitários

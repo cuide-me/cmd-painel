@@ -1,4 +1,7 @@
-# 📊 Análise de Product Management - Torre de Controle V2
+# Product Strategy - Documento Historico
+
+> Analise preservada como referencia da fase anterior do painel.
+> Nao representa a definicao oficial atual de KPI, nomenclatura ou prioridades do produto.
 
 ## 🎯 Executive Summary
 

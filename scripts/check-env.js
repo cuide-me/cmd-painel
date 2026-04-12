@@ -7,10 +7,23 @@
 
 const requiredEnvVars = {
   server: [
-    'FIREBASE_ADMIN_SERVICE_ACCOUNT',
-    'STRIPE_SECRET_KEY',
-    'GA4_PROPERTY_ID',
-    'GOOGLE_APPLICATION_CREDENTIALS_JSON',
+    {
+      label: 'Firebase Admin SDK',
+      groups: [
+        ['FIREBASE_ADMIN_SERVICE_ACCOUNT'],
+        ['FIREBASE_PROJECT_ID', 'FIREBASE_PRIVATE_KEY', 'FIREBASE_CLIENT_EMAIL'],
+      ],
+    },
+    { label: 'STRIPE_SECRET_KEY', keys: ['STRIPE_SECRET_KEY'] },
+    {
+      label: 'GA4 property ID',
+      keys: ['GA4_PROPERTY_ID', 'GA_PROPERTY_ID', 'GOOGLE_ANALYTICS_PROPERTY_ID'],
+    },
+    {
+      label: 'GA4 credentials JSON',
+      keys: ['GOOGLE_APPLICATION_CREDENTIALS_JSON', 'GOOGLE_ANALYTICS_CREDENTIALS'],
+    },
+    { label: 'ADMIN_PASSWORD', keys: ['ADMIN_PASSWORD'] },
   ],
   client: [
     'NEXT_PUBLIC_FIREBASE_API_KEY',
@@ -26,16 +39,51 @@ console.log('🔍 Verificando variáveis de ambiente...\n');
 
 let hasErrors = false;
 
+function resolveEnv(keys) {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value) {
+      return { key, value };
+    }
+  }
+
+  return null;
+}
+
+function resolveEnvGroup(groups) {
+  for (const group of groups) {
+    const resolvedEntries = group.map((key) => ({ key, value: process.env[key] })).filter((item) => item.value);
+    if (resolvedEntries.length === group.length) {
+      return resolvedEntries;
+    }
+  }
+
+  return null;
+}
+
 // Check server-side env vars
 console.log('📡 Variáveis Server-side:');
-requiredEnvVars.server.forEach((varName) => {
-  const value = process.env[varName];
-  if (!value) {
-    console.log(`  ❌ ${varName} - FALTANDO`);
+requiredEnvVars.server.forEach((entry) => {
+  if (entry.groups) {
+    const resolvedGroup = resolveEnvGroup(entry.groups);
+    if (!resolvedGroup) {
+      const options = entry.groups.map((group) => group.join(' + ')).join(' | ');
+      console.log(`  ❌ ${entry.label} - FALTANDO (${options})`);
+      hasErrors = true;
+      return;
+    }
+
+    console.log(`  ✅ ${entry.label} - OK via ${resolvedGroup.map((item) => item.key).join(' + ')}`);
+    return;
+  }
+
+  const resolved = resolveEnv(entry.keys);
+  if (!resolved) {
+    console.log(`  ❌ ${entry.label} - FALTANDO (${entry.keys.join(' | ')})`);
     hasErrors = true;
   } else {
-    const preview = value.length > 30 ? value.substring(0, 30) + '...' : value;
-    console.log(`  ✅ ${varName} - OK (${preview})`);
+    const preview = resolved.value.length > 30 ? resolved.value.substring(0, 30) + '...' : resolved.value;
+    console.log(`  ✅ ${entry.label} - OK via ${resolved.key} (${preview})`);
   }
 });
 

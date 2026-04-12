@@ -1,4 +1,7 @@
-# 📊 MAPA DE DADOS - Torre de Controle
+# Mapa de Dados - Base Historica
+
+> Inventario historico usado na fase anterior do painel.
+> Para a leitura oficial da superficie atual, use `KPI_PAINEL_OFICIAL.md` e o codigo em `src/services/admin/kpiDashboardMetrics.ts`.
 
 > **Auditoria Completa**: Firestore, Stripe, GA4  
 > **Data**: 2024-12-20  
