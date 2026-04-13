@@ -2,9 +2,15 @@
  * Types for Alerts module
  */
 
-export type AlertSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
+export type AlertSeverity = 'critical' | 'warning' | 'info';
 export type AlertStatus = 'open' | 'acknowledged' | 'resolved';
-export type AlertType = 'liquidity' | 'quality' | 'support' | 'financial' | 'data' | 'other';
+export type AlertType =
+  | 'liquidity_marketplace'
+  | 'trust_experience'
+  | 'payment_financial'
+  | 'service_desk_support'
+  | 'data_integrity'
+  | 'other_exceptions';
 export type AlertSource = 'jobs' | 'tickets' | 'stripe';
 
 export interface AlertAffectedItem {

@@ -15,6 +15,23 @@ import type {
 
 export const dynamic = 'force-dynamic';
 
+const PRIMARY_EXECUTIVE_ORDER = [
+  'families_registered',
+  'professionals_registered',
+  'logins_completed',
+  'care_requests_created',
+  'proposals_sent',
+  'payments_confirmed',
+] as const;
+
+const TRUST_FOCUS_ORDER = ['refunds_processed_trust', 'services_canceled_trust', 'ratings_submitted'] as const;
+
+const TIME_METRIC_IDS = [
+  'avg_request_to_proposal_hours',
+  'avg_proposal_to_accept_hours',
+  'avg_accept_to_payment_hours',
+] as const;
+
 function statusClass(status: DashboardMetric['status'] | AlertItem['severity']): string {
   if (status === 'critical') return 'border-red-200 bg-red-50 text-red-700';
   if (status === 'warning') return 'border-amber-200 bg-amber-50 text-amber-700';
@@ -26,6 +43,19 @@ function freshnessClass(status: SourceFreshness['status']): string {
   if (status === 'fresh') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   if (status === 'stale') return 'border-amber-200 bg-amber-50 text-amber-700';
   return 'border-red-200 bg-red-50 text-red-700';
+}
+
+function scopeLabel(scope: DashboardMetric['scope']): string {
+  if (scope === 'executivo') return 'Leitura executiva';
+  if (scope === 'operacional') return 'Leitura operacional';
+  return 'Leitura diagnostica';
+}
+
+function severityLabel(status: DashboardMetric['status'] | AlertItem['severity']): string {
+  if (status === 'critical') return 'Critico';
+  if (status === 'warning') return 'Atencao';
+  if (status === 'ok') return 'Saudavel';
+  return 'Informativo';
 }
 
 function formatValue(metric: DashboardMetric): string {
@@ -58,6 +88,60 @@ function formatDateTime(value?: string | null): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return 'Sem registro';
   return parsed.toLocaleString('pt-BR');
+}
+
+function getNumericMetricValue(metric: DashboardMetric): number | null {
+  return typeof metric.value === 'number' && Number.isFinite(metric.value) ? metric.value : null;
+}
+
+function getComparisonLabel(comparison?: DashboardMetric['comparison']): string | null {
+  if (!comparison || comparison.changePercent === null) return null;
+
+  const direction =
+    comparison.direction === 'up'
+      ? 'subiu'
+      : comparison.direction === 'down'
+        ? 'caiu'
+        : 'ficou estavel';
+
+  return `${direction} ${Math.abs(comparison.changePercent).toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })}% vs janela anterior`;
+}
+
+function getComparisonWidth(comparison?: DashboardMetric['comparison']): number {
+  if (!comparison || comparison.changePercent === null) return 0;
+  return Math.min(Math.abs(comparison.changePercent), 100);
+}
+
+function getComparisonTone(comparison?: DashboardMetric['comparison']): string {
+  if (!comparison || comparison.changePercent === null || comparison.direction === 'stable') return 'bg-slate-400';
+  return comparison.direction === 'down' ? 'bg-rose-500' : 'bg-emerald-500';
+}
+
+function sortMetricsByOrder(metrics: DashboardMetric[], order: readonly string[]): DashboardMetric[] {
+  return [...metrics].sort((left, right) => {
+    const leftIndex = order.indexOf(left.id);
+    const rightIndex = order.indexOf(right.id);
+    const normalizedLeft = leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex;
+    const normalizedRight = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
+    return normalizedLeft - normalizedRight;
+  });
+}
+
+function heatColor(value: number, max: number, tone: 'blue' | 'emerald' | 'rose'): string {
+  const palette =
+    tone === 'blue'
+      ? [37, 99, 235]
+      : tone === 'emerald'
+        ? [5, 150, 105]
+        : [225, 29, 72];
+
+  const intensity = max > 0 ? value / max : 0;
+  const alpha = 0.1 + intensity * 0.45;
+
+  return `rgba(${palette[0]}, ${palette[1]}, ${palette[2]}, ${alpha.toFixed(2)})`;
 }
 
 function LoadingState() {
@@ -99,31 +183,192 @@ function SectionBlock({
 
 function MetricCard({ metric }: { metric: DashboardMetric }) {
   const comparison = metric.comparison;
-  const hasComparison = comparison && comparison.changePercent !== null;
+  const comparisonLabel = getComparisonLabel(comparison);
+  const comparisonWidth = getComparisonWidth(comparison);
 
   return (
     <article className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{scopeLabel(metric.scope)}</p>
           <p className="text-sm font-medium text-slate-700">{metric.label}</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{formatValue(metric)}</p>
         </div>
         <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(metric.status)}`}>
-          {metric.scope}
+          {severityLabel(metric.status)}
         </span>
       </div>
-      {hasComparison ? (
-        <p className="mt-2 text-xs text-slate-500">
-          {comparison.direction === 'up' ? 'Variacao para cima' : comparison.direction === 'down' ? 'Variacao para baixo' : 'Variacao estavel'}{' '}
-          {Math.abs(comparison.changePercent || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
-        </p>
+
+      {comparisonLabel ? (
+        <div className="mt-3">
+          <div className="flex items-center justify-between gap-3 text-[11px] text-slate-500">
+            <span>Mini tendencia de apoio</span>
+            <span>{comparisonLabel}</span>
+          </div>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
+            <div className={`h-full rounded-full ${getComparisonTone(comparison)}`} style={{ width: `${comparisonWidth}%` }} />
+          </div>
+        </div>
       ) : null}
+
       <p className="mt-3 text-xs text-slate-500">Fonte: {metric.source.join(' + ')}</p>
       <p className="mt-2 text-xs text-slate-600">{metric.definition}</p>
       <p className="mt-2 text-xs text-slate-600">Decisao: {metric.decision}</p>
       <p className="mt-1 text-xs text-slate-600">Acao: {metric.expectedAction}</p>
       {metric.note ? <p className="mt-2 text-xs text-slate-500">Obs.: {metric.note}</p> : null}
     </article>
+  );
+}
+
+function FunnelVisual({ steps }: { steps: FunnelStep[] }) {
+  const maxValue = Math.max(...steps.map((step) => step.value || 0), 0);
+
+  return (
+    <div className="space-y-3">
+      {steps.map((step, index) => {
+        const width = maxValue > 0 ? Math.max(22, ((step.value || 0) / maxValue) * 100) : 22;
+
+        return (
+          <article key={step.id} className="space-y-2">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div>
+                <p className="font-medium text-slate-900">{index + 1}. {step.label}</p>
+                <p className="text-xs text-slate-500">{step.technicalNames.join(' + ')}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-semibold text-slate-950">{step.value === null ? 'Indisponivel' : step.value.toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-slate-500">Conv. etapa: {formatPercentage(step.conversionFromPrevious)}</p>
+              </div>
+            </div>
+            <div className="px-2">
+              <div className="mx-auto rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-sm" style={{ width: `${width}%` }}>
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span className="font-medium">{step.label}</span>
+                  <span>{step.value === null ? 'Indisponivel' : step.value.toLocaleString('pt-BR')}</span>
+                </div>
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function StepBarList({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items: Array<{ id: string; label: string; value: number | null; helper: string }>;
+  tone: 'emerald' | 'rose';
+}) {
+  const barColor = tone === 'emerald' ? 'bg-emerald-500' : 'bg-rose-500';
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      <div className="mt-4 space-y-4">
+        {items.map((item) => (
+          <div key={item.id}>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <div>
+                <p className="font-medium text-slate-900">{item.label}</p>
+                <p className="text-xs text-slate-500">{item.helper}</p>
+              </div>
+              <span className="font-semibold text-slate-950">{formatPercentage(item.value)}</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+              <div className={barColor} style={{ width: `${Math.max(0, Math.min(item.value ?? 0, 100))}%`, height: '100%' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DiagnosticBarList({ metrics }: { metrics: DashboardMetric[] }) {
+  const numericValues = metrics.map(getNumericMetricValue).filter((value): value is number => value !== null);
+  const maxValue = Math.max(...numericValues, 0);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <h3 className="text-sm font-semibold text-slate-900">Tempo por etapa do funil</h3>
+      <p className="mt-1 text-xs text-slate-500">Comparativo agregado na janela atual, sustentado por timestamp transacional. Nao representa analise por coorte.</p>
+      <div className="mt-4 space-y-4">
+        {metrics.map((metric) => {
+          const value = getNumericMetricValue(metric);
+          const width = maxValue > 0 && value !== null ? Math.max(8, (value / maxValue) * 100) : 0;
+
+          return (
+            <div key={metric.id}>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <div>
+                  <p className="font-medium text-slate-900">{metric.label}</p>
+                  <p className="text-xs text-slate-500">{metric.expectedAction}</p>
+                </div>
+                <span className="font-semibold text-slate-950">{formatValue(metric)}</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                <div className="h-full rounded-full bg-sky-600" style={{ width: `${width}%` }} />
+              </div>
+              {metric.comparison?.changePercent !== null ? (
+                <p className="mt-1 text-[11px] text-slate-500">{getComparisonLabel(metric.comparison)}</p>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RegionHeatmap({ regions }: { regions: KpiDashboardResponse['liquidity']['regions'] }) {
+  const maxDemand = Math.max(...regions.map((region) => region.requestsCreated), 0);
+  const maxGap = Math.max(...regions.map((region) => region.requestsWithoutProposal), 0);
+  const maxMatch = Math.max(...regions.map((region) => region.matchedJobs), 0);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Cobertura geografica real vs demanda</h3>
+          <p className="mt-1 text-xs text-slate-500">Heatmap operacional por regiao observada. Azul mostra demanda, vermelho mostra gap e verde mostra cobertura com match.</p>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600">Protagonista do bloco</span>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {regions.map((region) => (
+          <article key={region.region} className="rounded-2xl border border-slate-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900">{region.region}</h4>
+                <p className="text-xs text-slate-500">Gap sem proposta: {formatPercentage(region.withoutProposalRate)}</p>
+              </div>
+              <span className="text-xs text-slate-500">{region.requestsCreated.toLocaleString('pt-BR')} solicitacoes</span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+              <div className="rounded-xl p-3" style={{ backgroundColor: heatColor(region.requestsCreated, maxDemand, 'blue') }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-900">Demanda</p>
+                <p className="mt-2 text-lg font-semibold text-slate-950">{region.requestsCreated.toLocaleString('pt-BR')}</p>
+              </div>
+              <div className="rounded-xl p-3" style={{ backgroundColor: heatColor(region.requestsWithoutProposal, maxGap, 'rose') }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-900">Sem proposta</p>
+                <p className="mt-2 text-lg font-semibold text-slate-950">{region.requestsWithoutProposal.toLocaleString('pt-BR')}</p>
+              </div>
+              <div className="rounded-xl p-3" style={{ backgroundColor: heatColor(region.matchedJobs, maxMatch, 'emerald') }}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-900">Com match</p>
+                <p className="mt-2 text-lg font-semibold text-slate-950">{region.matchedJobs.toLocaleString('pt-BR')}</p>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -222,6 +467,70 @@ export default function AdminKpiDashboardPage() {
     return data.alerts.items.filter((item) => item.severity !== 'info');
   }, [data]);
 
+  const executivePrimaryMetrics = useMemo(() => {
+    if (!data) return [];
+    const primaryIds = new Set<string>(PRIMARY_EXECUTIVE_ORDER);
+    return sortMetricsByOrder(
+      data.executive.metrics.filter((metric) => primaryIds.has(metric.id)),
+      PRIMARY_EXECUTIVE_ORDER
+    );
+  }, [data]);
+
+  const executiveSecondaryMetrics = useMemo(() => {
+    if (!data) return [];
+    const primaryIds = new Set<string>(PRIMARY_EXECUTIVE_ORDER);
+    return data.executive.metrics.filter((metric) => !primaryIds.has(metric.id));
+  }, [data]);
+
+  const funnelConversionItems = useMemo(() => {
+    if (!data) return [];
+    return data.funnel.steps.slice(1).map((step) => ({
+      id: step.id,
+      label: step.label,
+      value: step.conversionFromPrevious,
+      helper: `Base atual: ${step.value === null ? 'indisponivel' : step.value.toLocaleString('pt-BR')}`,
+    }));
+  }, [data]);
+
+  const funnelDropoffItems = useMemo(() => {
+    if (!data) return [];
+    return data.funnel.steps.slice(1).map((step) => ({
+      id: step.id,
+      label: step.label,
+      value: step.conversionFromPrevious === null ? null : Number((100 - step.conversionFromPrevious).toFixed(1)),
+      helper: 'Perda estimada na transicao da etapa anterior.',
+    }));
+  }, [data]);
+
+  const conversionRateMetrics = useMemo(() => {
+    if (!data) return [];
+    return data.operationalHealth.metrics.filter(
+      (metric) => metric.unit === '%' && !['refund_rate', 'cancellation_rate'].includes(metric.id)
+    );
+  }, [data]);
+
+  const timingMetrics = useMemo(() => {
+    if (!data) return [];
+    return sortMetricsByOrder(
+      data.operationalHealth.metrics.filter((metric) => TIME_METRIC_IDS.includes(metric.id as (typeof TIME_METRIC_IDS)[number])),
+      TIME_METRIC_IDS
+    );
+  }, [data]);
+
+  const trustFocusMetrics = useMemo(() => {
+    if (!data) return [];
+    return sortMetricsByOrder(
+      data.trust.metrics.filter((metric) => TRUST_FOCUS_ORDER.includes(metric.id as (typeof TRUST_FOCUS_ORDER)[number])),
+      TRUST_FOCUS_ORDER
+    );
+  }, [data]);
+
+  const trustSupportMetrics = useMemo(() => {
+    if (!data) return [];
+    const focusIds = new Set<string>(TRUST_FOCUS_ORDER);
+    return data.trust.metrics.filter((metric) => !focusIds.has(metric.id));
+  }, [data]);
+
   if (authLoading || (isLoading && !data)) {
     return <LoadingState />;
   }
@@ -309,52 +618,78 @@ export default function AdminKpiDashboardPage() {
 
       <SectionBlock
         title="Bloco 1 — Visao executiva"
-        description="KPIs centrais do periodo para leitura rapida de volume, conversao e fechamento."
+        description="Cards de leitura rapida para volume atual. A mini tendencia aparece apenas como apoio, sem tirar protagonismo da decisao executiva."
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {data.executive.metrics.map((metric) => (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {executivePrimaryMetrics.map((metric) => (
             <MetricCard key={metric.id} metric={metric} />
           ))}
         </div>
+
+        {executiveSecondaryMetrics.length > 0 ? (
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Leituras complementares</p>
+            <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {executiveSecondaryMetrics.map((metric) => (
+                <MetricCard key={metric.id} metric={metric} />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <p className="mt-4 text-xs text-slate-500">
+          Receita recorrente vs pontual e LTV observado ficam fora da primeira dobra enquanto o contrato atual nao expuser base financeira historica com confianca suficiente.
+        </p>
       </SectionBlock>
 
       <SectionBlock
-        title="Bloco 2 — Funil principal da plataforma"
-        description={data.funnel.summary}
+        title="Bloco 2 — Funil principal de contratacao"
+        description="Somente a jornada oficial de contratacao. O funil visual e protagonista; conversao e abandono aparecem como leitura complementar acionavel."
       >
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                <th className="px-3 py-3">Etapa</th>
-                <th className="px-3 py-3">Evento tecnico</th>
-                <th className="px-3 py-3">Volume</th>
-                <th className="px-3 py-3">Conversao etapa anterior</th>
-                <th className="px-3 py-3">Conversao desde cadastro</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.funnel.steps.map((step: FunnelStep) => (
-                <tr key={step.id} className="border-b border-slate-100 align-top">
-                  <td className="px-3 py-3 font-medium text-slate-900">{step.label}</td>
-                  <td className="px-3 py-3 text-slate-600">{step.technicalNames.join(' + ')}</td>
-                  <td className="px-3 py-3 text-slate-900">
-                    {step.value === null ? 'Indisponivel' : step.value.toLocaleString('pt-BR')}
-                  </td>
-                  <td className="px-3 py-3 text-slate-700">{formatPercentage(step.conversionFromPrevious)}</td>
-                  <td className="px-3 py-3 text-slate-700">{formatPercentage(step.conversionFromStart)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr,1fr]">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Funil oficial</h3>
+                <p className="mt-1 text-xs text-slate-500">{data.funnel.summary}</p>
+              </div>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600">Obrigatorio</span>
+            </div>
+            <div className="mt-4">
+              <FunnelVisual steps={data.funnel.steps} />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <StepBarList title="Conversao por etapa" items={funnelConversionItems} tone="emerald" />
+            <StepBarList title="Abandono por etapa" items={funnelDropoffItems} tone="rose" />
+          </div>
         </div>
+
+        <p className="mt-4 text-xs text-slate-500">
+          Motivos de abandono e tempos por lado so entram quando a base real trouxer causalidade e timestamps sustentados o suficiente para nao induzir leitura errada.
+        </p>
       </SectionBlock>
 
       <SectionBlock
         title="Bloco 3 — Saude operacional"
         description="Taxas, tempos e gargalos que mostram onde a operacao trava e onde a conversao precisa de intervencao."
       >
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[2fr,1fr]">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <StepBarList
+            title="Taxa de conversao por etapa"
+            items={conversionRateMetrics.map((metric) => ({
+              id: metric.id,
+              label: metric.label,
+              value: getNumericMetricValue(metric),
+              helper: metric.decision,
+            }))}
+            tone="emerald"
+          />
+          <DiagnosticBarList metrics={timingMetrics} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[2fr,1fr]">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {data.operationalHealth.metrics.map((metric) => (
               <MetricCard key={metric.id} metric={metric} />
@@ -384,16 +719,20 @@ export default function AdminKpiDashboardPage() {
 
       <SectionBlock
         title="Bloco 4 — Liquidez e marketplace"
-        description="Leitura da relacao entre demanda criada, oferta enviada, cobertura de proposta e pressao regional."
+        description="Cards sintetizam liquidez; a cobertura geografica real e o gap regional ganham protagonismo visual com heatmap e tabela operacional."
       >
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[2fr,1fr]">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {data.liquidity.metrics.map((metric) => (
-              <MetricCard key={metric.id} metric={metric} />
-            ))}
-          </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {data.liquidity.metrics.map((metric) => (
+            <MetricCard key={metric.id} metric={metric} />
+          ))}
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr,1fr]">
+          <RegionHeatmap regions={data.liquidity.regions} />
+
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-semibold text-slate-900">Concentracao por regiao</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Tabela de gaps regionais</h3>
+            <p className="mt-1 text-xs text-slate-500">Leitura detalhada para decidir onde falta oferta, proposta ou match operacional.</p>
             <div className="mt-3 overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
@@ -420,17 +759,68 @@ export default function AdminKpiDashboardPage() {
             </div>
           </div>
         </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <h3 className="text-sm font-semibold text-slate-900">Oferta x demanda por regiao</h3>
+          <div className="mt-4 space-y-4">
+            {data.liquidity.regions.map((region) => {
+              const maxRegionValue = Math.max(region.requestsCreated, region.matchedJobs, 1);
+              const demandWidth = (region.requestsCreated / maxRegionValue) * 100;
+              const matchWidth = (region.matchedJobs / maxRegionValue) * 100;
+
+              return (
+                <div key={`${region.region}-comparison`}>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <p className="font-medium text-slate-900">{region.region}</p>
+                    <p className="text-xs text-slate-500">Gap sem proposta: {formatPercentage(region.withoutProposalRate)}</p>
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Demanda criada</span>
+                        <span>{region.requestsCreated.toLocaleString('pt-BR')}</span>
+                      </div>
+                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-200">
+                        <div className="h-full rounded-full bg-sky-600" style={{ width: `${demandWidth}%` }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Jobs com match</span>
+                        <span>{region.matchedJobs.toLocaleString('pt-BR')}</span>
+                      </div>
+                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-200">
+                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${matchWidth}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </SectionBlock>
 
       <SectionBlock
         title="Bloco 5 — Confianca e experiencia"
-        description="Sinais de satisfacao, reembolso, cancelamento, validacao critica e busca por ajuda."
+        description="Reembolso e cancelamento recebem visibilidade clara. Indicadores menos criticos, como WhatsApp, aparecem como apoio diagnostico e nao como protagonistas."
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {data.trust.metrics.map((metric) => (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          {trustFocusMetrics.map((metric) => (
             <MetricCard key={metric.id} metric={metric} />
           ))}
         </div>
+
+        {trustSupportMetrics.length > 0 ? (
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Diagnosticos de confianca e UX</p>
+            <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {trustSupportMetrics.map((metric) => (
+                <MetricCard key={metric.id} metric={metric} />
+              ))}
+            </div>
+          </div>
+        ) : null}
       </SectionBlock>
 
       <SectionBlock
@@ -439,13 +829,16 @@ export default function AdminKpiDashboardPage() {
       >
         <div className="space-y-3">
           {data.alerts.items.map((alert) => (
-            <article key={alert.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <article
+              key={alert.id}
+              className={`rounded-2xl border border-slate-200 border-l-4 bg-slate-50 p-4 ${alert.severity === 'critical' ? 'border-l-red-500' : alert.severity === 'warning' ? 'border-l-amber-500' : 'border-l-slate-400'}`}
+            >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-sm font-semibold text-slate-900">{alert.title}</h3>
                     <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(alert.severity)}`}>
-                      {alert.severity}
+                      {severityLabel(alert.severity)}
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-slate-600">{alert.description}</p>

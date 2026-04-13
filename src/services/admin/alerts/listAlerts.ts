@@ -23,10 +23,8 @@ function clampItems<T>(items: T[], limit: number = 8): T[] {
 
 const severityRank: Record<AlertSeverity, number> = {
   critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
-  info: 4,
+  warning: 1,
+  info: 2,
 };
 
 function nowIso(): string {
@@ -87,19 +85,17 @@ function sortBySeverityAndRecency(items: OperationalAlert[]): OperationalAlert[]
 function buildSummary(items: OperationalAlert[]): AlertsResponse['summary'] {
   const bySeverity: AlertsResponse['summary']['bySeverity'] = {
     critical: 0,
-    high: 0,
-    medium: 0,
-    low: 0,
+    warning: 0,
     info: 0,
   };
 
   const byType: AlertsResponse['summary']['byType'] = {
-    liquidity: 0,
-    quality: 0,
-    support: 0,
-    financial: 0,
-    data: 0,
-    other: 0,
+    liquidity_marketplace: 0,
+    trust_experience: 0,
+    payment_financial: 0,
+    service_desk_support: 0,
+    data_integrity: 0,
+    other_exceptions: 0,
   };
 
   items.forEach((alert) => {
@@ -250,9 +246,9 @@ export async function listAlerts(params?: ListAlertsParams): Promise<AlertsRespo
   if (jobsSemMatch.length > 0) {
     pushAlert(alerts, {
       id: 'jobs-sem-match',
-      type: 'liquidity',
+      type: 'liquidity_marketplace',
       title: 'Jobs sem match > 48h',
-      severity: jobsSemMatch.length >= 10 ? 'critical' : 'high',
+      severity: jobsSemMatch.length >= 10 ? 'critical' : 'warning',
       source: 'jobs',
       description: 'Jobs pendentes sem profissional atribuido',
       count: jobsSemMatch.length,
@@ -283,9 +279,9 @@ export async function listAlerts(params?: ListAlertsParams): Promise<AlertsRespo
   if (matchSemPagamento.length > 0) {
     pushAlert(alerts, {
       id: 'match-sem-pagamento',
-      type: 'financial',
+      type: 'payment_financial',
       title: 'Match sem pagamento',
-      severity: 'medium',
+      severity: 'warning',
       source: 'jobs',
       description: 'Jobs com profissional atribuido e sem paymentId',
       count: matchSemPagamento.length,
@@ -326,9 +322,9 @@ export async function listAlerts(params?: ListAlertsParams): Promise<AlertsRespo
   if (cancelamentosRecorrentes.length > 0) {
     pushAlert(alerts, {
       id: 'cancelamentos-recorrentes',
-      type: 'quality',
+      type: 'trust_experience',
       title: 'Cancelamentos recorrentes',
-      severity: 'medium',
+      severity: 'warning',
       source: 'jobs',
       description: 'Profissionais com taxa de cancelamento > 25% (min 4 jobs)',
       count: cancelamentosRecorrentes.length,
@@ -368,7 +364,7 @@ export async function listAlerts(params?: ListAlertsParams): Promise<AlertsRespo
     if (ticketsCriticos.length > 0) {
       pushAlert(alerts, {
         id: 'tickets-criticos',
-        type: 'support',
+        type: 'service_desk_support',
         title: 'Tickets criticos em aberto',
         severity: 'critical',
         source: 'tickets',
@@ -403,20 +399,25 @@ export async function listAlerts(params?: ListAlertsParams): Promise<AlertsRespo
       limit: 100,
     });
 
-    const latestChargeDate = charges.data
-      .map((charge) => new Date(charge.created * 1000))
+    const refunds = await stripe.refunds.list({
+      created: { gte: startUnix },
+      limit: 100,
+    });
+
+    const latestStripeDate = [...charges.data.map((charge) => new Date(charge.created * 1000)), ...refunds.data.map((refund) => new Date(refund.created * 1000))]
       .sort((a, b) => b.getTime() - a.getTime())[0] || null;
-    freshness.stripe = freshnessFromLatest('stripe', latestChargeDate);
+    freshness.stripe = freshnessFromLatest('stripe', latestStripeDate);
 
     const pendentes = charges.data.filter((c) => c.status === 'pending' && hoursSince(new Date(c.created * 1000)) >= 72);
     const falhos = charges.data.filter((c) => c.status === 'failed');
+    const reembolsos = refunds.data.filter((refund) => refund.status === 'succeeded');
 
     if (pendentes.length > 0) {
       pushAlert(alerts, {
         id: 'pagamentos-pendentes',
-        type: 'financial',
+        type: 'payment_financial',
         title: 'Pagamentos pendentes > 72h',
-        severity: 'high',
+        severity: 'warning',
         source: 'stripe',
         description: 'Pagamentos pendentes por mais de 72 horas',
         count: pendentes.length,
@@ -433,9 +434,9 @@ export async function listAlerts(params?: ListAlertsParams): Promise<AlertsRespo
     if (falhos.length > 0) {
       pushAlert(alerts, {
         id: 'pagamentos-falhos',
-        type: 'financial',
+        type: 'payment_financial',
         title: 'Pagamentos falhos',
-        severity: 'medium',
+        severity: 'warning',
         source: 'stripe',
         description: 'Charges com status failed',
         count: falhos.length,
@@ -446,6 +447,38 @@ export async function listAlerts(params?: ListAlertsParams): Promise<AlertsRespo
           occurredAt: new Date(c.created * 1000).toISOString(),
         }))),
         actionHint: 'Revisar motivo de falha e acionar reprocessamento.',
+      });
+    }
+
+    if (reembolsos.length > 0) {
+      const totalRefunded = reembolsos.reduce((accumulator, refund) => accumulator + (refund.amount || 0), 0);
+
+      pushAlert(alerts, {
+        id: 'reembolsos-processados',
+        type: 'trust_experience',
+        title: 'Reembolsos processados no periodo',
+        severity: reembolsos.length >= 5 ? 'critical' : 'warning',
+        source: 'stripe',
+        description: 'Reembolsos concluídos pelo Stripe dentro da janela selecionada.',
+        count: reembolsos.length,
+        affectedItems: clampItems(
+          reembolsos.map((refund) => ({
+            id: refund.id,
+            label: `Refund ${refund.id}`,
+            context: `Valor: R$ ${((refund.amount || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            occurredAt: new Date(refund.created * 1000).toISOString(),
+            metadata: {
+              charge: typeof refund.charge === 'string' ? refund.charge : refund.charge?.id || 'NA',
+              motivo: refund.reason || 'nao informado',
+            },
+          }))
+        ),
+        actionHint:
+          totalRefunded > 0
+            ? `Auditar causas e rotas dos reembolsos. Total devolvido na janela: R$ ${
+                (totalRefunded / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+              }.`
+            : 'Auditar causas e rotas dos reembolsos processados.',
       });
     }
   } catch (error) {
