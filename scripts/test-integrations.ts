@@ -14,6 +14,7 @@ config({ path: resolve(process.cwd(), '.env') });
 import { getFirebaseAdmin } from '../src/lib/server/firebaseAdmin';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStripeClient } from '../src/lib/server/stripe';
+import { getGa4AdminConfig } from '../src/lib/server/ga4Admin';
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 
 async function testFirebase() {
@@ -79,39 +80,24 @@ async function testGA4() {
   console.log('\n📊 TESTANDO GOOGLE ANALYTICS 4...\n');
   
   try {
-    const propertyId = process.env.GA4_PROPERTY_ID;
-    const credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-    
-    if (!propertyId) {
-      throw new Error('GA4_PROPERTY_ID não configurado');
+    const { propertyId, credentials, error } = getGa4AdminConfig();
+
+    if (!propertyId || !credentials) {
+      throw new Error(error || 'GA4 não configurado');
     }
-    
-    if (!credentials) {
-      throw new Error('GOOGLE_APPLICATION_CREDENTIALS_JSON não configurado');
-    }
-    
+
     console.log(`✅ Property ID: ${propertyId}`);
-    
-    // Decodificar se for base64
-    let credentialsObj;
-    try {
-      // Tentar como JSON direto primeiro
-      credentialsObj = JSON.parse(credentials);
-    } catch {
-      // Se falhar, tentar decodificar base64
-      const decoded = Buffer.from(credentials, 'base64').toString('utf-8');
-      credentialsObj = JSON.parse(decoded);
-    }
-    console.log(`✅ Credentials parseadas: ${credentialsObj.client_email}`);
+
+    console.log(`✅ Credentials parseadas: ${credentials.client_email}`);
     
     const analyticsDataClient = new BetaAnalyticsDataClient({
-      credentials: credentialsObj,
+      credentials,
     });
     console.log('✅ Analytics client inicializado');
     
     // Testar query simples
     const [response] = await analyticsDataClient.runReport({
-      property: `properties/${propertyId}`,
+      property: propertyId,
       dateRanges: [
         {
           startDate: '7daysAgo',

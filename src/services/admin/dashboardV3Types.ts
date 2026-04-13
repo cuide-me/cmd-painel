@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * TORRE DE CONTROLE v3 - TYPES & SCHEMAS
+ * PAINEL DE KPI v3 - TYPES & SCHEMAS
  * ═══════════════════════════════════════════════════════════════════════════
  * Contrato mínimo para a nova home operacional.
  *

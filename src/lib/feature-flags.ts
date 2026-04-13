@@ -3,6 +3,19 @@
  * Simple feature flag management for controlling features in production
  */
 
+const hasFirebaseServerConfig = Boolean(
+  process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT ||
+    (process.env.FIREBASE_PROJECT_ID &&
+      process.env.FIREBASE_PRIVATE_KEY &&
+      process.env.FIREBASE_CLIENT_EMAIL)
+);
+
+const hasGa4Property = Boolean(
+  process.env.GA4_PROPERTY_ID ||
+    process.env.GA_PROPERTY_ID ||
+    process.env.GOOGLE_ANALYTICS_PROPERTY_ID
+);
+
 export const FEATURES = {
   TORRE_V2: 'TORRE_V2',
   GA4: 'GA4',
@@ -20,11 +33,11 @@ const featureFlags: Record<string, FeatureFlag> = {
   [FEATURES.TORRE_V2]: {
     name: FEATURES.TORRE_V2,
     enabled: process.env.FEATURE_TORRE_V2 === 'true' || process.env.NEXT_PUBLIC_ENABLE_TORRE_V2 === 'true',
-    description: 'Enable Torre de Controle V2',
+    description: 'Enable Painel de KPI',
   },
   [FEATURES.GA4]: {
     name: FEATURES.GA4,
-    enabled: process.env.FEATURE_GA4 === 'true' || !!process.env.GA4_PROPERTY_ID,
+    enabled: process.env.FEATURE_GA4 === 'true' || hasGa4Property,
     description: 'Enable Google Analytics 4',
   },
   [FEATURES.STRIPE]: {
@@ -34,7 +47,7 @@ const featureFlags: Record<string, FeatureFlag> = {
   },
   [FEATURES.FIREBASE]: {
     name: FEATURES.FIREBASE,
-    enabled: process.env.FEATURE_FIREBASE === 'true' || !!process.env.FIREBASE_ADMIN_CREDENTIALS,
+    enabled: process.env.FEATURE_FIREBASE === 'true' || hasFirebaseServerConfig,
     description: 'Enable Firebase Integration',
   },
 };

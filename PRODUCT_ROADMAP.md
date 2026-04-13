@@ -1,4 +1,7 @@
-# 📊 Análise Estratégica & Roadmap de Evolução - Torre de Controle
+# Product Roadmap - Documento Historico
+
+> Roadmap preservado como contexto da fase anterior do painel.
+> A superficie ativa atual prioriza o painel consolidado de KPI e operacao.
 
 ## 🎯 Análise como Product Manager Especialista
 

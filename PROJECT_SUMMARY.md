@@ -1,4 +1,7 @@
-# 📦 Torre de Controle V2 - Sumário Executivo
+# Sumario Executivo - Documento Historico
+
+> Documento historico da fase `Torre de Controle V2`.
+> Para a arquitetura e os modulos atualmente suportados, consulte `README.md` e `KPI_PAINEL_OFICIAL.md`.
 
 ## 🎯 Visão Geral
 

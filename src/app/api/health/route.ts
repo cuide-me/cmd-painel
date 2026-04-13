@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getGa4AdminConfig } from '@/lib/server/ga4Admin';
 
 /**
  * Health Check Endpoint
@@ -32,10 +33,8 @@ export async function GET() {
 
   // Check Firebase
   try {
-    const { getFirebaseAdmin } = await import('@/lib/server/firebaseAdmin');
-    const admin = require('firebase-admin');
-    getFirebaseAdmin(); // Ensure initialization
-    const db = admin.firestore();
+    const { getFirestore } = await import('@/lib/server/firebaseAdmin');
+    const db = getFirestore();
     await db.collection('users').limit(1).get();
     checks.services.firebase = { status: 'healthy', message: 'Connected' };
   } catch (error) {
@@ -62,15 +61,14 @@ export async function GET() {
 
   // Check Google Analytics
   try {
-    const hasGACredentials = !!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-    const hasPropertyId = !!process.env.GA4_PROPERTY_ID;
+    const ga4Config = getGa4AdminConfig();
     
-    if (hasGACredentials && hasPropertyId) {
+    if (ga4Config.enabled) {
       checks.services.analytics = { status: 'healthy', message: 'Configured' };
     } else {
       checks.services.analytics = {
         status: 'unhealthy',
-        message: 'Missing credentials or property ID',
+        message: ga4Config.error || 'Missing credentials or property ID',
       };
       checks.status = 'degraded';
     }

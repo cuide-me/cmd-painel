@@ -16,7 +16,7 @@ interface MenuItem {
 }
 
 const mainMenuItems: MenuItem[] = [
-  { id: 'torre', label: 'Torre de Controle', icon: '🎯', href: '/admin', description: 'Dashboard executivo com KPIs críticos' },
+  { id: 'kpi', label: 'Painel de KPI', icon: '📊', href: '/admin', description: 'Visao executiva e operacional consolidada' },
   { id: 'jobs', label: 'Atendimentos', icon: '💼', href: '/admin/jobs', description: 'Gestão de jobs e atendimentos' },
   { id: 'alerts', label: 'Alertas', icon: '🚨', href: '/admin/alertas', description: 'Monitoramento e alertas críticos' },
   { id: 'service-desk', label: 'Service Desk', icon: '🎫', href: '/admin/service-desk', description: 'Gestão de tickets e suporte' },
@@ -71,9 +71,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* Logo & Breadcrumb */}
             <div className="flex items-center gap-6">
               <Link href="/admin" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <span className="text-2xl">🎯</span>
+                <span className="text-2xl">📊</span>
                 <div>
-                  <h1 className="text-sm font-bold text-gray-900">Torre de Controle</h1>
+                  <h1 className="text-sm font-bold text-gray-900">Painel de KPI</h1>
                   <p className="text-xs text-gray-500">Cuide.me</p>
                 </div>
               </Link>

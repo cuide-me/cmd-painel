@@ -1,9 +1,21 @@
-# Changelog - Torre de Controle
+# Changelog - Painel Admin Cuide-me
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+
+## [2.1.0] - 2026-04-12
+
+### Alterado
+- Hardening curto aplicado com `npm audit fix` sem `force`.
+- Build validado apos atualizacao de dependencias corrigiveis.
+- Documentacao oficial ganhou parecer de release e checklist operacional final em `RELEASE_READINESS_2026-04-12.md`.
+
+- `/admin` passa a ser a home consolidada de KPI e operacao do painel.
+- `/admin/torre-de-controle` permanece apenas como redirect para a home atual.
+- Taxonomia do painel foi alinhada aos eventos canonicos do produto em GA4.
+- Documentacao oficial passa a se concentrar em `README.md`, `KPI_PAINEL_OFICIAL.md` e `GA4_EVENTS_ANALYSIS.md`.
 
 ## [2.0.1-master-pr] - 2026-04-10
 

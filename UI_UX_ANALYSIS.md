@@ -1,4 +1,7 @@
-# UI/UX Design Analysis & Redesign - Torre de Controle V2
+# UI/UX Analysis - Documento Historico
+
+> Documento historico de redesign da fase anterior.
+> O runtime atual do painel segue a home consolidada em `/admin`.
 
 ## 📊 Análise do Design Anterior
 

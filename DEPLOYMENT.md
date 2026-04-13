@@ -1,4 +1,7 @@
-# Guia de Deployment - Torre de Controle
+# Guia de Deployment - Painel de KPI
+
+> Documento ativo de deploy da superficie atual do painel administrativo.
+> Para taxonomia, arquitetura e definicoes de KPI, use `KPI_PAINEL_OFICIAL.md`.
 
 ## 📋 Pré-requisitos
 
@@ -27,7 +30,8 @@ FIREBASE_ADMIN_PROJECT_ID=seu-project-id
 FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk-xxxxx@seu-project.iam.gserviceaccount.com
 FIREBASE_ADMIN_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----...-----END PRIVATE KEY-----
 STRIPE_SECRET_KEY=<sua-chave-stripe-aqui>
-GA_PROPERTY_ID=properties/123456789
+GA4_PROPERTY_ID=123456789
+GOOGLE_APPLICATION_CREDENTIALS_JSON={"type":"service_account","project_id":"seu-project-id"}
 ADMIN_EMAIL=admin@cuide.me
 ADMIN_PASSWORD_HASH=$2b$10$...
 WEBHOOK_SECRET_TOKEN=seu-token-secreto

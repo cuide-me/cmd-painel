@@ -9,13 +9,13 @@ Stack legado de torre antiga e funil legado foi removido do runtime.
 
 ## Rotas Admin Ativas
 
-- /admin
+- /admin -> Painel de KPI e Operacao
 - /admin/login
 - /admin/jobs
 - /admin/alertas
 - /admin/service-desk
 - /admin/users
-- /admin/torre-de-controle
+- /admin/torre-de-controle -> redirect para /admin
 
 ## Redirects Temporarios Ativos
 
@@ -53,11 +53,29 @@ Nao ha suporte ativo para:
 
 ## Modulos Suportados Hoje
 
-- Torre operacional v3 (home + dashboard-v3)
+- Painel consolidado de KPI e operacao (home + dashboard-v3)
 - Atendimentos (jobs)
 - Alertas
 - Service Desk
 - Usuarios
+
+## Documentacao Oficial
+
+- `KPI_PAINEL_OFICIAL.md` -> arquitetura do painel, auditoria dos indicadores antigos, KPIs oficiais e glossario tecnico -> portugues
+- `GA4_EVENTS_ANALYSIS.md` -> resumo da taxonomia oficial consumida pelo painel
+- `RELEASE_READINESS_2026-04-12.md` -> parecer final de release, checklist de ambiente, smoke test e pendencias de hardening
+
+## Documentos Historicos
+
+Os arquivos abaixo foram mantidos apenas como contexto da fase anterior e nao devem ser tratados como definicao ativa do painel:
+
+- `PROJECT_SUMMARY.md`
+- `IMPLEMENTACAO_COMPLETA.md`
+- `PRODUCT_STRATEGY.md`
+- `PRODUCT_ROADMAP.md`
+- `UI_UX_ANALYSIS.md`
+- `MAPA_DE_DADOS.md`
+- `CHANGELOG.md` para historico de releases
 
 ## Estrutura Relevante
 
