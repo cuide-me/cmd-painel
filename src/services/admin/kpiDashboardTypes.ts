@@ -1,6 +1,7 @@
 export type TimeWindow = 7 | 14 | 30 | 60 | 90;
 export type DataSourceKey = 'ga4' | 'firebase' | 'stripe';
 export type HealthStatus = 'ok' | 'warning' | 'critical' | 'info';
+export type DashboardZoneKey = 'norte' | 'sul' | 'leste' | 'oeste';
 
 export interface SourceFreshness {
   source: DataSourceKey;
@@ -64,6 +65,24 @@ export interface RegionSnapshot {
   withoutProposalRate: number | null;
 }
 
+export interface ZoneUserDistributionItem {
+  zone: DashboardZoneKey;
+  label: string;
+  professionals: number;
+  families: number;
+  totalUsers: number;
+}
+
+export interface ZoneUserDistributionSummary {
+  zones: ZoneUserDistributionItem[];
+  totalProfessionals: number;
+  totalFamilies: number;
+  classifiedProfessionals: number;
+  classifiedFamilies: number;
+  unclassifiedProfessionals: number;
+  unclassifiedFamilies: number;
+}
+
 export interface AlertItem {
   id: string;
   severity: 'critical' | 'warning' | 'info';
@@ -93,6 +112,7 @@ export interface KpiDashboardResponse {
   liquidity: {
     metrics: DashboardMetric[];
     regions: RegionSnapshot[];
+    usersByZone: ZoneUserDistributionSummary;
   };
   trust: {
     metrics: DashboardMetric[];

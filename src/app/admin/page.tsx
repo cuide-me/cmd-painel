@@ -2,15 +2,18 @@
 
 import Link from 'next/link';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import type {
   AlertItem,
+  DashboardZoneKey,
   DashboardMetric,
   FunnelStep,
   KpiDashboardResponse,
   SourceFreshness,
   TimeWindow,
+  ZoneUserDistributionItem,
 } from '@/services/admin/kpiDashboardTypes';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +34,15 @@ const TIME_METRIC_IDS = [
   'avg_proposal_to_accept_hours',
   'avg_accept_to_payment_hours',
 ] as const;
+
+const FUNNEL_START_STEP_ID = 'care_request_started';
+
+const ZONE_COLORS: Record<DashboardZoneKey, string> = {
+  norte: '#2563eb',
+  sul: '#059669',
+  leste: '#ea580c',
+  oeste: '#dc2626',
+};
 
 function statusClass(status: DashboardMetric['status'] | AlertItem['severity']): string {
   if (status === 'critical') return 'border-red-200 bg-red-50 text-red-700';
@@ -90,6 +102,10 @@ function formatDateTime(value?: string | null): string {
   return parsed.toLocaleString('pt-BR');
 }
 
+function formatCount(value: number): string {
+  return value.toLocaleString('pt-BR');
+}
+
 function getNumericMetricValue(metric: DashboardMetric): number | null {
   return typeof metric.value === 'number' && Number.isFinite(metric.value) ? metric.value : null;
 }
@@ -128,6 +144,11 @@ function sortMetricsByOrder(metrics: DashboardMetric[], order: readonly string[]
     const normalizedRight = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
     return normalizedLeft - normalizedRight;
   });
+}
+
+function getFunnelStepsFromRequestStarted(steps: FunnelStep[]): FunnelStep[] {
+  const startIndex = steps.findIndex((step) => step.id === FUNNEL_START_STEP_ID);
+  return startIndex >= 0 ? steps.slice(startIndex) : steps;
 }
 
 function heatColor(value: number, max: number, tone: 'blue' | 'emerald' | 'rose'): string {
@@ -262,9 +283,12 @@ function StepBarList({
 }: {
   title: string;
   items: Array<{ id: string; label: string; value: number | null; helper: string }>;
-  tone: 'emerald' | 'rose';
+  tone: 'emerald' | 'rose' | 'sky';
 }) {
-  const barColor = tone === 'emerald' ? 'bg-emerald-500' : 'bg-rose-500';
+  const barColor = tone === 'emerald' ? 'bg-emerald-500' : tone === 'rose' ? 'bg-rose-500' : 'bg-sky-600';
+  const maxSkyValue = tone === 'sky'
+    ? Math.max(...items.map((item) => item.value ?? 0), 0)
+    : 0;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -272,16 +296,32 @@ function StepBarList({
       <div className="mt-4 space-y-4">
         {items.map((item) => (
           <div key={item.id}>
+            {(() => {
+              const width = tone === 'sky'
+                ? maxSkyValue > 0 && item.value !== null
+                  ? Math.max(8, ((item.value || 0) / maxSkyValue) * 100)
+                  : 0
+                : Math.max(0, Math.min(item.value ?? 0, 100));
+
+              return (
+                <>
             <div className="flex items-center justify-between gap-3 text-sm">
               <div>
                 <p className="font-medium text-slate-900">{item.label}</p>
                 <p className="text-xs text-slate-500">{item.helper}</p>
               </div>
-              <span className="font-semibold text-slate-950">{formatPercentage(item.value)}</span>
+              <span className="font-semibold text-slate-950">
+                {tone === 'sky'
+                  ? item.value?.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) ? `${item.value?.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h` : 'Indisponivel'
+                  : formatPercentage(item.value)}
+              </span>
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-              <div className={barColor} style={{ width: `${Math.max(0, Math.min(item.value ?? 0, 100))}%`, height: '100%' }} />
+              <div className={barColor} style={{ width: `${width}%`, height: '100%' }} />
             </div>
+                </>
+              );
+            })()}
           </div>
         ))}
       </div>
@@ -372,6 +412,122 @@ function RegionHeatmap({ regions }: { regions: KpiDashboardResponse['liquidity']
   );
 }
 
+function ZonePieTooltip({
+  active,
+  payload,
+  valueLabel,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: ZoneUserDistributionItem; value?: number }>;
+  valueLabel: string;
+}) {
+  const current = payload?.[0];
+
+  if (!active || !current) {
+    return null;
+  }
+
+  const zone = current.payload;
+  const value = current.value || 0;
+  const total = valueLabel === 'Profissionais'
+    ? zone.professionals
+    : zone.families;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg">
+      <p className="text-sm font-semibold text-slate-900">{zone.label}</p>
+      <p className="mt-1 text-xs text-slate-600">{valueLabel}: {formatCount(total)}</p>
+    </div>
+  );
+}
+
+function ZoneDistributionPieCard({
+  title,
+  description,
+  zones,
+  selectedZone,
+  valueKey,
+}: {
+  title: string;
+  description: string;
+  zones: ZoneUserDistributionItem[];
+  selectedZone: DashboardZoneKey | 'all';
+  valueKey: 'professionals' | 'families';
+}) {
+  const chartData = zones.map((zone) => ({
+    ...zone,
+    value: zone[valueKey],
+    fill: ZONE_COLORS[zone.zone],
+  }));
+  const total = chartData.reduce((sum, zone) => sum + zone.value, 0);
+  const selectedItem = selectedZone === 'all'
+    ? null
+    : chartData.find((zone) => zone.zone === selectedZone) || null;
+  const centerValue = selectedItem ? selectedItem.value : total;
+  const centerLabel = selectedItem ? selectedItem.label : 'Base classificada';
+  const centerShare = total > 0 && selectedItem
+    ? `${((selectedItem.value / total) * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+    : '100,0%';
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div>
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        <p className="mt-1 text-xs text-slate-500">{description}</p>
+      </div>
+
+      <div className="relative mt-4 h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="label"
+              innerRadius={56}
+              outerRadius={88}
+              paddingAngle={3}
+              stroke="#ffffff"
+              strokeWidth={3}
+            >
+              {chartData.map((entry) => (
+                <Cell
+                  key={`${title}-${entry.zone}`}
+                  fill={entry.fill}
+                  fillOpacity={selectedZone === 'all' || entry.zone === selectedZone ? 1 : 0.28}
+                />
+              ))}
+            </Pie>
+            <Tooltip content={<ZonePieTooltip valueLabel={valueKey === 'professionals' ? 'Profissionais' : 'Familias'} />} />
+          </PieChart>
+        </ResponsiveContainer>
+
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{centerLabel}</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-950">{formatCount(centerValue)}</p>
+            <p className="mt-1 text-xs text-slate-500">{selectedItem ? centerShare : `${formatCount(total)} no total`}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {chartData.map((zone) => (
+          <div
+            key={`${title}-legend-${zone.zone}`}
+            className={`rounded-xl border px-3 py-2 ${selectedZone === 'all' || zone.zone === selectedZone ? 'border-slate-300 bg-white' : 'border-slate-200 bg-slate-100/80'}`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: zone.fill }} />
+              <span className="text-xs font-semibold text-slate-700">{zone.label}</span>
+            </div>
+            <p className="mt-2 text-lg font-semibold text-slate-950">{formatCount(zone.value)}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SourceIntegrityBanner({
   freshness,
   historyNote,
@@ -430,6 +586,7 @@ export default function AdminKpiDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeWindow, setTimeWindow] = useState<TimeWindow>(30);
+  const [selectedZone, setSelectedZone] = useState<DashboardZoneKey | 'all'>('all');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -467,6 +624,11 @@ export default function AdminKpiDashboardPage() {
     return data.alerts.items.filter((item) => item.severity !== 'info');
   }, [data]);
 
+  const funnelJourneySteps = useMemo(() => {
+    if (!data) return [];
+    return getFunnelStepsFromRequestStarted(data.funnel.steps);
+  }, [data]);
+
   const executivePrimaryMetrics = useMemo(() => {
     if (!data) return [];
     const primaryIds = new Set<string>(PRIMARY_EXECUTIVE_ORDER);
@@ -484,23 +646,32 @@ export default function AdminKpiDashboardPage() {
 
   const funnelConversionItems = useMemo(() => {
     if (!data) return [];
-    return data.funnel.steps.slice(1).map((step) => ({
-      id: step.id,
-      label: step.label,
-      value: step.conversionFromPrevious,
-      helper: `Base atual: ${step.value === null ? 'indisponivel' : step.value.toLocaleString('pt-BR')}`,
-    }));
+
+    const localTimingMetrics = sortMetricsByOrder(
+      data.operationalHealth.metrics.filter((metric) => TIME_METRIC_IDS.includes(metric.id as (typeof TIME_METRIC_IDS)[number])),
+      TIME_METRIC_IDS
+    );
+
+    return localTimingMetrics.map((metric) => {
+      const rawValue = getNumericMetricValue(metric);
+
+      return {
+        id: metric.id,
+        label: metric.label,
+        value: rawValue,
+        helper: `${formatValue(metric)} • ${metric.expectedAction}`,
+      };
+    });
   }, [data]);
 
   const funnelDropoffItems = useMemo(() => {
-    if (!data) return [];
-    return data.funnel.steps.slice(1).map((step) => ({
+    return funnelJourneySteps.slice(1).map((step) => ({
       id: step.id,
       label: step.label,
       value: step.conversionFromPrevious === null ? null : Number((100 - step.conversionFromPrevious).toFixed(1)),
       helper: 'Perda estimada na transicao da etapa anterior.',
     }));
-  }, [data]);
+  }, [funnelJourneySteps]);
 
   const conversionRateMetrics = useMemo(() => {
     if (!data) return [];
@@ -530,6 +701,36 @@ export default function AdminKpiDashboardPage() {
     const focusIds = new Set<string>(TRUST_FOCUS_ORDER);
     return data.trust.metrics.filter((metric) => !focusIds.has(metric.id));
   }, [data]);
+
+  const zoneSummary = useMemo(() => {
+    return data?.liquidity.usersByZone || null;
+  }, [data]);
+
+  const selectedZoneSnapshot = useMemo(() => {
+    if (!zoneSummary || selectedZone === 'all') {
+      return null;
+    }
+
+    return zoneSummary.zones.find((zone) => zone.zone === selectedZone) || null;
+  }, [selectedZone, zoneSummary]);
+
+  const selectedZoneMetrics = useMemo(() => {
+    if (!zoneSummary) {
+      return null;
+    }
+
+    const professionals = selectedZoneSnapshot ? selectedZoneSnapshot.professionals : zoneSummary.classifiedProfessionals;
+    const families = selectedZoneSnapshot ? selectedZoneSnapshot.families : zoneSummary.classifiedFamilies;
+    const totalUsers = professionals + families;
+    const professionalsPerFamily = families > 0 ? Number((professionals / families).toFixed(2)) : null;
+
+    return {
+      professionals,
+      families,
+      totalUsers,
+      professionalsPerFamily,
+    };
+  }, [selectedZoneSnapshot, zoneSummary]);
 
   if (authLoading || (isLoading && !data)) {
     return <LoadingState />;
@@ -586,6 +787,16 @@ export default function AdminKpiDashboardPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <select
+              value={selectedZone}
+              onChange={(event) => setSelectedZone(event.target.value as DashboardZoneKey | 'all')}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option value="all">Todas as zonas</option>
+              {data.liquidity.usersByZone.zones.map((zone) => (
+                <option key={zone.zone} value={zone.zone}>{zone.label}</option>
+              ))}
+            </select>
+            <select
               value={timeWindow}
               onChange={(event) => setTimeWindow(Number(event.target.value) as TimeWindow)}
               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
@@ -604,6 +815,7 @@ export default function AdminKpiDashboardPage() {
 
         <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
           <span>Janela atual: {data.window} dias</span>
+          <span>Filtro de zona: {selectedZoneSnapshot?.label || 'Todas as zonas'}</span>
           <span>Gerado em: {formatDateTime(data.timestamp)}</span>
           <span>Ultima atualizacao local: {lastUpdated ? lastUpdated.toLocaleTimeString('pt-BR') : 'Sem registro'}</span>
           {error ? <span className="text-red-600">Erro de leitura anterior: {error}</span> : null}
@@ -644,7 +856,7 @@ export default function AdminKpiDashboardPage() {
 
       <SectionBlock
         title="Bloco 2 — Funil principal de contratacao"
-        description="Somente a jornada oficial de contratacao. O funil visual e protagonista; conversao e abandono aparecem como leitura complementar acionavel."
+        description="Somente a jornada oficial a partir de solicitacao iniciada. O funil visual e protagonista; tempos e abandono aparecem como leitura complementar acionavel."
       >
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr,1fr]">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -656,18 +868,18 @@ export default function AdminKpiDashboardPage() {
               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600">Obrigatorio</span>
             </div>
             <div className="mt-4">
-              <FunnelVisual steps={data.funnel.steps} />
+              <FunnelVisual steps={funnelJourneySteps} />
             </div>
           </div>
 
           <div className="space-y-4">
-            <StepBarList title="Conversao por etapa" items={funnelConversionItems} tone="emerald" />
+            <StepBarList title="Tempo medio de resposta por fase" items={funnelConversionItems} tone="sky" />
             <StepBarList title="Abandono por etapa" items={funnelDropoffItems} tone="rose" />
           </div>
         </div>
 
         <p className="mt-4 text-xs text-slate-500">
-          Motivos de abandono e tempos por lado so entram quando a base real trouxer causalidade e timestamps sustentados o suficiente para nao induzir leitura errada.
+          A leitura parte de solicitacao iniciada. Motivos de abandono e tempos por lado so entram quando a base real trouxer causalidade e timestamps sustentados o suficiente para nao induzir leitura errada.
         </p>
       </SectionBlock>
 
@@ -719,9 +931,65 @@ export default function AdminKpiDashboardPage() {
 
       <SectionBlock
         title="Bloco 4 — Liquidez e marketplace"
-        description="Cards sintetizam liquidez; a cobertura geografica real e o gap regional ganham protagonismo visual com heatmap e tabela operacional."
+        description="Os primeiros graficos cruzam profissionais e familias por zona; abaixo, liquidez operacional continua por regiao para leitura de cobertura e gap."
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr,1fr,0.9fr]">
+          <ZoneDistributionPieCard
+            title="Profissionais por zona"
+            description="Distribuicao da base profissional classificada nas quatro zonas principais de Sao Paulo."
+            zones={data.liquidity.usersByZone.zones}
+            selectedZone={selectedZone}
+            valueKey="professionals"
+          />
+          <ZoneDistributionPieCard
+            title="Familias por zona"
+            description="Distribuicao da base de familias classificada nas quatro zonas principais de Sao Paulo."
+            zones={data.liquidity.usersByZone.zones}
+            selectedZone={selectedZone}
+            valueKey="families"
+          />
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Profissionais x clientes</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  {selectedZoneSnapshot ? `${selectedZoneSnapshot.label} em foco.` : 'Resumo consolidado das zonas classificadas.'}
+                </p>
+              </div>
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600">
+                {selectedZoneSnapshot?.label || 'Todas'}
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Profissionais</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">{selectedZoneMetrics ? formatCount(selectedZoneMetrics.professionals) : '0'}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Familias</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">{selectedZoneMetrics ? formatCount(selectedZoneMetrics.families) : '0'}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Relacao prof./familia</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">
+                  {selectedZoneMetrics?.professionalsPerFamily !== null && selectedZoneMetrics
+                    ? `${selectedZoneMetrics.professionalsPerFamily.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x`
+                    : 'Sem base'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white/80 p-3 text-xs text-slate-600">
+              <p>
+                Fora das quatro zonas: {formatCount(data.liquidity.usersByZone.unclassifiedProfessionals)} profissionais e {formatCount(data.liquidity.usersByZone.unclassifiedFamilies)} familias sem classificacao confiavel de zona em Sao Paulo.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {data.liquidity.metrics.map((metric) => (
             <MetricCard key={metric.id} metric={metric} />
           ))}

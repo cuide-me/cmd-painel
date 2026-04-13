@@ -21,6 +21,8 @@ const TIME_METRIC_IDS = [
   'avg_accept_to_payment_hours',
 ] as const;
 
+const FUNNEL_START_STEP_ID = 'care_request_started';
+
 const FUNNEL_ALERT_IDS = new Set([
   'proposal_acceptance_rate',
   'requests_without_proposal_rate',
@@ -108,6 +110,11 @@ function sortMetricsByOrder(metrics: DashboardMetric[], order: readonly string[]
     const normalizedRight = rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex;
     return normalizedLeft - normalizedRight;
   });
+}
+
+function getFunnelStepsFromRequestStarted(steps: FunnelStep[]): FunnelStep[] {
+  const startIndex = steps.findIndex((step) => step.id === FUNNEL_START_STEP_ID);
+  return startIndex >= 0 ? steps.slice(startIndex) : steps;
 }
 
 function LoadingState() {
@@ -236,6 +243,9 @@ function StepBarList({
   tone: 'emerald' | 'rose' | 'sky';
 }) {
   const barColor = tone === 'emerald' ? 'bg-emerald-500' : tone === 'rose' ? 'bg-rose-500' : 'bg-sky-600';
+  const maxSkyValue = tone === 'sky'
+    ? Math.max(...items.map((item) => item.value ?? 0), 0)
+    : 0;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -243,16 +253,32 @@ function StepBarList({
       <div className="mt-4 space-y-4">
         {items.map((item) => (
           <div key={item.id}>
+            {(() => {
+              const width = tone === 'sky'
+                ? maxSkyValue > 0 && item.value !== null
+                  ? Math.max(8, ((item.value || 0) / maxSkyValue) * 100)
+                  : 0
+                : Math.max(0, Math.min(item.value ?? 0, 100));
+
+              return (
+                <>
             <div className="flex items-center justify-between gap-3 text-sm">
               <div>
                 <p className="font-medium text-slate-900">{item.label}</p>
                 <p className="text-xs text-slate-500">{item.helper}</p>
               </div>
-              <span className="font-semibold text-slate-950">{tone === 'sky' ? item.value?.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) ?? 'Indisponivel' : formatPercentage(item.value)}</span>
+              <span className="font-semibold text-slate-950">
+                {tone === 'sky'
+                  ? item.value?.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) ? `${item.value?.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h` : 'Indisponivel'
+                  : formatPercentage(item.value)}
+              </span>
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-              <div className={barColor} style={{ width: `${Math.max(0, Math.min(item.value ?? 0, 100))}%`, height: '100%' }} />
+              <div className={barColor} style={{ width: `${width}%`, height: '100%' }} />
             </div>
+                </>
+              );
+            })()}
           </div>
         ))}
       </div>
@@ -295,25 +321,39 @@ export default function AdminFunnelPage() {
     }
   }, [fetchData, isAdmin]);
 
+  const funnelJourneySteps = useMemo(() => {
+    if (!data) return [];
+    return getFunnelStepsFromRequestStarted(data.funnel.steps);
+  }, [data]);
+
   const conversionItems = useMemo(() => {
     if (!data) return [];
-    return data.funnel.steps.slice(1).map((step) => ({
-      id: step.id,
-      label: step.label,
-      value: step.conversionFromPrevious,
-      helper: `Volume atual da etapa: ${step.value === null ? 'indisponivel' : step.value.toLocaleString('pt-BR')}`,
-    }));
+
+    const localTimingMetrics = sortMetricsByOrder(
+      data.operationalHealth.metrics.filter((metric) => TIME_METRIC_IDS.includes(metric.id as (typeof TIME_METRIC_IDS)[number])),
+      TIME_METRIC_IDS
+    );
+
+    return localTimingMetrics.map((metric) => {
+      const rawValue = getNumericMetricValue(metric);
+
+      return {
+        id: metric.id,
+        label: metric.label,
+        value: rawValue,
+        helper: `${formatValue(metric)} • ${metric.expectedAction}`,
+      };
+    });
   }, [data]);
 
   const dropoffItems = useMemo(() => {
-    if (!data) return [];
-    return data.funnel.steps.slice(1).map((step) => ({
+    return funnelJourneySteps.slice(1).map((step) => ({
       id: step.id,
       label: step.label,
       value: step.conversionFromPrevious === null ? null : Number((100 - step.conversionFromPrevious).toFixed(1)),
       helper: 'Abandono estimado entre a etapa anterior e esta etapa.',
     }));
-  }, [data]);
+  }, [funnelJourneySteps]);
 
   const timingMetrics = useMemo(() => {
     if (!data) return [];
@@ -324,13 +364,10 @@ export default function AdminFunnelPage() {
   }, [data]);
 
   const timingItems = useMemo(() => {
-    const numericValues = timingMetrics.map(getNumericMetricValue).filter((value): value is number => value !== null);
-    const maxValue = Math.max(...numericValues, 0);
-
     return timingMetrics.map((metric) => ({
       id: metric.id,
       label: metric.label,
-      value: maxValue > 0 && getNumericMetricValue(metric) !== null ? Number((((getNumericMetricValue(metric) || 0) / maxValue) * 100).toFixed(1)) : 0,
+      value: getNumericMetricValue(metric),
       helper: `${formatValue(metric)} • ${metric.expectedAction}`,
     }));
   }, [timingMetrics]);
@@ -384,7 +421,7 @@ export default function AdminFunnelPage() {
             <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Bloco 2</p>
             <h1 className="mt-2 text-3xl font-semibold text-slate-950">Funil oficial de contratacao</h1>
             <p className="mt-2 text-sm text-slate-600">
-              Esta tela representa apenas o fluxo canonico de contratacao: selecao de profissional, inicio de solicitacao, criacao da solicitacao, proposta, aceite, pagamento e encerramento.
+              Esta tela representa o fluxo canonico a partir de solicitacao iniciada: criacao da solicitacao, proposta, aceite, pagamento e encerramento.
             </p>
           </div>
 
@@ -426,17 +463,17 @@ export default function AdminFunnelPage() {
 
       <SectionBlock
         title="Funil protagonista"
-        description="Visual principal do fluxo de contratacao. Nada aqui mistura funil amplo de plataforma com etapas fora da jornada oficial."
+        description="Visual principal do fluxo de contratacao a partir de solicitacao iniciada. Nada aqui mistura funil amplo de plataforma com etapas fora da jornada oficial."
       >
-        <FunnelVisual steps={data.funnel.steps} />
+        <FunnelVisual steps={funnelJourneySteps} />
       </SectionBlock>
 
       <SectionBlock
-        title="Conversao e abandono por etapa"
-        description="Barras complementares para responder onde a jornada converte e onde ela trava, sem substituir o funil principal."
+        title="Tempo medio e abandono por etapa"
+        description="Barras complementares para responder onde a jornada demora e onde ela trava, sempre considerando apenas as etapas a partir de solicitacao iniciada."
       >
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <StepBarList title="Conversao por etapa" items={conversionItems} tone="emerald" />
+          <StepBarList title="Tempo medio de resposta por fase" items={conversionItems} tone="sky" />
           <StepBarList title="Abandono por etapa" items={dropoffItems} tone="rose" />
         </div>
       </SectionBlock>

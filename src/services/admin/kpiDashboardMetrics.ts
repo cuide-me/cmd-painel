@@ -8,11 +8,12 @@ import {
   OFFICIAL_ANALYTICS_EVENTS,
   OFFICIAL_FUNNEL_SEQUENCE,
 } from './analyticsCatalog';
-import { getRegionKey } from './region';
+import { getRegionKey, getSaoPauloZoneLabel, inferSaoPauloZone } from './region';
 import { hasJobProfessional, isJobCompleted, isJobCancelled, normalizeJobStatus } from './statusNormalizer';
 import type {
   AlertItem,
   Bottleneck,
+  DashboardZoneKey,
   DashboardMetric,
   DataSourceKey,
   FunnelStep,
@@ -22,7 +23,10 @@ import type {
   RegionSnapshot,
   SourceFreshness,
   TimeWindow,
+  ZoneUserDistributionSummary,
 } from './kpiDashboardTypes';
+
+const ZONE_ORDER: DashboardZoneKey[] = ['norte', 'sul', 'leste', 'oeste'];
 
 type FirestoreRecord = Record<string, any>;
 
@@ -377,7 +381,7 @@ async function loadFirestoreData(ranges: WindowRanges): Promise<FirestoreLoadRes
 
   try {
     const [usersSnap, jobsSnap, ratingsSnap, ticketsSnap] = await Promise.all([
-      db.collection('users').where('createdAt', '>=', previousStart).get().catch(() => db.collection('users').get()),
+      db.collection('users').get(),
       db.collection('jobs').where('createdAt', '>=', previousStart).get(),
       db.collection('ratings').where('createdAt', '>=', previousStart).get().catch(() => db.collection('ratings').get()),
       db.collection('tickets').where('createdAt', '>=', previousStart).get().catch(() => db.collection('tickets').get()),
@@ -921,8 +925,9 @@ function buildLiquidity(
   currentJobs: FirestoreRecord[],
   previousJobs: FirestoreRecord[],
   currentGa4Counts: Map<string, number>,
-  previousGa4Counts: Map<string, number>
-): { metrics: DashboardMetric[]; regions: RegionSnapshot[] } {
+  previousGa4Counts: Map<string, number>,
+  allUsers: FirestoreRecord[]
+): { metrics: DashboardMetric[]; regions: RegionSnapshot[]; usersByZone: ZoneUserDistributionSummary } {
   const currentRequestsCreated = currentGa4Counts.get('care_request_created') || 0;
   const previousRequestsCreated = previousGa4Counts.get('care_request_created') || 0;
   const currentProposalsSent = currentGa4Counts.get('proposal_sent') || 0;
@@ -981,6 +986,8 @@ function buildLiquidity(
     }))
     .sort((a, b) => b.requestsCreated - a.requestsCreated)
     .slice(0, 8);
+
+  const usersByZone = buildUsersByZone(allUsers);
 
   const metrics: DashboardMetric[] = [
     buildMetric({
@@ -1070,7 +1077,72 @@ function buildLiquidity(
     }),
   ];
 
-  return { metrics, regions };
+  return { metrics, regions, usersByZone };
+}
+
+function buildUsersByZone(users: FirestoreRecord[]): ZoneUserDistributionSummary {
+  const zoneMap = new Map<DashboardZoneKey, { professionals: number; families: number }>(
+    ZONE_ORDER.map((zone) => [zone, { professionals: 0, families: 0 }])
+  );
+
+  let totalProfessionals = 0;
+  let totalFamilies = 0;
+  let classifiedProfessionals = 0;
+  let classifiedFamilies = 0;
+  let unclassifiedProfessionals = 0;
+  let unclassifiedFamilies = 0;
+
+  for (const user of users) {
+    const profile = normalizeUserProfile(user.perfil || user.role || user.userRole);
+    if (!profile) {
+      continue;
+    }
+
+    const zone = inferSaoPauloZone(user);
+
+    if (profile === 'profissional') {
+      totalProfessionals += 1;
+    } else {
+      totalFamilies += 1;
+    }
+
+    if (!zone) {
+      if (profile === 'profissional') {
+        unclassifiedProfessionals += 1;
+      } else {
+        unclassifiedFamilies += 1;
+      }
+      continue;
+    }
+
+    const zoneCounts = zoneMap.get(zone)!;
+    if (profile === 'profissional') {
+      zoneCounts.professionals += 1;
+      classifiedProfessionals += 1;
+    } else {
+      zoneCounts.families += 1;
+      classifiedFamilies += 1;
+    }
+  }
+
+  return {
+    zones: ZONE_ORDER.map((zone) => {
+      const counts = zoneMap.get(zone)!;
+      return {
+        zone,
+        label: getSaoPauloZoneLabel(zone),
+        professionals: counts.professionals,
+        families: counts.families,
+        totalUsers: counts.professionals + counts.families,
+      };
+    }),
+    totalProfessionals,
+    totalFamilies,
+    classifiedProfessionals,
+    classifiedFamilies,
+    unclassifiedProfessionals,
+    unclassifiedFamilies,
+  };
 }
 
 function buildTrust(
@@ -1315,7 +1387,7 @@ export async function calculateKpiDashboardMetrics(windowDays: TimeWindow = 30):
   const executiveMetrics = buildExecutiveMetrics(currentUsers, previousUsers, ga4Current.counts, ga4Previous.counts);
   const funnelSteps = buildFunnel(ga4Current.counts);
   const operational = buildOperationalHealth(currentJobs, previousJobs, ga4Current.counts, ga4Previous.counts, allChargesLookup);
-  const liquidity = buildLiquidity(currentJobs, previousJobs, ga4Current.counts, ga4Previous.counts);
+  const liquidity = buildLiquidity(currentJobs, previousJobs, ga4Current.counts, ga4Previous.counts, firestoreData.users);
   const trust = buildTrust(currentRatings, previousRatings, ga4Current.counts, ga4Previous.counts);
   const alerts = buildAlerts(operational.metrics, liquidity.metrics, trust);
 
@@ -1324,6 +1396,7 @@ export async function calculateKpiDashboardMetrics(windowDays: TimeWindow = 30):
     'Tempos operacionais sao derivados de timestamps transacionais de jobs e conciliacao Stripe.',
     'Cobertura regional usa jobs observados no periodo; nao representa capacidade em tempo real.',
     'Avaliacoes enviadas usam a colecao ratings por refletirem persistencia de feedback.',
+    'Distribuicao por zona considera apenas usuarios com zona explicita ou bairro mapeado com confianca em Sao Paulo.',
   ];
 
   if (stripeData.limitation) {
@@ -1349,7 +1422,7 @@ export async function calculateKpiDashboardMetrics(windowDays: TimeWindow = 30):
     funnel: {
       steps: funnelSteps,
       summary:
-        'Funil oficial baseado na taxonomia canonica do produto. Conversoes usam contagem de eventos do periodo e devem ser lidas com a quebra historica de nomenclatura em mente.',
+        'Funil oficial exibido a partir de solicitacao iniciada. As etapas seguintes usam a taxonomia canonica do produto e devem ser lidas com a quebra historica de nomenclatura em mente.',
     },
     operationalHealth: operational,
     liquidity,
