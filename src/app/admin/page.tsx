@@ -933,7 +933,7 @@ export default function AdminKpiDashboardPage() {
         title="Bloco 4 — Liquidez e marketplace"
         description="Os primeiros graficos cruzam profissionais e familias por zona; abaixo, liquidez operacional continua por regiao para leitura de cobertura e gap."
       >
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr,1fr,0.9fr]">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <ZoneDistributionPieCard
             title="Profissionais por zona"
             description="Distribuicao da base profissional classificada nas quatro zonas principais de Sao Paulo."
@@ -948,44 +948,44 @@ export default function AdminKpiDashboardPage() {
             selectedZone={selectedZone}
             valueKey="families"
           />
+        </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">Profissionais x clientes</h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  {selectedZoneSnapshot ? `${selectedZoneSnapshot.label} em foco.` : 'Resumo consolidado das zonas classificadas.'}
-                </p>
-              </div>
-              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600">
-                {selectedZoneSnapshot?.label || 'Todas'}
-              </span>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-3">
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Profissionais</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-950">{selectedZoneMetrics ? formatCount(selectedZoneMetrics.professionals) : '0'}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Familias</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-950">{selectedZoneMetrics ? formatCount(selectedZoneMetrics.families) : '0'}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Relacao prof./familia</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-950">
-                  {selectedZoneMetrics?.professionalsPerFamily !== null && selectedZoneMetrics
-                    ? `${selectedZoneMetrics.professionalsPerFamily.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x`
-                    : 'Sem base'}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white/80 p-3 text-xs text-slate-600">
-              <p>
-                Fora das quatro zonas: {formatCount(data.liquidity.usersByZone.unclassifiedProfessionals)} profissionais e {formatCount(data.liquidity.usersByZone.unclassifiedFamilies)} familias sem classificacao confiavel de zona em Sao Paulo.
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Profissionais x clientes</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                {selectedZoneSnapshot ? `${selectedZoneSnapshot.label} em foco.` : 'Resumo consolidado das zonas classificadas.'}
               </p>
             </div>
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600">
+              {selectedZoneSnapshot?.label || 'Todas'}
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Profissionais</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{selectedZoneMetrics ? formatCount(selectedZoneMetrics.professionals) : '0'}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Familias</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">{selectedZoneMetrics ? formatCount(selectedZoneMetrics.families) : '0'}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Relacao prof./familia</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {selectedZoneMetrics?.professionalsPerFamily !== null && selectedZoneMetrics
+                  ? `${selectedZoneMetrics.professionalsPerFamily.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}x`
+                  : 'Sem base'}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white/80 p-3 text-xs text-slate-600">
+            <p>
+              Fora das quatro zonas: {formatCount(data.liquidity.usersByZone.unclassifiedProfessionals)} profissionais e {formatCount(data.liquidity.usersByZone.unclassifiedFamilies)} familias sem classificacao confiavel de zona em Sao Paulo.
+            </p>
           </div>
         </div>
 

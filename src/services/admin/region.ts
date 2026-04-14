@@ -132,14 +132,43 @@ export function getSaoPauloZoneLabel(zone: SaoPauloZoneKey): string {
 
 export function inferSaoPauloZone(record: any): SaoPauloZoneKey | null {
   const location = record?.location || {};
+  const address = getAddressCandidate(record);
   const cidade = normalizeLocationName(
-    pickFirstString([location.cidade, location.city, record?.cidade, record?.city])
+    pickFirstString([
+      location.cidade,
+      location.city,
+      address?.cidade,
+      address?.city,
+      address?.localidade,
+      address?.municipio,
+      record?.cidade,
+      record?.city,
+    ])
   );
   const estado = normalizeLocationName(
-    pickFirstString([location.estado, location.state, record?.estado, record?.state])
+    pickFirstString([
+      location.estado,
+      location.state,
+      address?.estado,
+      address?.state,
+      address?.uf,
+      record?.estado,
+      record?.state,
+      record?.uf,
+    ])
   );
   const bairro = normalizeLocationName(
-    pickFirstString([location.bairro, location.neighborhood, record?.bairro, record?.neighborhood])
+    pickFirstString([
+      location.bairro,
+      location.neighborhood,
+      address?.bairro,
+      address?.neighborhood,
+      address?.district,
+      address?.borough,
+      record?.bairro,
+      record?.neighborhood,
+      record?.district,
+    ])
   );
 
   const explicitZone = resolveExplicitZone([
@@ -147,23 +176,28 @@ export function inferSaoPauloZone(record: any): SaoPauloZoneKey | null {
     location.zone,
     location.regiao,
     location.region,
+    address?.zona,
+    address?.zone,
+    address?.regiao,
+    address?.region,
     record?.zona,
     record?.zone,
     record?.regiao,
     record?.region,
   ]);
 
-  const isSaoPauloRecord = isSaoPauloCity(cidade) || (!cidade && isSaoPauloState(estado));
+  const mappedZone = bairro ? SAO_PAULO_BAIRRO_TO_ZONE[bairro] || null : null;
+  const hasExplicitDifferentCity = Boolean(cidade && !isSaoPauloCity(cidade) && estado && !isSaoPauloState(estado));
 
-  if (explicitZone && (isSaoPauloRecord || !cidade)) {
+  if (explicitZone && !hasExplicitDifferentCity) {
     return explicitZone;
   }
 
-  if (!isSaoPauloRecord || !bairro) {
-    return null;
+  if (mappedZone && !hasExplicitDifferentCity) {
+    return mappedZone;
   }
 
-  return SAO_PAULO_BAIRRO_TO_ZONE[bairro] || null;
+  return null;
 }
 
 /**
@@ -219,6 +253,18 @@ function pickFirstString(candidates: unknown[]): string | null {
   for (const candidate of candidates) {
     if (typeof candidate === 'string' && candidate.trim().length > 0) {
       return candidate;
+    }
+  }
+
+  return null;
+}
+
+function getAddressCandidate(record: any): Record<string, any> | null {
+  const candidates = [record?.address, record?.endereco, record?.enderecoResidencial, record?.residentialAddress];
+
+  for (const candidate of candidates) {
+    if (candidate && typeof candidate === 'object') {
+      return candidate as Record<string, any>;
     }
   }
 
