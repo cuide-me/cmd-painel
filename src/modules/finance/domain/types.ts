@@ -62,6 +62,14 @@ export interface FinancialOverview {
   activeProfessionals: number | null;
   soldShifts: number | null;
   refundedCentavos: number | null;
+  operatingFinancials: {
+    stripeFeesCentavos: number | null;
+    taxReserveCentavos: number | null;
+    taxReserveRatePercent: number;
+    balanceAfterFeesAndTaxReserveCentavos: number | null;
+    isComplete: boolean;
+    note?: string;
+  };
   connectFinancials: {
     destinationCharges: number;
     legacyCharges: number;
