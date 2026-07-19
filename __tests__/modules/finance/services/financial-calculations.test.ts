@@ -1,4 +1,4 @@
-import { calculateConnectFinancials } from '@/modules/finance/services/receivables';
+import { calculateConnectFinancials, calculateOperatingFinancials } from '@/modules/finance/services/receivables';
 import { getTransferLifecycle } from '@/modules/finance/services/payout-transfers';
 
 describe('Connect financial calculations', () => {
@@ -30,6 +30,22 @@ describe('Connect financial calculations', () => {
     expect(result.isComplete).toBe(false);
     expect(result.commissionCentavos).toBeNull();
     expect(result.stripeFeesCentavos).toBeNull();
+  });
+
+  it('calculates Stripe fees and a 6% tax reserve for all successful charges', () => {
+    const result = calculateOperatingFinancials([
+      { status: 'succeeded', amount: 10_000, stripeFeeAmount: 320 },
+      { status: 'succeeded', amount: 5_000, stripeFeeAmount: 180 },
+      { status: 'failed', amount: 8_000, stripeFeeAmount: null },
+    ]);
+
+    expect(result).toEqual({
+      stripeFeesCentavos: 500,
+      taxReserveCentavos: 900,
+      taxReserveRatePercent: 6,
+      balanceAfterFeesAndTaxReserveCentavos: 13_600,
+      isComplete: true,
+    });
   });
 
   it('classifies transfer reversals without inferring payout status', () => {

@@ -20,6 +20,7 @@ type FirestoreRecord = Record<string, unknown>;
 const MAX_PAGE_SIZE = 100;
 const OVERVIEW_PAGE_LIMIT = 10;
 const MAX_FILTER_SCAN_RECORDS = 1_000;
+const SIMPLES_NACIONAL_TAX_RESERVE_RATE = 0.06;
 
 function getWindowStart(window: FinanceTimeWindow): number {
   return Math.floor((Date.now() - window * 24 * 60 * 60 * 1000) / 1000);
@@ -86,6 +87,30 @@ export function calculateConnectFinancials(charges: Array<{
     takeRatePercent: commissionCentavos !== null && gmvCentavos > 0
       ? Number(((commissionCentavos / gmvCentavos) * 100).toFixed(2))
       : null,
+    isComplete: hasCompleteFees,
+  };
+}
+
+export function calculateOperatingFinancials(charges: Array<{
+  status: string;
+  amount: number;
+  stripeFeeAmount: number | null;
+}>) {
+  const succeeded = charges.filter((charge) => charge.status === 'succeeded');
+  const hasCompleteFees = succeeded.every((charge) => typeof charge.stripeFeeAmount === 'number');
+  const gmvCentavos = succeeded.reduce((sum, charge) => sum + charge.amount, 0);
+  const stripeFeesCentavos = hasCompleteFees
+    ? succeeded.reduce((sum, charge) => sum + (charge.stripeFeeAmount || 0), 0)
+    : null;
+  const taxReserveCentavos = Math.round(gmvCentavos * SIMPLES_NACIONAL_TAX_RESERVE_RATE);
+
+  return {
+    stripeFeesCentavos,
+    taxReserveCentavos,
+    taxReserveRatePercent: SIMPLES_NACIONAL_TAX_RESERVE_RATE * 100,
+    balanceAfterFeesAndTaxReserveCentavos: stripeFeesCentavos === null
+      ? null
+      : gmvCentavos - stripeFeesCentavos - taxReserveCentavos,
     isComplete: hasCompleteFees,
   };
 }
@@ -298,6 +323,11 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
       : null,
     stripeFeeAmount: getStripeFeeCentavos(charge),
   })));
+  const operatingFinancials = calculateOperatingFinancials(charges.map((charge) => ({
+    status: charge.status,
+    amount: charge.amount,
+    stripeFeeAmount: getStripeFeeCentavos(charge),
+  })));
 
   return {
     window,
@@ -316,6 +346,17 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
     activeProfessionals: isComplete ? activeProfessionals : null,
     soldShifts: isComplete ? succeeded.filter((row) => row.job !== null).length : null,
     refundedCentavos: isComplete ? rows.reduce((sum, row) => sum + row.refundedAmountCentavos, 0) : null,
+    operatingFinancials: {
+      ...operatingFinancials,
+      stripeFeesCentavos: isComplete ? operatingFinancials.stripeFeesCentavos : null,
+      taxReserveCentavos: isComplete ? operatingFinancials.taxReserveCentavos : null,
+      balanceAfterFeesAndTaxReserveCentavos: isComplete
+        ? operatingFinancials.balanceAfterFeesAndTaxReserveCentavos
+        : null,
+      note: operatingFinancials.isComplete
+        ? undefined
+        : 'Uma ou mais cobranças ainda não possuem tarifa Stripe disponível para leitura.',
+    },
     connectFinancials: {
       ...connectFinancials,
       note: connectFinancials.legacyCharges > 0
@@ -324,8 +365,8 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
     },
     unavailableMetrics: [
       { id: 'hours_sold', label: 'Horas vendidas', reason: 'Jobs nao possuem duracao canonica consumida pelo painel.' },
-      { id: 'taxes', label: 'Impostos', reason: 'Nao ha fonte fiscal conectada ao painel.' },
-      { id: 'operating_profit', label: 'Lucro operacional', reason: 'Custos, impostos e taxas efetivas nao estao disponiveis.' },
+      { id: 'taxes', label: 'Apuracao tributaria', reason: 'A reserva de 6% e uma estimativa operacional; a apuracao oficial exige dados fiscais e validacao contabil.' },
+      { id: 'operating_profit', label: 'Lucro operacional', reason: 'Custos operacionais e a apuracao tributaria oficial nao estao disponiveis.' },
     ],
   };
 }
