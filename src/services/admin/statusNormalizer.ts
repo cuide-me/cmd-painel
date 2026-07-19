@@ -6,6 +6,8 @@
  * para status padrão
  */
 
+import { hasJobProfessional as resolveJobProfessional } from '@/modules/shared/domain/job-fields';
+
 export type NormalizedJobStatus = 
   | 'pending'      // Criado, aguardando profissional
   | 'matched'      // Match realizado (profissional atribuído)
@@ -103,7 +105,7 @@ export function isJobActive(job: any): boolean {
  * Verifica se job tem profissional atribuído
  */
 export function hasJobProfessional(job: any): boolean {
-  return !!(job.professionalId || job.specialistId);
+  return resolveJobProfessional(job);
 }
 
 /**

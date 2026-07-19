@@ -3,6 +3,8 @@
  * Centralized error capture and tracking
  */
 
+import { redactSensitiveData } from '@/lib/observability/redact';
+
 export interface ErrorMetadata {
   context?: Record<string, any>;
   severity?: 'info' | 'warning' | 'error' | 'fatal';
@@ -19,14 +21,14 @@ export interface ErrorContext {
 export function captureException(error: Error, metadata?: ErrorMetadata): string {
   const errorId = `err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
-  console.error('[ERROR]', {
+  console.error('[ERROR]', redactSensitiveData({
     id: errorId,
-    message: error.message,
-    stack: error.stack,
+    message: redactSensitiveData(error.message),
+    stack: error.stack ? redactSensitiveData(error.stack) : undefined,
     severity: metadata?.severity || 'error',
     context: metadata?.context,
     timestamp: new Date().toISOString(),
-  });
+  }));
   
   return errorId;
 }
@@ -64,12 +66,12 @@ export function addBreadcrumb(
   message: string,
   data?: Record<string, any>
 ): void {
-  console.debug('[BREADCRUMB]', {
+  console.debug('[BREADCRUMB]', redactSensitiveData({
     category,
     message,
     data,
     timestamp: new Date().toISOString(),
-  });
+  }));
 }
 
 /**

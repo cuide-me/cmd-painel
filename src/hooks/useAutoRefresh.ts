@@ -20,9 +20,10 @@ export function useAutoRefresh({ onRefresh, interval = 60000, enabled = false }:
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    let resetTimeout: NodeJS.Timeout | null = null;
+
     if (isEnabled) {
-      // Reset countdown
-      setCountdown(interval / 1000);
+      resetTimeout = setTimeout(() => setCountdown(interval / 1000), 0);
 
       // Setup refresh interval
       intervalRef.current = setInterval(() => {
@@ -48,6 +49,7 @@ export function useAutoRefresh({ onRefresh, interval = 60000, enabled = false }:
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
+      if (resetTimeout) clearTimeout(resetTimeout);
     };
   }, [isEnabled, interval, onRefresh]);
 

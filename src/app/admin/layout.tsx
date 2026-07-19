@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import type { AdminPermission } from '@/modules/shared/auth/permissions';
 
 interface MenuItem {
   id: string;
@@ -13,24 +14,28 @@ interface MenuItem {
   badge?: number;
   description?: string;
   hiddenInMenu?: boolean;
+  permission: AdminPermission;
 }
 
 const mainMenuItems: MenuItem[] = [
-  { id: 'kpi', label: 'Painel de KPI', icon: '📊', href: '/admin', description: 'Visao executiva e operacional consolidada' },
-  { id: 'jobs', label: 'Atendimentos', icon: '💼', href: '/admin/jobs', description: 'Gestão de jobs e atendimentos' },
-  { id: 'alerts', label: 'Alertas', icon: '🚨', href: '/admin/alertas', description: 'Monitoramento e alertas críticos' },
-  { id: 'service-desk', label: 'Service Desk', icon: '🎫', href: '/admin/service-desk', description: 'Gestão de tickets e suporte' },
+  { id: 'kpi', label: 'Painel de KPI', icon: '📊', href: '/admin', description: 'Visao executiva e operacional consolidada', permission: 'dashboard.read' },
+  { id: 'finance', label: 'Financeiro', icon: '💰', href: '/admin/financeiro', description: 'Recebimentos, repasses e resultados', permission: 'finance.read' },
+  { id: 'jobs', label: 'Atendimentos', icon: '💼', href: '/admin/jobs', description: 'Gestão de jobs e atendimentos', permission: 'jobs.read' },
+  { id: 'alerts', label: 'Alertas', icon: '🚨', href: '/admin/alertas', description: 'Monitoramento e alertas críticos', permission: 'alerts.read' },
+  { id: 'service-desk', label: 'Service Desk', icon: '🎫', href: '/admin/service-desk', description: 'Gestão de tickets e suporte', permission: 'tickets.read' },
 ];
 
 const secondaryMenuItems: MenuItem[] = [
-  { id: 'users', label: 'Usuários', icon: '👥', href: '/admin/users', description: 'Gestão de familias e profissionais' },
+  { id: 'users', label: 'Usuários', icon: '👥', href: '/admin/users', description: 'Gestão de familias e profissionais', permission: 'users.read' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
-  const { user, isAdmin, loading, logout } = useAdminAuth();
+  const { user, isAdmin, loading, can, logout } = useAdminAuth();
+  const visibleMainMenuItems = mainMenuItems.filter(item => can(item.permission));
+  const visibleSecondaryMenuItems = secondaryMenuItems.filter(item => can(item.permission));
 
   useEffect(() => {
     // Não verificar autenticação na página de login
@@ -65,6 +70,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <a
+        href="#main-content"
+        className="sr-only z-[60] rounded bg-white px-3 py-2 text-sm font-medium text-blue-800 shadow focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Pular para o conteúdo principal
+      </a>
       {/* Top Bar */}
       <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
           <div className="h-full px-6 flex items-center justify-between max-w-[1920px] mx-auto">
@@ -82,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <>
                   <span className="text-gray-300">/</span>
                   <span className="text-sm text-gray-900 font-medium">
-                    {(mainMenuItems.find(item => item.href === pathname) || secondaryMenuItems.find(item => item.href === pathname))?.label || 'Página'}
+                    {(visibleMainMenuItems.find(item => item.href === pathname) || visibleSecondaryMenuItems.find(item => item.href === pathname))?.label || 'Página'}
                   </span>
                 </>
               )}
@@ -162,8 +173,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-3">
                     📊 Módulos Principais
                   </div>
-                  <div className="grid grid-cols-5 gap-3">
-                    {mainMenuItems.filter((item) => !item.hiddenInMenu).map((item) => {
+                  <nav className="grid grid-cols-5 gap-3" aria-label="Módulos principais">
+                    {visibleMainMenuItems.filter((item) => !item.hiddenInMenu).map((item) => {
                       const isActive = pathname === item.href;
                       return (
                         <Link
@@ -190,7 +201,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </Link>
                       );
                     })}
-                  </div>
+                  </nav>
                 </div>
 
                 {/* Secondary Modules */}
@@ -198,8 +209,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-3">
                     ⚙️ Administração
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {secondaryMenuItems.filter((item) => !item.hiddenInMenu).map((item) => {
+                  <nav className="grid grid-cols-2 gap-3" aria-label="Administração">
+                    {visibleSecondaryMenuItems.filter((item) => !item.hiddenInMenu).map((item) => {
                       const isActive = pathname === item.href;
                       return (
                         <Link
@@ -226,7 +237,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </Link>
                       );
                     })}
-                  </div>
+                  </nav>
                 </div>
               </div>
             </div>
@@ -234,7 +245,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         )}
 
       {/* Page Content */}
-      <main className="p-6 max-w-[1920px] mx-auto">
+      <main id="main-content" className="p-6 max-w-[1920px] mx-auto" tabIndex={-1}>
         {children}
       </main>
     </div>

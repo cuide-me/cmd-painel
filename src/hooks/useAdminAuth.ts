@@ -8,10 +8,17 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { getFirebaseAuth, getFirestoreDb } from '@/firebase/firebaseApp';
+import {
+  getAdminRole,
+  hasAdminPermission,
+  type AdminPermission,
+  type AdminRole,
+} from '@/modules/shared/auth/permissions';
 
 interface AdminAuthState {
   user: User | null;
   isAdmin: boolean;
+  role: AdminRole | null;
   loading: boolean;
   error: string | null;
 }
@@ -20,6 +27,7 @@ export function useAdminAuth() {
   const [state, setState] = useState<AdminAuthState>({
     user: null,
     isAdmin: false,
+    role: null,
     loading: true,
     error: null,
   });
@@ -31,7 +39,7 @@ export function useAdminAuth() {
 
     const unsubscribe = onAuthStateChanged(auth, async user => {
       if (!user) {
-        setState({ user: null, isAdmin: false, loading: false, error: null });
+        setState({ user: null, isAdmin: false, role: null, loading: false, error: null });
         return;
       }
 
@@ -49,10 +57,12 @@ export function useAdminAuth() {
           userData?.isAdmin === true;
 
         const isAdmin = hasAdminClaim || hasFirestoreAdmin;
+        const role = getAdminRole(tokenResult.claims) || (hasFirestoreAdmin ? 'admin' : null);
 
         setState({
           user,
           isAdmin,
+          role,
           loading: false,
           error: isAdmin ? null : 'Acesso negado: usuário não é administrador',
         });
@@ -61,6 +71,7 @@ export function useAdminAuth() {
         setState({
           user: null,
           isAdmin: false,
+          role: null,
           loading: false,
           error: 'Erro ao verificar permissões',
         });
@@ -80,5 +91,8 @@ export function useAdminAuth() {
     }
   };
 
-  return { ...state, authReady: !state.loading && state.isAdmin, logout };
+  const can = (permission: AdminPermission) =>
+    state.role !== null && hasAdminPermission(state.role, permission);
+
+  return { ...state, authReady: !state.loading && state.isAdmin, can, logout };
 }

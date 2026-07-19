@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminAuth } from '@/lib/server/auth';
+import { requireAdminPermission } from '@/lib/server/auth';
 import { collectAgingExtremeSnapshot } from '@/services/admin/agingExtremeMetrics';
 import type { TimeWindow } from '@/services/admin/dashboardV3Types';
 
@@ -32,10 +32,8 @@ export async function POST(request: NextRequest) {
   const cronAuthorized = isCronAuthorized(request);
 
   if (!cronAuthorized) {
-    const authResult = await verifyAdminAuth(request);
-    if (!authResult || !authResult.authorized) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const authResult = await requireAdminPermission(request, 'metrics.write');
+    if ('error' in authResult) return authResult.error;
   }
 
   const windows = parseWindows(new URL(request.url).searchParams.get('windows'));

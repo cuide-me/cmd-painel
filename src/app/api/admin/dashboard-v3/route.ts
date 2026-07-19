@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cache } from '@/lib/cache';
-import { verifyAdminAuth } from '@/lib/server/auth';
+import { requireAdminPermission } from '@/lib/server/auth';
 import { calculateKpiDashboardMetrics } from '@/services/admin/kpiDashboardMetrics';
 import type { KpiDashboardResponse, TimeWindow } from '@/services/admin/kpiDashboardTypes';
 
@@ -16,13 +16,8 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
 
   try {
-    const authResult = await verifyAdminAuth(request);
-    if (!authResult || !authResult.authorized) {
-      return NextResponse.json(
-        { error: 'Não autorizado', code: 'UNAUTHORIZED' },
-        { status: 401 }
-      );
-    }
+    const authResult = await requireAdminPermission(request, 'dashboard.read');
+    if ('error' in authResult) return authResult.error;
 
     const { searchParams } = new URL(request.url);
     const windowParam = searchParams.get('window');

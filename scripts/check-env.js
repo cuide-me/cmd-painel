@@ -5,6 +5,8 @@
  * Execute: node scripts/check-env.js
  */
 
+require('dotenv').config({ path: '.env.local' });
+
 const requiredEnvVars = {
   server: [
     {
@@ -82,8 +84,7 @@ requiredEnvVars.server.forEach((entry) => {
     console.log(`  ❌ ${entry.label} - FALTANDO (${entry.keys.join(' | ')})`);
     hasErrors = true;
   } else {
-    const preview = resolved.value.length > 30 ? resolved.value.substring(0, 30) + '...' : resolved.value;
-    console.log(`  ✅ ${entry.label} - OK via ${resolved.key} (${preview})`);
+    console.log(`  ✅ ${entry.label} - OK via ${resolved.key}`);
   }
 });
 

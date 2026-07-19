@@ -9,6 +9,7 @@ import { getAuth } from 'firebase-admin/auth';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirebaseAdmin } from './firebaseAdmin';
+import { getAdminRole, hasAdminPermission, type AdminPermission, type AdminRole } from '@/modules/shared/auth/permissions';
 
 // NOTE: Firebase Admin is lazy-loaded on first use, not at module load time
 // This prevents build-time initialization which fails on Vercel
@@ -26,6 +27,10 @@ export interface AdminAuthResult {
   authorized: boolean;
   uid?: string;
   decodedToken?: DecodedIdToken;
+}
+
+export interface AdminPermissionResult extends AuthResult {
+  role: AdminRole;
 }
 
 /**
@@ -192,4 +197,32 @@ export async function requireAdmin(request: NextRequest): Promise<AuthResult | A
   }
 
   return authResult;
+}
+
+/**
+ * Validates an authenticated admin identity and an explicit administrative action.
+ * The existing `admin` claim remains fully privileged for backward compatibility.
+ */
+export async function requireAdminPermission(
+  request: NextRequest,
+  permission: AdminPermission
+): Promise<AdminPermissionResult | AuthError> {
+  const authResult = await requireAdmin(request);
+
+  if ('error' in authResult) {
+    return authResult;
+  }
+
+  const role = getAdminRole(authResult.decodedToken as Record<string, unknown>) || 'admin';
+
+  if (!hasAdminPermission(role, permission)) {
+    return {
+      error: NextResponse.json(
+        { error: 'forbidden', message: 'Permission denied' },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { ...authResult, role };
 }

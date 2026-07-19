@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+:root {
+  --cm-brand: #2563eb;
+  --cm-brand-strong: #1d4ed8;
+  --cm-canvas: #f8fafc;
+  --cm-surface: #ffffff;
+  --cm-text: #0f172a;
+  --cm-text-muted: #475569;
+  --cm-border: #cbd5e1;
+  --cm-focus: #1d4ed8;
+}
+
 @layer base {
   * {
     margin: 0;
@@ -14,8 +25,15 @@
   body {
     margin: 0;
     padding: 0;
+    background: var(--cm-canvas);
+    color: var(--cm-text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--cm-focus);
+    outline-offset: 2px;
   }
 }
 
@@ -63,6 +81,17 @@
 
 .animate-float {
   animation: float 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .glow-cyan {

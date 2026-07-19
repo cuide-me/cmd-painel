@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminAuth } from '@/lib/server/auth';
+import { requireAdminPermission } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { listJobs } from '@/services/admin/jobs';
 import type { ListJobsParams } from '@/services/admin/jobs';
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyAdminAuth(request);
-    if (!authResult || !authResult.authorized) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const authResult = await requireAdminPermission(request, 'jobs.read');
+    if ('error' in authResult) return authResult.error;
 
     getFirebaseAdmin();
 

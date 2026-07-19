@@ -4,15 +4,11 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { authFetch } from '@/lib/client/authFetch';
-import type { KpiDashboardResponse, AlertItem as DashboardAlertItem } from '@/services/admin/kpiDashboardTypes';
-import type { AlertSeverity, AlertStatus, AlertType, AlertsResponse, OperationalAlert } from '@/services/admin/alerts';
-
-type AlertsFiltersState = {
-  severityFilter: AlertSeverity | 'all';
-  typeFilter: AlertType | 'all';
-  statusFilter: AlertStatus | 'all';
-  searchTerm?: string;
-};
+import type { KpiDashboardResponse } from '@/services/admin/kpiDashboardTypes';
+import type { AlertSeverity, AlertsResponse } from '@/services/admin/alerts';
+import { AlertSummaryCard, AlertsExecutiveSummary } from '@/modules/alerts/components/AlertsExecutiveSummary';
+import { AlertsFiltersPanel, type AlertsFiltersState } from '@/modules/alerts/components/AlertsFiltersPanel';
+import { AffectedItemsList, DashboardAlertsList, OperationalAlertsList } from '@/modules/alerts/components/AlertsResults';
 
 const DEFAULT_FILTERS: AlertsFiltersState = {
   severityFilter: 'all',
@@ -27,69 +23,10 @@ const severityOrder: Record<AlertSeverity, number> = {
   info: 2,
 };
 
-function severityClass(severity: AlertSeverity | DashboardAlertItem['severity']) {
-  if (severity === 'critical') return 'border-red-200 bg-red-50 text-red-700';
-  if (severity === 'warning') return 'border-amber-200 bg-amber-50 text-amber-700';
-  return 'border-slate-200 bg-slate-50 text-slate-700';
-}
-
-function statusClass(status: AlertStatus) {
-  if (status === 'resolved') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  if (status === 'acknowledged') return 'border-sky-200 bg-sky-50 text-sky-700';
-  return 'border-red-200 bg-red-50 text-red-700';
-}
-
 function freshnessClass(status: 'fresh' | 'stale' | 'unavailable') {
   if (status === 'fresh') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   if (status === 'stale') return 'border-amber-200 bg-amber-50 text-amber-700';
   return 'border-red-200 bg-red-50 text-red-700';
-}
-
-function severityLabel(severity: AlertSeverity | DashboardAlertItem['severity']) {
-  if (severity === 'critical') return 'Critico';
-  if (severity === 'warning') return 'Atencao';
-  return 'Informativo';
-}
-
-function statusLabel(status: AlertStatus) {
-  if (status === 'resolved') return 'Resolvido';
-  if (status === 'acknowledged') return 'Reconhecido';
-  return 'Aberto';
-}
-
-function typeLabel(type: AlertType) {
-  if (type === 'liquidity_marketplace') return 'Liquidez e marketplace';
-  if (type === 'trust_experience') return 'Confianca e experiencia';
-  if (type === 'service_desk_support') return 'Service desk e suporte';
-  if (type === 'payment_financial') return 'Pagamento e financeiro';
-  if (type === 'data_integrity') return 'Integridade de dados';
-  return 'Outras excecoes';
-}
-
-function sourceLabel(source: OperationalAlert['source']) {
-  if (source === 'jobs') return 'Firebase jobs';
-  if (source === 'tickets') return 'Tickets';
-  return 'Stripe';
-}
-
-function blockLabelForDashboardAlert(alert: DashboardAlertItem): string {
-  if (alert.metricId === 'requests_without_proposal_rate') return 'Bloco 4 — Liquidez e marketplace';
-  if (alert.metricId === 'refund_rate' || alert.metricId === 'cancellation_rate') return 'Bloco 5 — Confianca e experiencia';
-  if (alert.metricId === 'proposal_acceptance_rate' || alert.metricId === 'avg_accept_to_payment_hours') return 'Bloco 3 — Saude operacional';
-  return 'Bloco 6 — Alertas e excecoes';
-}
-
-function blockLabelForOperationalAlert(alert: OperationalAlert): string {
-  if (alert.type === 'liquidity_marketplace') return 'Bloco 4 — Liquidez e marketplace';
-  if (alert.type === 'trust_experience') return 'Bloco 5 — Confianca e experiencia';
-  if (alert.type === 'payment_financial') {
-    return alert.title.toLowerCase().includes('reembolso')
-      ? 'Bloco 5 — Confianca e experiencia'
-      : 'Bloco 3 — Saude operacional';
-  }
-  if (alert.type === 'service_desk_support') return 'Bloco 6 — Alertas e excecoes';
-  if (alert.type === 'data_integrity') return 'Integridade da base';
-  return 'Outras excecoes';
 }
 
 function formatDateTime(value?: string | null): string {
@@ -132,92 +69,6 @@ function SectionBlock({
       </div>
       {children}
     </section>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  tone,
-  helper,
-}: {
-  label: string;
-  value: string | number;
-  tone: 'neutral' | 'critical' | 'warning' | 'info';
-  helper: string;
-}) {
-  const toneClass =
-    tone === 'critical'
-      ? 'border-red-200 bg-red-50 text-red-700'
-      : tone === 'warning'
-        ? 'border-amber-200 bg-amber-50 text-amber-700'
-        : tone === 'info'
-          ? 'border-sky-200 bg-sky-50 text-sky-700'
-          : 'border-slate-200 bg-slate-50 text-slate-700';
-
-  return (
-    <article className={`rounded-2xl border p-4 ${toneClass}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em]">{label}</p>
-      <p className="mt-2 text-2xl font-semibold">{value}</p>
-      <p className="mt-2 text-xs">{helper}</p>
-    </article>
-  );
-}
-
-function DashboardAlertCard({ alert }: { alert: DashboardAlertItem }) {
-  return (
-    <article className={`rounded-2xl border border-l-4 bg-slate-50 p-4 ${alert.severity === 'critical' ? 'border-l-red-500' : alert.severity === 'warning' ? 'border-l-amber-500' : 'border-l-slate-400'} border-slate-200`}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">{alert.title}</h3>
-            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${severityClass(alert.severity)}`}>
-              {severityLabel(alert.severity)}
-            </span>
-            <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
-              {blockLabelForDashboardAlert(alert)}
-            </span>
-          </div>
-          <p className="mt-2 text-sm text-slate-600">{alert.description}</p>
-          <p className="mt-2 text-xs text-slate-500">Fonte: {alert.source.join(' + ')}</p>
-        </div>
-        <div className="max-w-sm text-sm text-slate-700">
-          <p className="font-medium text-slate-900">Acao esperada</p>
-          <p className="mt-1">{alert.expectedAction}</p>
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function OperationalAlertCard({ alert }: { alert: OperationalAlert }) {
-  return (
-    <article className={`rounded-2xl border border-l-4 bg-slate-50 p-4 ${alert.severity === 'critical' ? 'border-l-red-500' : alert.severity === 'warning' ? 'border-l-amber-500' : 'border-l-slate-400'} border-slate-200`}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="max-w-3xl">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">{alert.title}</h3>
-            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${severityClass(alert.severity)}`}>
-              {severityLabel(alert.severity)}
-            </span>
-            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(alert.status)}`}>
-              {statusLabel(alert.status)}
-            </span>
-            <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
-              {blockLabelForOperationalAlert(alert)}
-            </span>
-          </div>
-          <p className="mt-2 text-sm text-slate-600">{alert.description || 'Sem descricao adicional.'}</p>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-            <span>Tipo: {typeLabel(alert.type)}</span>
-            <span>Fonte: {sourceLabel(alert.source)}</span>
-            <span>Ultima deteccao: {formatDateTime(alert.lastDetectedAt)}</span>
-            <span>Ocorrencias: {alert.count.toLocaleString('pt-BR')}</span>
-          </div>
-          {alert.actionHint ? <p className="mt-3 text-sm text-slate-700"><span className="font-medium text-slate-900">Acao sugerida:</span> {alert.actionHint}</p> : null}
-        </div>
-      </div>
-    </article>
   );
 }
 
@@ -382,12 +233,12 @@ export default function AdminAlertasPage() {
         title="Leitura executiva de excecao"
         description="Cards para priorizacao rapida. Eles nao substituem a lista detalhada, apenas orientam o que precisa de acao imediata."
       >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard label="Abertos" value={alertsData.summary.open} tone="critical" helper="Excecoes operacionais ainda sem resolucao." />
-          <SummaryCard label="Criticos" value={alertsData.summary.bySeverity.critical} tone="critical" helper="Itens com impacto mais alto e resposta prioritaria." />
-          <SummaryCard label="Cancelamento e reembolso" value={cancellationAndRefundAlerts.length} tone="warning" helper="Sinais diretos de friccao, quebra de confianca ou perda financeira." />
-          <SummaryCard label="Sem proposta e liquidez" value={liquidityAlerts.length} tone="info" helper="Fila, cobertura insuficiente e gargalo de matching." />
-        </div>
+        <AlertsExecutiveSummary
+          openAlerts={alertsData.summary.open}
+          criticalAlerts={alertsData.summary.bySeverity.critical}
+          cancellationAndRefundAlerts={cancellationAndRefundAlerts.length}
+          liquidityAlerts={liquidityAlerts.length}
+        />
       </SectionBlock>
 
       <SectionBlock
@@ -429,149 +280,35 @@ export default function AdminAlertasPage() {
         title="Alertas coerentes com a home"
         description="A mesma camada de excecao mostrada na home aparece aqui primeiro, para manter coerencia entre os blocos e a trilha detalhada."
       >
-        <div className="space-y-3">
-          {dashboardPriorityAlerts.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              Nenhum alerta prioritario vindo da home nesta janela.
-            </div>
-          ) : (
-            dashboardPriorityAlerts.map((alert) => <DashboardAlertCard key={alert.id} alert={alert} />)
-          )}
-        </div>
+        <DashboardAlertsList alerts={dashboardPriorityAlerts} />
       </SectionBlock>
 
       <SectionBlock
         title="Filtros operacionais"
         description="Os filtros atuam sobre a lista detalhada de excecoes reais. Nao existe grafico sintetico aqui porque o objetivo e decidir o que atacar, nao criar volume visual."
       >
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <select
-            value={filters.severityFilter}
-            onChange={(event) => setFilters((previous) => ({ ...previous, severityFilter: event.target.value as AlertsFiltersState['severityFilter'] }))}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
-          >
-            <option value="all">Severidade: todas</option>
-            <option value="critical">Critico</option>
-            <option value="warning">Atencao</option>
-            <option value="info">Info</option>
-          </select>
-
-          <select
-            value={filters.typeFilter}
-            onChange={(event) => setFilters((previous) => ({ ...previous, typeFilter: event.target.value as AlertsFiltersState['typeFilter'] }))}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
-          >
-            <option value="all">Tipo: todos</option>
-            <option value="liquidity_marketplace">Liquidez e marketplace</option>
-            <option value="trust_experience">Confianca e experiencia</option>
-            <option value="payment_financial">Pagamento e financeiro</option>
-            <option value="service_desk_support">Service desk e suporte</option>
-            <option value="data_integrity">Integridade de dados</option>
-            <option value="other_exceptions">Outras excecoes</option>
-          </select>
-
-          <select
-            value={filters.statusFilter}
-            onChange={(event) => setFilters((previous) => ({ ...previous, statusFilter: event.target.value as AlertsFiltersState['statusFilter'] }))}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
-          >
-            <option value="all">Status: todos</option>
-            <option value="open">Aberto</option>
-            <option value="acknowledged">Reconhecido</option>
-            <option value="resolved">Resolvido</option>
-          </select>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') applySearch();
-              }}
-              placeholder="Buscar titulo, contexto ou regiao"
-              className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
-            />
-            <button onClick={applySearch} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              Buscar
-            </button>
-            <button onClick={clearFilters} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              Limpar
-            </button>
-          </div>
-        </div>
+        <AlertsFiltersPanel
+          filters={filters}
+          searchInput={searchInput}
+          onFiltersChange={setFilters}
+          onSearchInputChange={setSearchInput}
+          onSearch={applySearch}
+          onClear={clearFilters}
+        />
       </SectionBlock>
 
       <SectionBlock
         title="Fila priorizada de excecoes"
         description="Lista principal para acao. Severidade, bloco afetado, contexto e acao sugerida aparecem acima de qualquer detalhe secundario."
       >
-        <div className="space-y-3">
-          {sortedOperationalAlerts.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              Nenhuma excecao operacional para os filtros atuais.
-            </div>
-          ) : (
-            sortedOperationalAlerts.map((alert) => <OperationalAlertCard key={alert.id} alert={alert} />)
-          )}
-        </div>
+        <OperationalAlertsList alerts={sortedOperationalAlerts} />
       </SectionBlock>
 
       <SectionBlock
         title="Itens afetados"
         description="Tabela operacional detalhada apenas para leitura de caso e priorizacao fina. Ela complementa os cards, nao compete com eles."
       >
-        {sortedOperationalAlerts.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-            Nenhum item afetado para exibir na tabela detalhada.
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {sortedOperationalAlerts.map((alert) => (
-              <div key={`${alert.id}-details`} className="overflow-x-auto rounded-2xl border border-slate-200">
-                <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-semibold text-slate-900">{alert.title}</h3>
-                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${severityClass(alert.severity)}`}>
-                      {severityLabel(alert.severity)}
-                    </span>
-                    <span className="inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600">
-                      {typeLabel(alert.type)}
-                    </span>
-                  </div>
-                </div>
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                      <th className="px-3 py-3">Item afetado</th>
-                      <th className="px-3 py-3">Contexto</th>
-                      <th className="px-3 py-3">Regiao</th>
-                      <th className="px-3 py-3">Ocorrido em</th>
-                      <th className="px-3 py-3">Metadata</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {alert.affectedItems.map((item) => (
-                      <tr key={`${alert.id}-${item.id}`} className="border-b border-slate-100 align-top">
-                        <td className="px-3 py-3 text-slate-900">{item.label}</td>
-                        <td className="px-3 py-3 text-slate-700">{item.context || 'Nao informado'}</td>
-                        <td className="px-3 py-3 text-slate-700">{item.region || 'Nao informado'}</td>
-                        <td className="px-3 py-3 text-slate-700">{formatDateTime(item.occurredAt)}</td>
-                        <td className="px-3 py-3 text-slate-600">
-                          {item.metadata
-                            ? Object.entries(item.metadata)
-                                .map(([key, value]) => `${key}: ${value ?? 'NA'}`)
-                                .join(' | ')
-                            : 'Nao informado'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
-        )}
+        <AffectedItemsList alerts={sortedOperationalAlerts} />
       </SectionBlock>
 
       <SectionBlock
@@ -579,10 +316,10 @@ export default function AdminAlertasPage() {
         description="Mapeamento explicito para evitar nomenclatura solta, visualizacao generica ou leitura desconectada da home."
       >
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard label="Home -> funil" value={dashboardPriorityAlerts.length} tone="neutral" helper="Alertas canonicos herdados da home para manter a mesma hierarquia de excecao." />
-          <SummaryCard label="Operacionais abertos" value={openOperationalAlerts.length} tone="critical" helper="Fila real de excecoes ainda sem fechamento operacional." />
-          <SummaryCard label="Pagamento e financeiro" value={alertsData.summary.byType.payment_financial} tone="warning" helper="Falha, pendencia e friccao de pagamento alinhadas ao Bloco 3 e ao Bloco 5." />
-          <SummaryCard label="Liquidez e marketplace" value={alertsData.summary.byType.liquidity_marketplace} tone="info" helper="Sem proposta, fila e cobertura insuficiente alinhadas ao Bloco 4." />
+          <AlertSummaryCard label="Home -> funil" value={dashboardPriorityAlerts.length} tone="neutral" helper="Alertas canonicos herdados da home para manter a mesma hierarquia de excecao." />
+          <AlertSummaryCard label="Operacionais abertos" value={openOperationalAlerts.length} tone="critical" helper="Fila real de excecoes ainda sem fechamento operacional." />
+          <AlertSummaryCard label="Pagamento e financeiro" value={alertsData.summary.byType.payment_financial} tone="warning" helper="Falha, pendencia e friccao de pagamento alinhadas ao Bloco 3 e ao Bloco 5." />
+          <AlertSummaryCard label="Liquidez e marketplace" value={alertsData.summary.byType.liquidity_marketplace} tone="info" helper="Sem proposta, fila e cobertura insuficiente alinhadas ao Bloco 4." />
         </div>
       </SectionBlock>
     </div>

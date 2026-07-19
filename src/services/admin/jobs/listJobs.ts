@@ -6,27 +6,9 @@ import { type QueryDocumentSnapshot, type DocumentSnapshot } from 'firebase-admi
 import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { normalizeJobStatus, type NormalizedJobStatus, hasJobProfessional } from '../statusNormalizer';
 import { hoursSince, toDate } from '@/lib/admin/dateHelpers';
+import { getJobClientId, getJobProfessionalId } from '@/modules/shared/domain/job-fields';
+import { cleanText, containsText, getDisplayName } from '@/modules/shared/domain/text';
 import type { AdminJobRow, ListJobsParams, ListJobsResult } from './types';
-
-function buildUserName(data: Record<string, any> | undefined): string {
-  if (!data) return 'Nao informado';
-  const nome = data.nome || data.displayName || data.name;
-  const sobrenome = data.sobrenome || data.lastName;
-  if (nome && sobrenome) return `${nome} ${sobrenome}`;
-  return nome || 'Nao informado';
-}
-
-function cleanText(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : undefined;
-}
-
-function containsText(value: string | undefined, term: string | undefined): boolean {
-  if (!term) return true;
-  if (!value) return false;
-  return value.toLowerCase().includes(term.toLowerCase());
-}
 
 function toCreatedAtIso(value: unknown): string | null {
   const parsed = toDate(value);
@@ -126,8 +108,8 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
   // Coletar ids de usuarios
   const userIds = new Set<string>();
   jobsRaw.forEach((job) => {
-    const clienteId = job.clientId || job.familyId || job.clienteId || job.userId;
-    const profissionalId = job.professionalId || job.specialistId || job.profissionalId;
+    const clienteId = getJobClientId(job);
+    const profissionalId = getJobProfessionalId(job);
     if (clienteId) userIds.add(clienteId);
     if (profissionalId) userIds.add(profissionalId);
   });
@@ -135,11 +117,13 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
   const usersMap = await fetchUsersByIds(Array.from(userIds));
 
   const mappedJobs: AdminJobRow[] = jobsRaw.map((job) => {
-    const clienteId = job.clientId || job.familyId || job.clienteId || job.userId;
-    const profissionalId = job.professionalId || job.specialistId || job.profissionalId;
+    const clienteId = getJobClientId(job);
+    const profissionalId = getJobProfessionalId(job);
+    const cliente = clienteId ? usersMap.get(clienteId) : undefined;
+    const profissional = profissionalId ? usersMap.get(profissionalId) : undefined;
 
-    const clienteNome = buildUserName(usersMap.get(clienteId));
-    const profissionalNome = buildUserName(usersMap.get(profissionalId));
+    const clienteNome = getDisplayName(cliente);
+    const profissionalNome = getDisplayName(profissional);
 
     const statusRaw = cleanText(job.status);
     const status = normalizeJobStatus(statusRaw || 'pending');
@@ -150,9 +134,9 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
     const criticality = resolveCriticality(status, hasProfessional, agingHours);
 
     const location = job.location || {};
-    const cidade = cleanText(location.cidade) || cleanText(usersMap.get(clienteId)?.cidade);
-    const estado = cleanText(location.estado) || cleanText(usersMap.get(clienteId)?.estado);
-    const bairro = cleanText(location.bairro) || cleanText(location.neighborhood) || cleanText(usersMap.get(clienteId)?.bairro);
+    const cidade = cleanText(location.cidade) || cleanText(cliente?.cidade);
+    const estado = cleanText(location.estado) || cleanText(cliente?.estado);
+    const bairro = cleanText(location.bairro) || cleanText(location.neighborhood) || cleanText(cliente?.bairro);
     const regiao =
       cleanText(location.regiao) ||
       cleanText(location.region) ||

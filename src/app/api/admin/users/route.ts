@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminAuth } from '@/lib/server/auth';
+import { requireAdminPermission } from '@/lib/server/auth';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { listUsers } from '@/services/admin/users';
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await verifyAdminAuth(request);
-    if (!authResult || !authResult.authorized) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const authResult = await requireAdminPermission(request, 'users.read');
+    if ('error' in authResult) return authResult.error;
     
     getFirebaseAdmin();
 
@@ -18,7 +16,6 @@ export async function GET(request: NextRequest) {
     const perfilFilter = searchParams.get('perfil');
     const searchTerm = searchParams.get('search');
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const params: any = {};
     if (pageSize) params.pageSize = parseInt(pageSize);
     if (perfilFilter) params.perfilFilter = perfilFilter;
