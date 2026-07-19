@@ -2,6 +2,8 @@
  * Logger utility for structured logging
  */
 
+import { redactSensitiveData } from '@/lib/observability/redact';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface LogEntry {
@@ -40,8 +42,10 @@ class Logger {
       level,
       message,
       timestamp: new Date().toISOString(),
-      context,
-      error,
+      context: context ? redactSensitiveData(context) : undefined,
+      error: error
+        ? new Error(redactSensitiveData(error.message))
+        : undefined,
     };
 
     const output = JSON.stringify(entry);

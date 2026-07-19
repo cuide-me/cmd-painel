@@ -6,6 +6,8 @@
  * Substitui console.log/error/warn com logs JSON
  */
 
+import { redactSensitiveData } from '@/lib/observability/redact';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
 export interface LogMetadata {
@@ -65,14 +67,14 @@ class Logger {
     }
 
     if (metadata) {
-      entry.metadata = metadata;
+      entry.metadata = redactSensitiveData(metadata);
     }
 
     if (error) {
       entry.error = {
-        message: error.message,
+        message: redactSensitiveData(error.message),
         name: error.name,
-        stack: error.stack,
+        stack: error.stack ? redactSensitiveData(error.stack) : undefined,
       };
     }
 

@@ -1,14 +1,15 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useId, useState } from 'react';
 
 interface TooltipProps {
-  content: string;
+  content: ReactNode;
   children?: ReactNode;
 }
 
 export function Tooltip({ content, children }: TooltipProps) {
   const [show, setShow] = useState(false);
+  const tooltipId = useId();
 
   return (
     <div className="relative inline-block">
@@ -16,13 +17,18 @@ export function Tooltip({ content, children }: TooltipProps) {
         type="button"
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
         onClick={() => setShow(!show)}
-        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 hover:bg-blue-500 hover:text-white text-slate-600 text-xs transition-colors cursor-help"
+        aria-label="Mais informações"
+        aria-describedby={show ? tooltipId : undefined}
+        aria-expanded={show}
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-xs text-slate-700 transition-colors hover:bg-blue-700 hover:text-white"
       >
         {children || 'i'}
       </button>
       {show && (
-        <div className="absolute z-50 w-64 p-2 text-xs text-white bg-slate-900 rounded-lg shadow-lg -top-2 left-6 transform -translate-y-full">
+        <div id={tooltipId} role="tooltip" className="absolute z-50 w-64 -translate-y-full rounded-lg bg-slate-900 p-2 text-xs text-white shadow-lg -top-2 left-6">
           <div className="relative">
             {content}
             <div className="absolute w-2 h-2 bg-slate-900 transform rotate-45 -bottom-1 left-2"></div>
@@ -107,14 +113,17 @@ export function Card({ children, className = '', padding = 'md', onClick }: Card
     lg: 'p-6'
   };
 
-  return (
-    <div
-      className={`bg-white rounded-lg border border-slate-200 ${paddingClasses[padding]} ${className}`}
-      onClick={onClick}
-    >
-      {children}
-    </div>
-  );
+  const classes = `rounded-lg border border-slate-200 bg-white ${paddingClasses[padding]} ${onClick ? 'cursor-pointer transition-shadow hover:shadow-md' : ''} ${className}`;
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`block w-full text-left ${classes}`}>
+        {children}
+      </button>
+    );
+  }
+
+  return <div className={classes}>{children}</div>;
 }
 
 interface ButtonProps {
@@ -136,11 +145,11 @@ export function Button({
   fullWidth = false,
   className = ''
 }: ButtonProps) {
-  const baseClasses = 'font-medium rounded-lg transition-all inline-flex items-center justify-center';
+  const baseClasses = 'inline-flex items-center justify-center rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60';
 
   const variantClasses = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-300',
-    secondary: 'bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300 disabled:bg-slate-50',
+    primary: 'bg-blue-700 text-white hover:bg-blue-800 active:bg-blue-900',
+    secondary: 'bg-slate-100 text-slate-800 hover:bg-slate-200 active:bg-slate-300',
     ghost: 'text-slate-700 hover:bg-slate-100 active:bg-slate-200'
   };
 
@@ -168,11 +177,11 @@ interface BadgeProps {
 
 export function Badge({ children, variant = 'neutral' }: BadgeProps) {
   const variantClasses = {
-    success: 'bg-green-100 text-green-700 border-green-200',
-    warning: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    error: 'bg-red-100 text-red-700 border-red-200',
-    info: 'bg-blue-100 text-blue-700 border-blue-200',
-    neutral: 'bg-slate-100 text-slate-700 border-slate-200'
+    success: 'border-emerald-300 bg-emerald-100 text-emerald-900',
+    warning: 'border-amber-300 bg-amber-100 text-amber-900',
+    error: 'border-rose-300 bg-rose-100 text-rose-900',
+    info: 'border-blue-300 bg-blue-100 text-blue-900',
+    neutral: 'border-slate-300 bg-slate-100 text-slate-800'
   };
 
   return (
@@ -190,13 +199,14 @@ interface TableProps {
 
 export function Table({ headers, rows, compact = false }: TableProps) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
+    <div className="overflow-x-auto" tabIndex={0} aria-label="Área rolável da tabela">
+      <table className="w-full text-left">
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50">
             {headers.map((header, i) => (
               <th
-                key={i}
+                key={`${header}-${i}`}
+                scope="col"
                 className={`text-left text-xs font-semibold text-slate-700 uppercase tracking-wide ${
                   compact ? 'px-3 py-2' : 'px-4 py-3'
                 }`}
@@ -208,7 +218,7 @@ export function Table({ headers, rows, compact = false }: TableProps) {
         </thead>
         <tbody className="divide-y divide-slate-100">
           {rows.map((row, i) => (
-            <tr key={i} className="hover:bg-slate-50 transition-colors">
+            <tr key={i} className="transition-colors hover:bg-slate-50">
               {row.map((cell, j) => (
                 <td
                   key={j}
@@ -242,11 +252,13 @@ interface TabsProps {
 export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
   return (
     <div className="border-b border-slate-200 mb-6">
-      <nav className="flex gap-6">
+      <nav className="flex gap-6" aria-label="Abas">
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            type="button"
             onClick={() => onChange(tab.id)}
+            aria-current={activeTab === tab.id ? 'page' : undefined}
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.id
                 ? 'border-blue-600 text-blue-600'
@@ -281,13 +293,13 @@ interface EmptyStateProps {
 export function EmptyState({ icon = '📭', title, description, action, onAction }: EmptyStateProps) {
   return (
     <div className="text-center py-12">
-      <div className="text-5xl mb-3">{icon}</div>
+      <div className="mb-3 text-5xl" aria-hidden="true">{icon}</div>
       <h3 className="text-base font-semibold text-slate-900 mb-1">{title}</h3>
       {description && <p className="text-sm text-slate-600 mb-4">{description}</p>}
       {action && (
         <button
           onClick={onAction}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-800"
         >
           {action}
         </button>

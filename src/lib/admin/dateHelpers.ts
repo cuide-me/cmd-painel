@@ -6,39 +6,14 @@
  */
 
 import { Timestamp } from 'firebase-admin/firestore';
+import { toDate } from '@/modules/shared/domain/date';
+
+export { toDate } from '@/modules/shared/domain/date';
 
 /**
  * Converte qualquer tipo de data para Date
  */
-export function toDate(value: any): Date | null {
-  if (!value) return null;
-  
-  if (value instanceof Date) return value;
-  
-  // Timestamp Firestore
-  if (value?.toDate && typeof value.toDate === 'function') {
-    return value.toDate();
-  }
-  
-  // String ISO
-  if (typeof value === 'string') {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  
-  // Unix timestamp (seconds)
-  if (typeof value === 'number') {
-    // Se for muito grande, é milliseconds
-    const timestamp = value > 10000000000 ? value : value * 1000;
-    return new Date(timestamp);
-  }
-  
-  return null;
-}
-
-/**
- * Calcula diferença em horas entre duas datas
- */
+/** Calcula diferença em horas entre duas datas. */
 export function hoursBetween(start: any, end: any): number | null {
   const startDate = toDate(start);
   const endDate = toDate(end);

@@ -26,8 +26,8 @@ export default function LoadingState({
   };
 
   const spinner = (
-    <div className="flex flex-col items-center justify-center gap-3">
-      <div className={`${sizeClasses[size]} animate-spin`}>
+    <div className="flex flex-col items-center justify-center gap-3" role="status" aria-live="polite">
+      <div className={`${sizeClasses[size]} animate-spin`} aria-hidden="true">
         <svg 
           className="text-blue-600" 
           xmlns="http://www.w3.org/2000/svg" 
@@ -54,6 +54,7 @@ export default function LoadingState({
           {text}
         </p>
       )}
+      <span className="sr-only">{text}</span>
     </div>
   );
 
@@ -75,7 +76,7 @@ export default function LoadingState({
 // Skeleton para tabelas
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="animate-pulse space-y-3">
+    <div className="animate-pulse space-y-3" role="status" aria-label="Carregando tabela">
       {/* Header */}
       <div className="h-10 bg-gray-200 rounded"></div>
       
@@ -90,7 +91,7 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
 // Skeleton para cards
 export function CardSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" role="status" aria-label="Carregando cartões">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="animate-pulse">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
@@ -106,18 +107,20 @@ export function CardSkeleton({ count = 3 }: { count?: number }) {
 
 // Skeleton para gráficos
 export function ChartSkeleton({ height = 300 }: { height?: number }) {
+  const barHeights = [38, 62, 45, 76, 54, 68];
+
   return (
-    <div className="animate-pulse">
+    <div className="animate-pulse" role="status" aria-label="Carregando gráfico">
       <div 
         className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-end justify-around p-6" 
         style={{ height: `${height}px` }}
       >
-        {Array.from({ length: 6 }).map((_, i) => (
+        {barHeights.map((barHeight, i) => (
           <div 
             key={i} 
             className="bg-gray-300 rounded-t w-12" 
-            style={{ height: `${Math.random() * 80 + 20}%` }}
-          ></div>
+            style={{ height: `${barHeight}%` }}
+          />
         ))}
       </div>
     </div>
@@ -127,7 +130,7 @@ export function ChartSkeleton({ height = 300 }: { height?: number }) {
 // Skeleton para KPIs
 export function KpiSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4" role="status" aria-label="Carregando indicadores">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="animate-pulse">
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-3">

@@ -2,6 +2,7 @@ import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getStorage } from 'firebase-admin/storage';
 import { getStripeClient } from '@/lib/server/stripe';
+import { cache } from '@/lib/cache';
 import { isJobCompleted, isJobCancelled } from '../statusNormalizer';
 import type { AdminUserRow, ListUsersParams, ListUsersResult } from './types';
 
@@ -55,31 +56,23 @@ async function getStripeAccountStatus(stripeAccountId: string): Promise<string> 
     return 'Desconhecida';
   }
 
-  try {
-    const stripe = getStripeClient();
-    const account = await stripe.accounts.retrieve(stripeAccountId);
+  return cache.getOrFetch(`admin:stripe-account:${stripeAccountId}`, async () => {
+    try {
+      const stripe = getStripeClient();
+      const account = await stripe.accounts.retrieve(stripeAccountId);
 
-    // Verifica se a conta pode receber pagamentos
-    if (account.charges_enabled && account.payouts_enabled) {
-      return 'Ativada';
+      if (account.charges_enabled && account.payouts_enabled) return 'Ativada';
+      if (account.requirements?.currently_due?.length && account.requirements.currently_due.length > 0) {
+        return 'Pendente';
+      }
+      if (account.requirements?.disabled_reason) return 'Restrita';
+
+      return 'Incompleta';
+    } catch (error) {
+      console.warn(`[Stripe] Erro ao buscar conta ${stripeAccountId}:`, error);
+      return 'Erro';
     }
-
-    // Verifica se está pendente de informações
-    if (account.requirements?.currently_due?.length && account.requirements.currently_due.length > 0) {
-      return 'Pendente';
-    }
-
-    // Verifica se está restrita
-    if (account.requirements?.disabled_reason) {
-      return 'Restrita';
-    }
-
-    // Padrão: incompleta
-    return 'Incompleta';
-  } catch (error) {
-    console.warn(`[Stripe] Erro ao buscar conta ${stripeAccountId}:`, error);
-    return 'Erro';
-  }
+  }, 60);
 }
 
 /**
@@ -217,7 +210,6 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
     console.warn('[listUsers] Erro ao agregar tickets:', error);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const usersPromises = snapshot.docs.map(async (doc: any) => {
     const data = doc.data();
     const nome =

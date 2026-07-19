@@ -7,6 +7,7 @@ import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { hoursSince } from '@/lib/admin/dateHelpers';
 import { normalizeTicketStatus } from '../statusNormalizer';
+import { cache } from '@/lib/cache';
 import type { TicketItem, TicketsResponse, TicketPriority, TicketStatus } from './types';
 
 function calculatePriority(ticket: TicketItem): TicketPriority {
@@ -27,7 +28,7 @@ function calculatePriority(ticket: TicketItem): TicketPriority {
   return 'baixa';
 }
 
-export async function listTickets(windowDays: number = 30): Promise<TicketsResponse> {
+async function listTicketsUncached(windowDays: number): Promise<TicketsResponse> {
   const app = getFirebaseAdmin();
   const db = getFirestore();
 
@@ -69,4 +70,13 @@ export async function listTickets(windowDays: number = 30): Promise<TicketsRespo
     tickets,
     timestamp: new Date().toISOString(),
   };
+}
+
+export async function listTickets(windowDays: number = 30): Promise<TicketsResponse> {
+  const normalizedWindowDays = Math.min(Math.max(windowDays, 1), 90);
+  return cache.getOrFetch(
+    `admin:tickets:${normalizedWindowDays}`,
+    () => listTicketsUncached(normalizedWindowDays),
+    60
+  );
 }

@@ -1,4 +1,5 @@
-export type TimeWindow = 7 | 14 | 30 | 60 | 90;
+export type { TimeWindow } from '@/modules/shared/domain/time-window';
+import type { TimeWindow } from '@/modules/shared/domain/time-window';
 export type DataSourceKey = 'ga4' | 'firebase' | 'stripe';
 export type HealthStatus = 'ok' | 'warning' | 'critical' | 'info';
 export type DashboardZoneKey = 'norte' | 'sul' | 'leste' | 'oeste';

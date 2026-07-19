@@ -3,39 +3,8 @@
  * Handles both legacy Timestamp format and new ISO string format
  */
 
-/**
- * Convert Firestore date field to JavaScript Date object
- * Supports both Timestamp (.toDate()) and ISO strings
- */
-export function toDate(value: any): Date | null {
-  if (!value) return null;
-
-  // Legacy Timestamp format
-  if (typeof value === 'object' && typeof value.toDate === 'function') {
-    const d = value.toDate();
-    return d instanceof Date && !isNaN(d.getTime()) ? d : null;
-  }
-
-  // ISO string format (current)
-  if (typeof value === 'string') {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? null : d;
-  }
-
-  // Unix timestamp (seconds or milliseconds)
-  if (typeof value === 'number') {
-    const ts = value > 10000000000 ? value : value * 1000;
-    const d = new Date(ts);
-    return isNaN(d.getTime()) ? null : d;
-  }
-
-  // Already a Date object
-  if (value instanceof Date) {
-    return isNaN(value.getTime()) ? null : value;
-  }
-
-  return null;
-}
+export { toDate } from '@/modules/shared/domain/date';
+import { toDate } from '@/modules/shared/domain/date';
 
 /**
  * Get timestamp from Firestore date field

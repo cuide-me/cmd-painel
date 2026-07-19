@@ -4,6 +4,7 @@
 
 import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
+import { cache } from '@/lib/cache';
 import { getStripeClient } from '@/lib/server/stripe';
 import { normalizeJobStatus, isJobCancelled, hasJobProfessional } from '../statusNormalizer';
 import { hoursSince, toDate } from '@/lib/admin/dateHelpers';
@@ -186,7 +187,7 @@ function pushAlert(
   });
 }
 
-export async function listAlerts(params?: ListAlertsParams): Promise<AlertsResponse> {
+async function listAlertsUncached(params?: ListAlertsParams): Promise<AlertsResponse> {
   getFirebaseAdmin();
   const db = getFirestore();
 
@@ -501,4 +502,18 @@ export async function listAlerts(params?: ListAlertsParams): Promise<AlertsRespo
     summary: buildSummary(filteredAlerts),
     items: filteredAlerts,
   };
+}
+
+export async function listAlerts(params?: ListAlertsParams): Promise<AlertsResponse> {
+  const windowDays = params?.windowDays && params.windowDays > 0 ? params.windowDays : 30;
+  const cacheKey = [
+    'admin:alerts',
+    windowDays,
+    params?.severityFilter || 'all',
+    params?.typeFilter || 'all',
+    params?.statusFilter || 'all',
+    params?.searchTerm?.trim().toLowerCase() || '',
+  ].join(':');
+
+  return cache.getOrFetch(cacheKey, () => listAlertsUncached(params), 60);
 }

@@ -2,18 +2,21 @@
 
 import Link from 'next/link';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { authFetch } from '@/lib/client/authFetch';
+import { DashboardAlertsList } from '@/modules/dashboard/components/DashboardAlertsList';
+import { DiagnosticBarList, FunnelVisual, StepBarList } from '@/modules/dashboard/components/DashboardFunnelVisuals';
+import { formatPercentage, formatValue, getComparisonLabel, getNumericMetricValue, MetricCard, statusClass } from '@/modules/dashboard/components/DashboardMetricCard';
+import { DashboardTaxonomyTables } from '@/modules/dashboard/components/DashboardTaxonomyTables';
+import { SourceIntegrityBanner } from '@/modules/dashboard/components/SourceIntegrityBanner';
+import { RegionHeatmap } from '@/modules/dashboard/components/DashboardRegionHeatmap';
+import { ZoneDistributionPieCard } from '@/modules/dashboard/components/DashboardZoneDistribution';
 import type {
-  AlertItem,
   DashboardZoneKey,
   DashboardMetric,
   FunnelStep,
   KpiDashboardResponse,
-  SourceFreshness,
   TimeWindow,
-  ZoneUserDistributionItem,
 } from '@/services/admin/kpiDashboardTypes';
 
 export const dynamic = 'force-dynamic';
@@ -37,64 +40,6 @@ const TIME_METRIC_IDS = [
 
 const FUNNEL_START_STEP_ID = 'care_request_started';
 
-const ZONE_COLORS: Record<DashboardZoneKey, string> = {
-  norte: '#2563eb',
-  sul: '#059669',
-  leste: '#ea580c',
-  oeste: '#dc2626',
-};
-
-function statusClass(status: DashboardMetric['status'] | AlertItem['severity']): string {
-  if (status === 'critical') return 'border-red-200 bg-red-50 text-red-700';
-  if (status === 'warning') return 'border-amber-200 bg-amber-50 text-amber-700';
-  if (status === 'ok') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  return 'border-slate-200 bg-slate-50 text-slate-700';
-}
-
-function freshnessClass(status: SourceFreshness['status']): string {
-  if (status === 'fresh') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  if (status === 'stale') return 'border-amber-200 bg-amber-50 text-amber-700';
-  return 'border-red-200 bg-red-50 text-red-700';
-}
-
-function scopeLabel(scope: DashboardMetric['scope']): string {
-  if (scope === 'executivo') return 'Leitura executiva';
-  if (scope === 'operacional') return 'Leitura operacional';
-  return 'Leitura diagnostica';
-}
-
-function severityLabel(status: DashboardMetric['status'] | AlertItem['severity']): string {
-  if (status === 'critical') return 'Critico';
-  if (status === 'warning') return 'Atencao';
-  if (status === 'ok') return 'Saudavel';
-  return 'Informativo';
-}
-
-function formatValue(metric: DashboardMetric): string {
-  if (metric.value === null) return 'Indisponivel';
-  if (typeof metric.value === 'string') return metric.value;
-
-  if (metric.unit === 'BRL') {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      maximumFractionDigits: 2,
-    }).format(metric.value);
-  }
-
-  const formatted = metric.value.toLocaleString('pt-BR', {
-    minimumFractionDigits: metric.unit ? 1 : 0,
-    maximumFractionDigits: metric.unit ? 1 : 0,
-  });
-
-  return metric.unit ? `${formatted} ${metric.unit}` : formatted;
-}
-
-function formatPercentage(value: number | null): string {
-  if (value === null) return 'Indisponivel';
-  return `${value.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
-}
-
 function formatDateTime(value?: string | null): string {
   if (!value) return 'Sem registro';
   const parsed = new Date(value);
@@ -104,36 +49,6 @@ function formatDateTime(value?: string | null): string {
 
 function formatCount(value: number): string {
   return value.toLocaleString('pt-BR');
-}
-
-function getNumericMetricValue(metric: DashboardMetric): number | null {
-  return typeof metric.value === 'number' && Number.isFinite(metric.value) ? metric.value : null;
-}
-
-function getComparisonLabel(comparison?: DashboardMetric['comparison']): string | null {
-  if (!comparison || comparison.changePercent === null) return null;
-
-  const direction =
-    comparison.direction === 'up'
-      ? 'subiu'
-      : comparison.direction === 'down'
-        ? 'caiu'
-        : 'ficou estavel';
-
-  return `${direction} ${Math.abs(comparison.changePercent).toLocaleString('pt-BR', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  })}% vs janela anterior`;
-}
-
-function getComparisonWidth(comparison?: DashboardMetric['comparison']): number {
-  if (!comparison || comparison.changePercent === null) return 0;
-  return Math.min(Math.abs(comparison.changePercent), 100);
-}
-
-function getComparisonTone(comparison?: DashboardMetric['comparison']): string {
-  if (!comparison || comparison.changePercent === null || comparison.direction === 'stable') return 'bg-slate-400';
-  return comparison.direction === 'down' ? 'bg-rose-500' : 'bg-emerald-500';
 }
 
 function sortMetricsByOrder(metrics: DashboardMetric[], order: readonly string[]): DashboardMetric[] {
@@ -149,20 +64,6 @@ function sortMetricsByOrder(metrics: DashboardMetric[], order: readonly string[]
 function getFunnelStepsFromRequestStarted(steps: FunnelStep[]): FunnelStep[] {
   const startIndex = steps.findIndex((step) => step.id === FUNNEL_START_STEP_ID);
   return startIndex >= 0 ? steps.slice(startIndex) : steps;
-}
-
-function heatColor(value: number, max: number, tone: 'blue' | 'emerald' | 'rose'): string {
-  const palette =
-    tone === 'blue'
-      ? [37, 99, 235]
-      : tone === 'emerald'
-        ? [5, 150, 105]
-        : [225, 29, 72];
-
-  const intensity = max > 0 ? value / max : 0;
-  const alpha = 0.1 + intensity * 0.45;
-
-  return `rgba(${palette[0]}, ${palette[1]}, ${palette[2]}, ${alpha.toFixed(2)})`;
 }
 
 function LoadingState() {
@@ -198,384 +99,6 @@ function SectionBlock({
         </div>
       </div>
       {children}
-    </section>
-  );
-}
-
-function MetricCard({ metric }: { metric: DashboardMetric }) {
-  const comparison = metric.comparison;
-  const comparisonLabel = getComparisonLabel(comparison);
-  const comparisonWidth = getComparisonWidth(comparison);
-
-  return (
-    <article className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{scopeLabel(metric.scope)}</p>
-          <p className="text-sm font-medium text-slate-700">{metric.label}</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">{formatValue(metric)}</p>
-        </div>
-        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(metric.status)}`}>
-          {severityLabel(metric.status)}
-        </span>
-      </div>
-
-      {comparisonLabel ? (
-        <div className="mt-3">
-          <div className="flex items-center justify-between gap-3 text-[11px] text-slate-500">
-            <span>Mini tendencia de apoio</span>
-            <span>{comparisonLabel}</span>
-          </div>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
-            <div className={`h-full rounded-full ${getComparisonTone(comparison)}`} style={{ width: `${comparisonWidth}%` }} />
-          </div>
-        </div>
-      ) : null}
-
-      <p className="mt-3 text-xs text-slate-500">Fonte: {metric.source.join(' + ')}</p>
-      <p className="mt-2 text-xs text-slate-600">{metric.definition}</p>
-      <p className="mt-2 text-xs text-slate-600">Decisao: {metric.decision}</p>
-      <p className="mt-1 text-xs text-slate-600">Acao: {metric.expectedAction}</p>
-      {metric.note ? <p className="mt-2 text-xs text-slate-500">Obs.: {metric.note}</p> : null}
-    </article>
-  );
-}
-
-function FunnelVisual({ steps }: { steps: FunnelStep[] }) {
-  const maxValue = Math.max(...steps.map((step) => step.value || 0), 0);
-
-  return (
-    <div className="space-y-3">
-      {steps.map((step, index) => {
-        const width = maxValue > 0 ? Math.max(22, ((step.value || 0) / maxValue) * 100) : 22;
-
-        return (
-          <article key={step.id} className="space-y-2">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <div>
-                <p className="font-medium text-slate-900">{index + 1}. {step.label}</p>
-                <p className="text-xs text-slate-500">{step.technicalNames.join(' + ')}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-slate-950">{step.value === null ? 'Indisponivel' : step.value.toLocaleString('pt-BR')}</p>
-                <p className="text-xs text-slate-500">Conv. etapa: {formatPercentage(step.conversionFromPrevious)}</p>
-              </div>
-            </div>
-            <div className="px-2">
-              <div className="mx-auto rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-sm" style={{ width: `${width}%` }}>
-                <div className="flex items-center justify-between gap-3 text-xs">
-                  <span className="font-medium">{step.label}</span>
-                  <span>{step.value === null ? 'Indisponivel' : step.value.toLocaleString('pt-BR')}</span>
-                </div>
-              </div>
-            </div>
-          </article>
-        );
-      })}
-    </div>
-  );
-}
-
-function StepBarList({
-  title,
-  items,
-  tone,
-}: {
-  title: string;
-  items: Array<{ id: string; label: string; value: number | null; helper: string }>;
-  tone: 'emerald' | 'rose' | 'sky';
-}) {
-  const barColor = tone === 'emerald' ? 'bg-emerald-500' : tone === 'rose' ? 'bg-rose-500' : 'bg-sky-600';
-  const maxSkyValue = tone === 'sky'
-    ? Math.max(...items.map((item) => item.value ?? 0), 0)
-    : 0;
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-      <div className="mt-4 space-y-4">
-        {items.map((item) => (
-          <div key={item.id}>
-            {(() => {
-              const width = tone === 'sky'
-                ? maxSkyValue > 0 && item.value !== null
-                  ? Math.max(8, ((item.value || 0) / maxSkyValue) * 100)
-                  : 0
-                : Math.max(0, Math.min(item.value ?? 0, 100));
-
-              return (
-                <>
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <div>
-                <p className="font-medium text-slate-900">{item.label}</p>
-                <p className="text-xs text-slate-500">{item.helper}</p>
-              </div>
-              <span className="font-semibold text-slate-950">
-                {tone === 'sky'
-                  ? item.value?.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) ? `${item.value?.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h` : 'Indisponivel'
-                  : formatPercentage(item.value)}
-              </span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-              <div className={barColor} style={{ width: `${width}%`, height: '100%' }} />
-            </div>
-                </>
-              );
-            })()}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DiagnosticBarList({ metrics }: { metrics: DashboardMetric[] }) {
-  const numericValues = metrics.map(getNumericMetricValue).filter((value): value is number => value !== null);
-  const maxValue = Math.max(...numericValues, 0);
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <h3 className="text-sm font-semibold text-slate-900">Tempo por etapa do funil</h3>
-      <p className="mt-1 text-xs text-slate-500">Comparativo agregado na janela atual, sustentado por timestamp transacional. Nao representa analise por coorte.</p>
-      <div className="mt-4 space-y-4">
-        {metrics.map((metric) => {
-          const value = getNumericMetricValue(metric);
-          const width = maxValue > 0 && value !== null ? Math.max(8, (value / maxValue) * 100) : 0;
-
-          return (
-            <div key={metric.id}>
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <div>
-                  <p className="font-medium text-slate-900">{metric.label}</p>
-                  <p className="text-xs text-slate-500">{metric.expectedAction}</p>
-                </div>
-                <span className="font-semibold text-slate-950">{formatValue(metric)}</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                <div className="h-full rounded-full bg-sky-600" style={{ width: `${width}%` }} />
-              </div>
-              {metric.comparison?.changePercent !== null ? (
-                <p className="mt-1 text-[11px] text-slate-500">{getComparisonLabel(metric.comparison)}</p>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function RegionHeatmap({ regions }: { regions: KpiDashboardResponse['liquidity']['regions'] }) {
-  const maxDemand = Math.max(...regions.map((region) => region.requestsCreated), 0);
-  const maxGap = Math.max(...regions.map((region) => region.requestsWithoutProposal), 0);
-  const maxMatch = Math.max(...regions.map((region) => region.matchedJobs), 0);
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">Cobertura geografica real vs demanda</h3>
-          <p className="mt-1 text-xs text-slate-500">Heatmap operacional por regiao observada. Azul mostra demanda, vermelho mostra gap e verde mostra cobertura com match.</p>
-        </div>
-        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium text-slate-600">Protagonista do bloco</span>
-      </div>
-
-      <div className="mt-4 space-y-3">
-        {regions.map((region) => (
-          <article key={region.region} className="rounded-2xl border border-slate-200 bg-white p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h4 className="text-sm font-semibold text-slate-900">{region.region}</h4>
-                <p className="text-xs text-slate-500">Gap sem proposta: {formatPercentage(region.withoutProposalRate)}</p>
-              </div>
-              <span className="text-xs text-slate-500">{region.requestsCreated.toLocaleString('pt-BR')} solicitacoes</span>
-            </div>
-
-            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
-              <div className="rounded-xl p-3" style={{ backgroundColor: heatColor(region.requestsCreated, maxDemand, 'blue') }}>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-900">Demanda</p>
-                <p className="mt-2 text-lg font-semibold text-slate-950">{region.requestsCreated.toLocaleString('pt-BR')}</p>
-              </div>
-              <div className="rounded-xl p-3" style={{ backgroundColor: heatColor(region.requestsWithoutProposal, maxGap, 'rose') }}>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-900">Sem proposta</p>
-                <p className="mt-2 text-lg font-semibold text-slate-950">{region.requestsWithoutProposal.toLocaleString('pt-BR')}</p>
-              </div>
-              <div className="rounded-xl p-3" style={{ backgroundColor: heatColor(region.matchedJobs, maxMatch, 'emerald') }}>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-900">Com match</p>
-                <p className="mt-2 text-lg font-semibold text-slate-950">{region.matchedJobs.toLocaleString('pt-BR')}</p>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ZonePieTooltip({
-  active,
-  payload,
-  valueLabel,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: ZoneUserDistributionItem; value?: number }>;
-  valueLabel: string;
-}) {
-  const current = payload?.[0];
-
-  if (!active || !current) {
-    return null;
-  }
-
-  const zone = current.payload;
-  const value = current.value || 0;
-  const total = valueLabel === 'Profissionais'
-    ? zone.professionals
-    : zone.families;
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg">
-      <p className="text-sm font-semibold text-slate-900">{zone.label}</p>
-      <p className="mt-1 text-xs text-slate-600">{valueLabel}: {formatCount(total)}</p>
-    </div>
-  );
-}
-
-function ZoneDistributionPieCard({
-  title,
-  description,
-  zones,
-  selectedZone,
-  valueKey,
-}: {
-  title: string;
-  description: string;
-  zones: ZoneUserDistributionItem[];
-  selectedZone: DashboardZoneKey | 'all';
-  valueKey: 'professionals' | 'families';
-}) {
-  const chartData = zones.map((zone) => ({
-    ...zone,
-    value: zone[valueKey],
-    fill: ZONE_COLORS[zone.zone],
-  }));
-  const total = chartData.reduce((sum, zone) => sum + zone.value, 0);
-  const selectedItem = selectedZone === 'all'
-    ? null
-    : chartData.find((zone) => zone.zone === selectedZone) || null;
-  const centerValue = selectedItem ? selectedItem.value : total;
-  const centerLabel = selectedItem ? selectedItem.label : 'Base classificada';
-  const centerShare = total > 0 && selectedItem
-    ? `${((selectedItem.value / total) * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
-    : '100,0%';
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <div>
-        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-        <p className="mt-1 text-xs text-slate-500">{description}</p>
-      </div>
-
-      <div className="relative mt-4 h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={chartData}
-              dataKey="value"
-              nameKey="label"
-              innerRadius={56}
-              outerRadius={88}
-              paddingAngle={3}
-              stroke="#ffffff"
-              strokeWidth={3}
-            >
-              {chartData.map((entry) => (
-                <Cell
-                  key={`${title}-${entry.zone}`}
-                  fill={entry.fill}
-                  fillOpacity={selectedZone === 'all' || entry.zone === selectedZone ? 1 : 0.28}
-                />
-              ))}
-            </Pie>
-            <Tooltip content={<ZonePieTooltip valueLabel={valueKey === 'professionals' ? 'Profissionais' : 'Familias'} />} />
-          </PieChart>
-        </ResponsiveContainer>
-
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{centerLabel}</p>
-            <p className="mt-2 text-3xl font-semibold text-slate-950">{formatCount(centerValue)}</p>
-            <p className="mt-1 text-xs text-slate-500">{selectedItem ? centerShare : `${formatCount(total)} no total`}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        {chartData.map((zone) => (
-          <div
-            key={`${title}-legend-${zone.zone}`}
-            className={`rounded-xl border px-3 py-2 ${selectedZone === 'all' || zone.zone === selectedZone ? 'border-slate-300 bg-white' : 'border-slate-200 bg-slate-100/80'}`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: zone.fill }} />
-              <span className="text-xs font-semibold text-slate-700">{zone.label}</span>
-            </div>
-            <p className="mt-2 text-lg font-semibold text-slate-950">{formatCount(zone.value)}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function SourceIntegrityBanner({
-  freshness,
-  historyNote,
-  limitations,
-}: {
-  freshness: KpiDashboardResponse['freshness'];
-  historyNote: string;
-  limitations: string[];
-}) {
-  const unavailable = Object.values(freshness).filter((item) => item.status === 'unavailable').length;
-  const stale = Object.values(freshness).filter((item) => item.status === 'stale').length;
-
-  let title = 'Fontes principais disponiveis';
-  let subtitle = 'O painel combina eventos oficiais do GA4 com operacao em Firebase e pagamentos no Stripe.';
-
-  if (unavailable > 0) {
-    title = 'Uma ou mais fontes estao indisponiveis';
-    subtitle = 'Blocos dependentes dessas fontes podem aparecer como indisponiveis para evitar leitura enganosa.';
-  } else if (stale > 0) {
-    title = 'Parte das fontes esta desatualizada';
-    subtitle = 'Use os blocos abaixo com cautela enquanto a recencia nao normaliza.';
-  }
-
-  return (
-    <section className={`rounded-2xl border p-5 ${unavailable > 0 ? 'border-red-200 bg-red-50' : stale > 0 ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="max-w-3xl">
-          <h2 className="text-base font-semibold text-slate-950">{title}</h2>
-          <p className="mt-1 text-sm text-slate-700">{subtitle}</p>
-          <p className="mt-3 text-sm text-slate-700">{historyNote}</p>
-          <ul className="mt-3 space-y-1 text-xs text-slate-600">
-            {limitations.map((item) => (
-              <li key={item}>• {item}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {Object.entries(freshness).map(([source, info]) => (
-            <div key={source} className={`rounded-xl border px-3 py-3 ${freshnessClass(info.status)}`}>
-              <p className="text-xs font-semibold uppercase tracking-wide">{source}</p>
-              <p className="mt-1 text-sm font-medium">{info.status}</p>
-              <p className="mt-1 text-xs">{info.reason || 'Sem observacoes'}</p>
-              <p className="mt-2 text-[11px]">Ultima leitura: {formatDateTime(info.lastSuccessAt)}</p>
-            </div>
-          ))}
-        </div>
-      </div>
     </section>
   );
 }
@@ -1095,81 +618,14 @@ export default function AdminKpiDashboardPage() {
         title="Bloco 6 — Alertas e excecoes"
         description={highPriorityAlerts.length > 0 ? 'Itens que pedem acao imediata ou monitoramento reforcado.' : 'Nenhum alerta prioritario ativo nesta janela.'}
       >
-        <div className="space-y-3">
-          {data.alerts.items.map((alert) => (
-            <article
-              key={alert.id}
-              className={`rounded-2xl border border-slate-200 border-l-4 bg-slate-50 p-4 ${alert.severity === 'critical' ? 'border-l-red-500' : alert.severity === 'warning' ? 'border-l-amber-500' : 'border-l-slate-400'}`}
-            >
-              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-semibold text-slate-900">{alert.title}</h3>
-                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(alert.severity)}`}>
-                      {severityLabel(alert.severity)}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-slate-600">{alert.description}</p>
-                  <p className="mt-2 text-xs text-slate-500">Fonte: {alert.source.join(' + ')}</p>
-                </div>
-                <div className="max-w-sm text-sm text-slate-700">
-                  <p className="font-medium text-slate-900">Acao esperada</p>
-                  <p className="mt-1">{alert.expectedAction}</p>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+        <DashboardAlertsList alerts={data.alerts.items} />
       </SectionBlock>
 
       <SectionBlock
         title="Taxonomia visivel no painel"
         description="Nomes amigaveis em portugues e mapeamento de eventos legados que nao devem mais ser usados na camada visual."
       >
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <div className="overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                  <th className="px-3 py-3">Tecnico</th>
-                  <th className="px-3 py-3">Nome amigavel</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.taxonomy.friendlyLabels.map((item) => (
-                  <tr key={item.technicalName} className="border-b border-slate-100 align-top">
-                    <td className="px-3 py-3 text-slate-900">{item.technicalName}</td>
-                    <td className="px-3 py-3 text-slate-700">
-                      <p className="font-medium text-slate-900">{item.label}</p>
-                      <p className="mt-1 text-xs text-slate-500">{item.description}</p>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                  <th className="px-3 py-3">Antes</th>
-                  <th className="px-3 py-3">Agora</th>
-                  <th className="px-3 py-3">Motivo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.taxonomy.legacyRenames.map((item) => (
-                  <tr key={item.oldName} className="border-b border-slate-100 align-top">
-                    <td className="px-3 py-3 text-slate-900">{item.oldName}</td>
-                    <td className="px-3 py-3 text-slate-900">{item.newName}</td>
-                    <td className="px-3 py-3 text-slate-600">{item.reason}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DashboardTaxonomyTables taxonomy={data.taxonomy} />
       </SectionBlock>
     </div>
   );

@@ -23,6 +23,8 @@ import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getStripeClient } from '@/lib/server/stripe';
 import { getRegionKey } from './region';
 import { buildAgingExtremeMetrics } from './agingExtremeMetrics';
+import { toDate } from '@/modules/shared/domain/date';
+import { getJobClientId as resolveJobClientId, getJobProfessionalId as resolveJobProfessionalId, hasJobProfessional } from '@/modules/shared/domain/job-fields';
 import type {
   DashboardV3Response,
   TimeWindow,
@@ -49,21 +51,7 @@ interface LoadedStripeData {
   loadedAt: string;
 }
 
-function toDate(value: any): Date | null {
-  if (!value) return null;
-  if (value instanceof Timestamp) return value.toDate();
-  if (value?.toDate) return value.toDate();
-  if (value instanceof Date) return value;
-  if (typeof value === 'string') {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  if (typeof value === 'number') {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  return null;
-}
+const hasProfessional = hasJobProfessional;
 
 function hoursSince(value: any): number {
   const date = toDate(value);
@@ -84,10 +72,6 @@ function normalizeJobStatus(status: any): 'pending' | 'in_progress' | 'completed
   return 'unknown';
 }
 
-function hasProfessional(job: Record<string, any>): boolean {
-  return Boolean(job.professionalId || job.specialistId || job.profissionalId);
-}
-
 function normalizeSpecialty(job: Record<string, any>): string | undefined {
   const raw = job.specialty || job.especialidade || job.tipo;
   if (!raw || typeof raw !== 'string') return undefined;
@@ -102,13 +86,11 @@ function normalizeBairro(value: unknown): string | null {
 }
 
 function getJobProfessionalId(job: Record<string, any>): string | null {
-  const raw = job.professionalId || job.specialistId || job.profissionalId;
-  return raw ? String(raw) : null;
+  return resolveJobProfessionalId(job) || null;
 }
 
 function getJobClientId(job: Record<string, any>): string | null {
-  const raw = job.clientId || job.familyId || job.clienteId || job.userId;
-  return raw ? String(raw) : null;
+  return resolveJobClientId(job) || null;
 }
 
 function getFirstProposalAt(job: Record<string, any>): Date | null {

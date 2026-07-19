@@ -17,10 +17,13 @@
 // ENUMS E CONSTANTES
 // ═══════════════════════════════════════════════════════════════════════════
 
+import type { TimeWindow } from '@/modules/shared/domain/time-window';
+
+export type { TimeWindow } from '@/modules/shared/domain/time-window';
+
 export type AlertSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 export type TrendDirection = 'up' | 'down' | 'stable';
 export type OperationalStatus = 'ok' | 'warning' | 'critical' | 'info';
-export type TimeWindow = 7 | 14 | 30 | 60 | 90;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TIPOS BASE - Freshness e Sample Size
