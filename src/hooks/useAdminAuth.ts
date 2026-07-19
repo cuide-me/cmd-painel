@@ -3,7 +3,7 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -81,7 +81,7 @@ export function useAdminAuth() {
     return () => unsubscribe();
   }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       const auth = getFirebaseAuth();
       await auth.signOut();
@@ -89,10 +89,12 @@ export function useAdminAuth() {
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     }
-  };
+  }, [router]);
 
-  const can = (permission: AdminPermission) =>
-    state.role !== null && hasAdminPermission(state.role, permission);
+  const can = useCallback(
+    (permission: AdminPermission) => state.role !== null && hasAdminPermission(state.role, permission),
+    [state.role],
+  );
 
   return { ...state, authReady: !state.loading && state.isAdmin, can, logout };
 }
