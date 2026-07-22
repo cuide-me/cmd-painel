@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { Save } from 'lucide-react';
 import { authFetch } from '@/lib/client/authFetch';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { formatCurrencyFromCentavos } from '@/modules/finance/domain/money';
@@ -41,6 +40,7 @@ export default function ReceivablesPage() {
   const [loading, setLoading] = useState(true);
   const [payoutValues, setPayoutValues] = useState<Record<string, string>>({});
   const [savingPayoutId, setSavingPayoutId] = useState<string | null>(null);
+  const currentCursor = cursorHistory[cursorHistory.length - 1];
 
   const load = useCallback(async (cursor: string | null = null) => {
     setLoading(true);
@@ -152,7 +152,7 @@ export default function ReceivablesPage() {
                 <td className="px-4 py-3 font-medium">{formatCurrencyFromCentavos(item.amountCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{formatCurrencyFromCentavos(item.stripeFeeCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{formatCurrencyFromCentavos(item.taxReserveCentavos, item.currency)} <span className="text-xs text-slate-500">estimado</span></td>
-                <td className="px-4 py-3"><div className="flex min-w-40 gap-1"><input value={payoutValues[item.id] ?? (item.professionalPayoutCentavos === null ? '' : (item.professionalPayoutCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setPayoutValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Repasse profissional para ${item.id}`} disabled={!can('finance.write') || savingPayoutId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar repasse profissional" aria-label="Salvar repasse profissional" onClick={() => void saveProfessionalPayout(item)} disabled={!can('finance.write') || savingPayoutId === item.id} className="rounded border border-emerald-700 p-1 text-emerald-700 disabled:opacity-50"><Save size={16} /></button></div></td>
+                <td className="px-4 py-3"><div className="flex min-w-40 gap-1"><input value={payoutValues[item.id] ?? (item.professionalPayoutCentavos === null ? '' : (item.professionalPayoutCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setPayoutValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Repasse profissional para ${item.id}`} disabled={!can('finance.write') || savingPayoutId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar repasse profissional" onClick={() => void saveProfessionalPayout(item)} disabled={!can('finance.write') || savingPayoutId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div></td>
                 <td className="px-4 py-3 font-medium">{formatCurrencyFromCentavos(item.netCuidemeMarginCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{item.paymentMethod || 'Não informado'}</td>
                 <td className="px-4 py-3">{statusLabel(item.status)}</td>
