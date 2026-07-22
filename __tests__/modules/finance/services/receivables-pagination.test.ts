@@ -50,4 +50,28 @@ describe('listReceivables pagination', () => {
       starting_after: 'ch_failed',
     });
   });
+
+  it('reconciles a charge to its job through Stripe metadata when payment fields are absent', async () => {
+    const job = {
+      exists: true,
+      id: 'job-1',
+      data: () => ({ title: 'Atendimento domiciliar', protocol: 'CDM-2026-00015' }),
+    };
+    mockGetFirestore.mockReturnValue({
+      collection: jest.fn(() => ({
+        where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
+        doc: jest.fn(() => ({ id: 'job-1' })),
+      })),
+      getAll: jest.fn().mockResolvedValue([job]),
+    });
+    mockChargesList.mockResolvedValue({
+      data: [{ ...charge('ch_metadata', 'succeeded'), metadata: { jobId: 'job-1' } }],
+      has_more: false,
+    });
+
+    const result = await listReceivables({ window: 30, status: 'all', pageSize: 1 });
+
+    expect(result.items[0].job).toEqual({ id: 'job-1', label: 'Atendimento domiciliar', protocol: 'CDM-2026-00015' });
+    expect(result.items[0].reconciliation).toBe('reconciled');
+  });
 });

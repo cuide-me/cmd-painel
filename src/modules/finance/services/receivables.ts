@@ -129,6 +129,72 @@ function getPaymentKeys(charge: Stripe.Charge): string[] {
   return [charge.id, getPaymentIntentId(charge)].filter((value): value is string => Boolean(value));
 }
 
+function getJobIdsFromRecord(record: FirestoreRecord): string[] {
+  const candidates = [
+    record.jobId,
+    record.attendanceId,
+    record.atendimentoId,
+    record.appointmentId,
+    record.bookingId,
+    record.requestId,
+  ];
+  return candidates
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim());
+}
+
+function getJobIdsFromCharge(charge: Stripe.Charge): string[] {
+  return getJobIdsFromRecord((charge.metadata || {}) as FirestoreRecord);
+}
+
+async function getJobsByIds(ids: string[]): Promise<Map<string, FirestoreRecord>> {
+  const uniqueIds = [...new Set(ids)];
+  const jobs = new Map<string, FirestoreRecord>();
+  if (uniqueIds.length === 0) return jobs;
+
+  const db = getFirestore();
+  for (let index = 0; index < uniqueIds.length; index += 50) {
+    const documents = await db.getAll(...uniqueIds.slice(index, index + 50).map((id) => db.collection('jobs').doc(id)));
+    documents.forEach((document: DocumentSnapshot) => {
+      if (document.exists) jobs.set(document.id, { id: document.id, ...(document.data() as FirestoreRecord) });
+    });
+  }
+  return jobs;
+}
+
+async function getJobsByPaymentRecords(paymentKeys: string[]): Promise<Map<string, FirestoreRecord>> {
+  const uniqueKeys = [...new Set(paymentKeys)];
+  const jobsByPaymentKey = new Map<string, FirestoreRecord>();
+  if (uniqueKeys.length === 0) return jobsByPaymentKey;
+
+  const db = getFirestore();
+  const paymentRecords: Array<{ data: FirestoreRecord; keys: string[] }> = [];
+  const fields = ['paymentIntentId', 'paymentId', 'stripePaymentIntentId', 'chargeId', 'stripeChargeId'];
+  for (let index = 0; index < uniqueKeys.length; index += 30) {
+    const chunk = uniqueKeys.slice(index, index + 30);
+    const snapshots = await Promise.all(fields.map(async (field) => {
+      try {
+        return await db.collection('payments').where(field, 'in', chunk).get();
+      } catch {
+        return null;
+      }
+    }));
+    snapshots.forEach((snapshot) => snapshot?.docs.forEach((document: QueryDocumentSnapshot) => {
+      const data = document.data() as FirestoreRecord;
+      const keys = [data.paymentIntentId, data.paymentId, data.stripePaymentIntentId, data.chargeId, data.stripeChargeId]
+        .filter((value): value is string => typeof value === 'string' && uniqueKeys.includes(value));
+      if (keys.length > 0) paymentRecords.push({ data, keys });
+    }));
+  }
+
+  const jobsById = await getJobsByIds(paymentRecords.flatMap((record) => getJobIdsFromRecord(record.data)));
+  paymentRecords.forEach(({ data, keys }) => {
+    const job = getJobIdsFromRecord(data).map((id) => jobsById.get(id)).find((candidate): candidate is FirestoreRecord => Boolean(candidate));
+    if (job) keys.forEach((key) => jobsByPaymentKey.set(key, job));
+  });
+  return jobsByPaymentKey;
+}
+
 export async function getJobsByPaymentKeys(keys: string[]): Promise<Map<string, FirestoreRecord>> {
   const uniqueKeys = [...new Set(keys)];
   const jobsByKey = new Map<string, FirestoreRecord>();
@@ -194,7 +260,12 @@ function asPerson(id: string | undefined, users: Map<string, FirestoreRecord>): 
 
 async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
   const paymentKeys = charges.flatMap(getPaymentKeys);
-  const jobsByPaymentKey = await getJobsByPaymentKeys(paymentKeys);
+  const [directJobsByPaymentKey, jobsByPaymentRecords, jobsByMetadataId] = await Promise.all([
+    getJobsByPaymentKeys(paymentKeys),
+    getJobsByPaymentRecords(paymentKeys),
+    getJobsByIds(charges.flatMap(getJobIdsFromCharge)),
+  ]);
+  const jobsByPaymentKey = new Map([...jobsByPaymentRecords, ...directJobsByPaymentKey]);
   const userIds = new Set<string>();
 
   jobsByPaymentKey.forEach((job) => {
@@ -207,7 +278,9 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
   const users = await getUsersByIds([...userIds]);
 
   return charges.map((charge) => {
-    const job = getPaymentKeys(charge)
+    const job = getJobIdsFromCharge(charge)
+      .map((id) => jobsByMetadataId.get(id))
+      .find((candidate): candidate is FirestoreRecord => Boolean(candidate)) || getPaymentKeys(charge)
       .map((key) => jobsByPaymentKey.get(key))
       .find((candidate): candidate is FirestoreRecord => Boolean(candidate));
     const clientId = job ? getJobClientId(job) : undefined;
