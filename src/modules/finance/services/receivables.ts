@@ -57,6 +57,27 @@ function getStripeFeeCentavos(charge: Stripe.Charge): number | null {
   return typeof charge.balance_transaction.fee === 'number' ? charge.balance_transaction.fee : null;
 }
 
+function getCuidemeCommissionCentavos(charge: Stripe.Charge): number | null {
+  if (typeof charge.application_fee_amount === 'number') return charge.application_fee_amount;
+  const metadataValue = charge.metadata?.platformFeeCentavos || charge.metadata?.applicationFeeCentavos;
+  if (typeof metadataValue !== 'string' || !/^\d+$/.test(metadataValue)) return null;
+  return Number(metadataValue);
+}
+
+export function calculateReceivableFinancials(input: {
+  amountCentavos: number;
+  stripeFeeCentavos: number | null;
+  cuidemeCommissionCentavos: number | null;
+}) {
+  const taxReserveCentavos = Math.round(input.amountCentavos * SIMPLES_NACIONAL_TAX_RESERVE_RATE);
+  return {
+    taxReserveCentavos,
+    netCuidemeMarginCentavos: input.stripeFeeCentavos === null || input.cuidemeCommissionCentavos === null
+      ? null
+      : input.cuidemeCommissionCentavos - input.stripeFeeCentavos - taxReserveCentavos,
+  };
+}
+
 export function calculateConnectFinancials(charges: Array<{
   status: string;
   destination: unknown;
@@ -285,6 +306,12 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
       .find((candidate): candidate is FirestoreRecord => Boolean(candidate));
     const clientId = job ? getJobClientId(job) : undefined;
     const professionalId = job ? getJobProfessionalId(job) : undefined;
+    const stripeFeeCentavos = getStripeFeeCentavos(charge);
+    const financials = calculateReceivableFinancials({
+      amountCentavos: charge.amount,
+      stripeFeeCentavos,
+      cuidemeCommissionCentavos: getCuidemeCommissionCentavos(charge),
+    });
 
     return {
       id: charge.id,
@@ -299,6 +326,8 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
       job: job ? { id: String(job.id), label: String(job.title || job.titulo || `Atendimento ${job.id}`), protocol: getJobProtocol(job) } : null,
       reconciliation: job ? 'reconciled' : 'unlinked',
       refundedAmountCentavos: charge.amount_refunded || 0,
+      stripeFeeCentavos,
+      ...financials,
     };
   });
 }
@@ -326,6 +355,7 @@ export async function listReceivables(filters: ReceivablesFilters): Promise<Rece
     const response = await stripe.charges.list({
       created: { gte: getWindowStart(filters.window) },
       limit: Math.min(pageSize - items.length, MAX_FILTER_SCAN_RECORDS - scannedRecords),
+      expand: ['data.balance_transaction'],
       ...(cursor ? { starting_after: cursor } : {}),
     });
     scannedRecords += response.data.length;

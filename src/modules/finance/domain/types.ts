@@ -33,6 +33,9 @@ export interface ReceivableRow {
   job: FinanceJobReference | null;
   reconciliation: 'reconciled' | 'unlinked';
   refundedAmountCentavos: number;
+  stripeFeeCentavos: number | null;
+  taxReserveCentavos: number;
+  netCuidemeMarginCentavos: number | null;
 }
 
 export interface ReceivablesFilters {

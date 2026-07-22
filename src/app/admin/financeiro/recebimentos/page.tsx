@@ -100,7 +100,7 @@ export default function ReceivablesPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{['Cliente', 'Atendimento', 'Protocolo', 'Data', 'Valor pago', 'Forma', 'Status', 'Profissional', 'Stripe'].map((header) => <th key={header} className="px-4 py-3 font-semibold">{header}</th>)}</tr></thead>
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{['Cliente', 'Atendimento', 'Protocolo', 'Data', 'Valor pago', 'Tarifa Stripe', 'Imposto Simples (6%)', 'Margem líquida Cuide-me', 'Forma', 'Status', 'Profissional', 'Stripe'].map((header) => <th key={header} className="px-4 py-3 font-semibold">{header}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-100">
               {data?.items.map((item) => <tr key={item.id} className="text-slate-700">
                 <td className="px-4 py-3">{item.client?.name || 'Não conciliado'}</td>
@@ -108,6 +108,9 @@ export default function ReceivablesPage() {
                 <td className="px-4 py-3 font-mono text-xs">{item.job?.protocol || 'Sem vínculo'}</td>
                 <td className="px-4 py-3">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</td>
                 <td className="px-4 py-3 font-medium">{formatCurrencyFromCentavos(item.amountCentavos, item.currency)}</td>
+                <td className="px-4 py-3">{formatCurrencyFromCentavos(item.stripeFeeCentavos, item.currency)}</td>
+                <td className="px-4 py-3">{formatCurrencyFromCentavos(item.taxReserveCentavos, item.currency)} <span className="text-xs text-slate-500">estimado</span></td>
+                <td className="px-4 py-3 font-medium">{formatCurrencyFromCentavos(item.netCuidemeMarginCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{item.paymentMethod || 'Não informado'}</td>
                 <td className="px-4 py-3">{statusLabel(item.status)}</td>
                 <td className="px-4 py-3">{item.professional?.name || 'Não conciliado'}</td>

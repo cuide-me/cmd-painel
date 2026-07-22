@@ -1,4 +1,4 @@
-import { calculateConnectFinancials, calculateOperatingFinancials } from '@/modules/finance/services/receivables';
+import { calculateConnectFinancials, calculateOperatingFinancials, calculateReceivableFinancials } from '@/modules/finance/services/receivables';
 import { getTransferLifecycle } from '@/modules/finance/services/payout-transfers';
 
 describe('Connect financial calculations', () => {
@@ -45,6 +45,28 @@ describe('Connect financial calculations', () => {
       taxReserveRatePercent: 6,
       balanceAfterFeesAndTaxReserveCentavos: 13_600,
       isComplete: true,
+    });
+  });
+
+  it('calculates a receivable net margin from the Cuide-me commission after fees and tax reserve', () => {
+    expect(calculateReceivableFinancials({
+      amountCentavos: 15_000,
+      cuidemeCommissionCentavos: 3_000,
+      stripeFeeCentavos: 639,
+    })).toEqual({
+      taxReserveCentavos: 900,
+      netCuidemeMarginCentavos: 1_461,
+    });
+  });
+
+  it('does not infer a Cuide-me margin when the platform commission is unavailable', () => {
+    expect(calculateReceivableFinancials({
+      amountCentavos: 15_000,
+      cuidemeCommissionCentavos: null,
+      stripeFeeCentavos: 639,
+    })).toEqual({
+      taxReserveCentavos: 900,
+      netCuidemeMarginCentavos: null,
     });
   });
 

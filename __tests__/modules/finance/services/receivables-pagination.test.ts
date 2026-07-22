@@ -42,10 +42,12 @@ describe('listReceivables pagination', () => {
     expect(result.coverage).toMatchObject({ loadedRecords: 2, hasMore: false, isComplete: true });
     expect(mockChargesList).toHaveBeenNthCalledWith(1, {
       created: { gte: expect.any(Number) },
+      expand: ['data.balance_transaction'],
       limit: 1,
     });
     expect(mockChargesList).toHaveBeenNthCalledWith(2, {
       created: { gte: expect.any(Number) },
+      expand: ['data.balance_transaction'],
       limit: 1,
       starting_after: 'ch_failed',
     });
