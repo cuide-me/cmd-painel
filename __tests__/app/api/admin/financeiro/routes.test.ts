@@ -4,14 +4,15 @@ const requireAdminPermission = jest.fn();
 const getFinancialOverview = jest.fn();
 const listReceivables = jest.fn();
 const listPayoutTransfers = jest.fn();
+const createManualPayout = jest.fn();
 
 jest.mock('@/lib/server/auth', () => ({ requireAdminPermission }));
 jest.mock('@/modules/finance/services/receivables', () => ({ getFinancialOverview, listReceivables }));
-jest.mock('@/modules/finance/services/payout-transfers', () => ({ listPayoutTransfers }));
+jest.mock('@/modules/finance/services/payout-transfers', () => ({ createManualPayout, listPayoutTransfers }));
 
 import { GET as overviewGet } from '@/app/api/admin/financeiro/overview/route';
 import { GET as receivablesGet } from '@/app/api/admin/financeiro/recebimentos/route';
-import { GET as payoutsGet } from '@/app/api/admin/financeiro/repasses/route';
+import { GET as payoutsGet, POST as payoutsPost } from '@/app/api/admin/financeiro/repasses/route';
 import { GET as resultsGet } from '@/app/api/admin/financeiro/resultados/route';
 
 function request(path: string) {
@@ -57,6 +58,7 @@ describe('admin finance API routes', () => {
     getFinancialOverview.mockResolvedValue(overview);
     listReceivables.mockResolvedValue({ items: [] });
     listPayoutTransfers.mockResolvedValue({ items: [] });
+    createManualPayout.mockResolvedValue({ id: 'manual-1' });
   });
 
   it('returns the authorization response before calling financial services', async () => {
@@ -91,6 +93,31 @@ describe('admin finance API routes', () => {
 
     expect(response.status).toBe(200);
     expect(listPayoutTransfers).toHaveBeenCalledWith({ window: 30, cursor: undefined, pageSize: 50 });
+  });
+
+  it('registers a validated manual payout using finance write permission', async () => {
+    const response = await payoutsPost(new NextRequest('http://localhost/api/admin/financeiro/repasses', {
+      method: 'POST',
+      body: JSON.stringify({
+        professionalName: 'Brenda Martins',
+        protocol: 'CDM-2026-00015',
+        amountCentavos: 13_581,
+        stripeFeeCentavos: 435,
+        paidAt: '2026-07-22',
+      }),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(requireAdminPermission).toHaveBeenCalledWith(expect.any(NextRequest), 'finance.write');
+    expect(createManualPayout).toHaveBeenCalledWith({
+      professionalName: 'Brenda Martins',
+      professionalId: undefined,
+      protocol: 'CDM-2026-00015',
+      amountCentavos: 13_581,
+      paidAt: '2026-07-22',
+      stripeFeeCentavos: 435,
+      notes: undefined,
+    }, 'finance-user');
   });
 
   it('keeps consolidated result lines unavailable instead of fabricating them', async () => {

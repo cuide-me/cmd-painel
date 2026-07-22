@@ -1,6 +1,7 @@
 export const ADMIN_PERMISSIONS = [
   'dashboard.read',
   'finance.read',
+  'finance.write',
   'jobs.read',
   'alerts.read',
   'tickets.read',
@@ -16,7 +17,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, readonly AdminPermission[]> = {
   admin: ADMIN_PERMISSIONS,
   operations: ['dashboard.read', 'jobs.read', 'alerts.read', 'tickets.read', 'users.read'],
   support: ['dashboard.read', 'alerts.read', 'tickets.read', 'users.read'],
-  finance: ['dashboard.read', 'finance.read', 'users.read'],
+  finance: ['dashboard.read', 'finance.read', 'finance.write', 'users.read'],
   viewer: ['dashboard.read'],
 };
 

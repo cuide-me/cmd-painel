@@ -17,6 +17,7 @@ export interface FinancePerson {
 export interface FinanceJobReference {
   id: string;
   label: string;
+  protocol: string;
 }
 
 export interface ReceivableRow {
@@ -90,17 +91,33 @@ export interface FinancialOverview {
 }
 
 export type TransferLifecycle = 'transferred' | 'partially_reversed' | 'reversed';
+export type PayoutSource = 'stripe_transfer' | 'manual';
 
 export interface PayoutTransferRow {
   id: string;
   createdAt: string;
+  paidAt: string | null;
   amountCentavos: number;
   reversedAmountCentavos: number;
   currency: string;
   lifecycle: TransferLifecycle;
+  source: PayoutSource;
   professional: FinancePerson | null;
   job: FinanceJobReference | null;
+  stripeFeeCentavos: number | null;
+  taxReserveCentavos: number;
+  netCuidemeCentavos: number | null;
   reconciliation: 'reconciled' | 'unlinked';
+}
+
+export interface CreateManualPayoutInput {
+  professionalName: string;
+  professionalId?: string;
+  protocol: string;
+  amountCentavos: number;
+  paidAt: string;
+  stripeFeeCentavos?: number;
+  notes?: string;
 }
 
 export interface PayoutTransfersResult {

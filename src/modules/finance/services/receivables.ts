@@ -22,6 +22,16 @@ const OVERVIEW_PAGE_LIMIT = 10;
 const MAX_FILTER_SCAN_RECORDS = 1_000;
 const SIMPLES_NACIONAL_TAX_RESERVE_RATE = 0.06;
 
+export function getJobProtocol(job: FirestoreRecord): string {
+  const existingProtocol = job.protocol || job.protocolNumber || job.numeroProtocolo || job.codigoProtocolo;
+  if (typeof existingProtocol === 'string' && existingProtocol.trim()) return existingProtocol.trim();
+
+  const createdAt = toDate(job.createdAt || job.date || job.data);
+  const year = createdAt?.getFullYear() || new Date().getFullYear();
+  const suffix = String(job.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(-5).toUpperCase() || '00000';
+  return `CDM-${year}-${suffix}`;
+}
+
 function getWindowStart(window: FinanceTimeWindow): number {
   return Math.floor((Date.now() - window * 24 * 60 * 60 * 1000) / 1000);
 }
@@ -213,7 +223,7 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
       paymentMethod: getPaymentMethod(charge),
       client: asPerson(clientId, users),
       professional: asPerson(professionalId, users),
-      job: job ? { id: String(job.id), label: String(job.title || job.titulo || `Atendimento ${job.id}`) } : null,
+      job: job ? { id: String(job.id), label: String(job.title || job.titulo || `Atendimento ${job.id}`), protocol: getJobProtocol(job) } : null,
       reconciliation: job ? 'reconciled' : 'unlinked',
       refundedAmountCentavos: charge.amount_refunded || 0,
     };
