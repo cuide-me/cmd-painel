@@ -57,25 +57,61 @@ function getStripeFeeCentavos(charge: Stripe.Charge): number | null {
   return typeof charge.balance_transaction.fee === 'number' ? charge.balance_transaction.fee : null;
 }
 
-function getCuidemeCommissionCentavos(charge: Stripe.Charge): number | null {
-  if (typeof charge.application_fee_amount === 'number') return charge.application_fee_amount;
-  const metadataValue = charge.metadata?.platformFeeCentavos || charge.metadata?.applicationFeeCentavos;
-  if (typeof metadataValue !== 'string' || !/^\d+$/.test(metadataValue)) return null;
-  return Number(metadataValue);
-}
-
 export function calculateReceivableFinancials(input: {
   amountCentavos: number;
   stripeFeeCentavos: number | null;
-  cuidemeCommissionCentavos: number | null;
+  professionalPayoutCentavos: number | null;
 }) {
   const taxReserveCentavos = Math.round(input.amountCentavos * SIMPLES_NACIONAL_TAX_RESERVE_RATE);
   return {
     taxReserveCentavos,
-    netCuidemeMarginCentavos: input.stripeFeeCentavos === null || input.cuidemeCommissionCentavos === null
+    netCuidemeMarginCentavos: input.stripeFeeCentavos === null || input.professionalPayoutCentavos === null
       ? null
-      : input.cuidemeCommissionCentavos - input.stripeFeeCentavos - taxReserveCentavos,
+      : input.amountCentavos - input.stripeFeeCentavos - taxReserveCentavos - input.professionalPayoutCentavos,
   };
+}
+
+async function getProfessionalPayoutsByChargeIds(chargeIds: string[]): Promise<Map<string, number>> {
+  const uniqueIds = [...new Set(chargeIds)];
+  const payouts = new Map<string, number>();
+  if (uniqueIds.length === 0) return payouts;
+
+  const db = getFirestore();
+  for (let index = 0; index < uniqueIds.length; index += 30) {
+    const snapshot = await db.collection('manualPayouts').where('stripeChargeId', 'in', uniqueIds.slice(index, index + 30)).get();
+    snapshot.docs.forEach((document: QueryDocumentSnapshot) => {
+      const payout = document.data() as FirestoreRecord;
+      if (typeof payout.stripeChargeId === 'string' && typeof payout.amountCentavos === 'number') {
+        payouts.set(payout.stripeChargeId, payout.amountCentavos);
+      }
+    });
+  }
+  return payouts;
+}
+
+export async function saveProfessionalPayoutForReceivable(input: {
+  stripeChargeId: string;
+  amountCentavos: number;
+  protocol?: string;
+  professionalName?: string;
+  professionalId?: string;
+  jobId?: string;
+  jobLabel?: string;
+}, createdBy: string): Promise<void> {
+  const now = new Date();
+  await getFirestore().collection('manualPayouts').doc(`charge_${input.stripeChargeId}`).set({
+    stripeChargeId: input.stripeChargeId,
+    amountCentavos: input.amountCentavos,
+    protocol: input.protocol || `Recebimento ${input.stripeChargeId}`,
+    professionalName: input.professionalName || 'Profissional não conciliado',
+    ...(input.professionalId ? { professionalId: input.professionalId } : {}),
+    ...(input.jobId ? { jobId: input.jobId } : {}),
+    ...(input.jobLabel ? { jobLabel: input.jobLabel } : {}),
+    paidAt: now.toISOString().slice(0, 10),
+    currency: 'brl',
+    createdAt: now.toISOString(),
+    createdBy,
+  });
 }
 
 export function calculateConnectFinancials(charges: Array<{
@@ -281,10 +317,11 @@ function asPerson(id: string | undefined, users: Map<string, FirestoreRecord>): 
 
 async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
   const paymentKeys = charges.flatMap(getPaymentKeys);
-  const [directJobsByPaymentKey, jobsByPaymentRecords, jobsByMetadataId] = await Promise.all([
+  const [directJobsByPaymentKey, jobsByPaymentRecords, jobsByMetadataId, professionalPayoutsByChargeId] = await Promise.all([
     getJobsByPaymentKeys(paymentKeys),
     getJobsByPaymentRecords(paymentKeys),
     getJobsByIds(charges.flatMap(getJobIdsFromCharge)),
+    getProfessionalPayoutsByChargeIds(charges.map((charge) => charge.id)),
   ]);
   const jobsByPaymentKey = new Map([...jobsByPaymentRecords, ...directJobsByPaymentKey]);
   const userIds = new Set<string>();
@@ -307,10 +344,11 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
     const clientId = job ? getJobClientId(job) : undefined;
     const professionalId = job ? getJobProfessionalId(job) : undefined;
     const stripeFeeCentavos = getStripeFeeCentavos(charge);
+    const professionalPayoutCentavos = professionalPayoutsByChargeId.get(charge.id) ?? null;
     const financials = calculateReceivableFinancials({
       amountCentavos: charge.amount,
       stripeFeeCentavos,
-      cuidemeCommissionCentavos: getCuidemeCommissionCentavos(charge),
+      professionalPayoutCentavos,
     });
 
     return {
@@ -327,6 +365,7 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
       reconciliation: job ? 'reconciled' : 'unlinked',
       refundedAmountCentavos: charge.amount_refunded || 0,
       stripeFeeCentavos,
+      professionalPayoutCentavos,
       ...financials,
     };
   });

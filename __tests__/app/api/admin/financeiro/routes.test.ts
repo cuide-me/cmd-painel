@@ -3,15 +3,16 @@ import { NextRequest, NextResponse } from 'next/server';
 const requireAdminPermission = jest.fn();
 const getFinancialOverview = jest.fn();
 const listReceivables = jest.fn();
+const saveProfessionalPayoutForReceivable = jest.fn();
 const listPayoutTransfers = jest.fn();
 const createManualPayout = jest.fn();
 
 jest.mock('@/lib/server/auth', () => ({ requireAdminPermission }));
-jest.mock('@/modules/finance/services/receivables', () => ({ getFinancialOverview, listReceivables }));
+jest.mock('@/modules/finance/services/receivables', () => ({ getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable }));
 jest.mock('@/modules/finance/services/payout-transfers', () => ({ createManualPayout, listPayoutTransfers }));
 
 import { GET as overviewGet } from '@/app/api/admin/financeiro/overview/route';
-import { GET as receivablesGet } from '@/app/api/admin/financeiro/recebimentos/route';
+import { GET as receivablesGet, POST as receivablesPost } from '@/app/api/admin/financeiro/recebimentos/route';
 import { GET as payoutsGet, POST as payoutsPost } from '@/app/api/admin/financeiro/repasses/route';
 import { GET as resultsGet } from '@/app/api/admin/financeiro/resultados/route';
 
@@ -57,6 +58,7 @@ describe('admin finance API routes', () => {
     requireAdminPermission.mockResolvedValue(authorized);
     getFinancialOverview.mockResolvedValue(overview);
     listReceivables.mockResolvedValue({ items: [] });
+    saveProfessionalPayoutForReceivable.mockResolvedValue(undefined);
     listPayoutTransfers.mockResolvedValue({ items: [] });
     createManualPayout.mockResolvedValue({ id: 'manual-1' });
   });
@@ -86,6 +88,33 @@ describe('admin finance API routes', () => {
       clientId: 'client-1',
       professionalId: 'pro-1',
     });
+  });
+
+  it('saves a manual professional payout against its Stripe charge', async () => {
+    const response = await receivablesPost(new NextRequest('http://localhost/api/admin/financeiro/recebimentos', {
+      method: 'POST',
+      body: JSON.stringify({
+        stripeChargeId: 'ch_123',
+        amountCentavos: 11_461,
+        protocol: 'CDM-2026-00015',
+        professionalName: 'Brenda Martins',
+        professionalId: 'professional-1',
+        jobId: 'job-1',
+        jobLabel: 'Atendimento domiciliar',
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(requireAdminPermission).toHaveBeenCalledWith(expect.any(NextRequest), 'finance.write');
+    expect(saveProfessionalPayoutForReceivable).toHaveBeenCalledWith({
+      stripeChargeId: 'ch_123',
+      amountCentavos: 11_461,
+      protocol: 'CDM-2026-00015',
+      professionalName: 'Brenda Martins',
+      professionalId: 'professional-1',
+      jobId: 'job-1',
+      jobLabel: 'Atendimento domiciliar',
+    }, 'finance-user');
   });
 
   it('falls back to safe financial defaults for invalid payout query parameters', async () => {

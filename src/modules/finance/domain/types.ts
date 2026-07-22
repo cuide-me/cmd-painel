@@ -35,6 +35,7 @@ export interface ReceivableRow {
   refundedAmountCentavos: number;
   stripeFeeCentavos: number | null;
   taxReserveCentavos: number;
+  professionalPayoutCentavos: number | null;
   netCuidemeMarginCentavos: number | null;
 }
 

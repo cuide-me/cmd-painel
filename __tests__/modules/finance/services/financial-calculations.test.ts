@@ -48,21 +48,21 @@ describe('Connect financial calculations', () => {
     });
   });
 
-  it('calculates a receivable net margin from the Cuide-me commission after fees and tax reserve', () => {
+  it('calculates a receivable net margin from payment less fees, tax reserve, and professional payout', () => {
     expect(calculateReceivableFinancials({
       amountCentavos: 15_000,
-      cuidemeCommissionCentavos: 3_000,
+      professionalPayoutCentavos: 11_461,
       stripeFeeCentavos: 639,
     })).toEqual({
       taxReserveCentavos: 900,
-      netCuidemeMarginCentavos: 1_461,
+      netCuidemeMarginCentavos: 2_000,
     });
   });
 
-  it('does not infer a Cuide-me margin when the platform commission is unavailable', () => {
+  it('does not infer a Cuide-me margin when the professional payout is unavailable', () => {
     expect(calculateReceivableFinancials({
       amountCentavos: 15_000,
-      cuidemeCommissionCentavos: null,
+      professionalPayoutCentavos: null,
       stripeFeeCentavos: 639,
     })).toEqual({
       taxReserveCentavos: 900,

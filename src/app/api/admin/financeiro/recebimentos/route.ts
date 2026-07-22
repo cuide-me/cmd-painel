@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminPermission } from '@/lib/server/auth';
-import { listReceivables } from '@/modules/finance/services/receivables';
+import { listReceivables, saveProfessionalPayoutForReceivable } from '@/modules/finance/services/receivables';
 import type { FinanceTimeWindow, ReceivableStatus } from '@/modules/finance/domain/types';
 
 const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
@@ -36,5 +36,31 @@ export async function GET(request: NextRequest) {
       { error: error instanceof Error ? error.message : 'Erro ao carregar recebimentos' },
       { status: 500 }
     );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const auth = await requireAdminPermission(request, 'finance.write');
+  if ('error' in auth) return auth.error;
+
+  try {
+    const body = await request.json() as Record<string, unknown>;
+    const stripeChargeId = typeof body.stripeChargeId === 'string' ? body.stripeChargeId.trim() : '';
+    const amountCentavos = body.amountCentavos;
+    if (!stripeChargeId.startsWith('ch_') || typeof amountCentavos !== 'number' || !Number.isSafeInteger(amountCentavos) || amountCentavos < 0) {
+      return NextResponse.json({ error: 'Dados de repasse profissional inválidos.' }, { status: 400 });
+    }
+    await saveProfessionalPayoutForReceivable({
+      stripeChargeId,
+      amountCentavos,
+      protocol: typeof body.protocol === 'string' ? body.protocol : undefined,
+      professionalName: typeof body.professionalName === 'string' ? body.professionalName : undefined,
+      professionalId: typeof body.professionalId === 'string' ? body.professionalId : undefined,
+      jobId: typeof body.jobId === 'string' ? body.jobId : undefined,
+      jobLabel: typeof body.jobLabel === 'string' ? body.jobLabel : undefined,
+    }, auth.uid);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao registrar repasse profissional' }, { status: 500 });
   }
 }
