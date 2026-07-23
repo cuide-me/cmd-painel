@@ -37,6 +37,7 @@ export interface ReceivableRow {
   taxReserveCentavos: number;
   professionalPayoutCentavos: number | null;
   netCuidemeMarginCentavos: number | null;
+  ignoredFromTotals: boolean;
 }
 
 export interface ReceivablesFilters {
@@ -72,8 +73,10 @@ export interface FinancialOverview {
     taxReserveCentavos: number | null;
     taxReserveRatePercent: number;
     balanceAfterFeesAndTaxReserveCentavos: number | null;
+    netCuidemeMarginCentavos: number | null;
     isComplete: boolean;
     note?: string;
+    netCuidemeMarginNote?: string;
   };
   connectFinancials: {
     destinationCharges: number;

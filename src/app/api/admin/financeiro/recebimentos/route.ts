@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminPermission } from '@/lib/server/auth';
-import { listReceivables, saveProfessionalPayoutForReceivable } from '@/modules/finance/services/receivables';
+import { listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals } from '@/modules/finance/services/receivables';
 import type { FinanceTimeWindow, ReceivableStatus } from '@/modules/finance/domain/types';
 
 const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json() as Record<string, unknown>;
     const stripeChargeId = typeof body.stripeChargeId === 'string' ? body.stripeChargeId.trim() : '';
+    if (stripeChargeId.startsWith('ch_') && typeof body.ignoredFromTotals === 'boolean') {
+      await setReceivableIgnoredFromTotals(stripeChargeId, body.ignoredFromTotals, auth.uid);
+      return NextResponse.json({ ok: true });
+    }
     const amountCentavos = body.amountCentavos;
     if (!stripeChargeId.startsWith('ch_') || typeof amountCentavos !== 'number' || !Number.isSafeInteger(amountCentavos) || amountCentavos < 0) {
       return NextResponse.json({ error: 'Dados de repasse profissional inválidos.' }, { status: 400 });

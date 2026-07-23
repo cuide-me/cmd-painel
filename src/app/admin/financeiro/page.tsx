@@ -83,13 +83,15 @@ export default function FinanceOverviewPage() {
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div><h2 className="text-base font-semibold text-slate-950">Custos de recebimento e reserva fiscal</h2><p className="mt-1 text-sm text-slate-600">Apuração operacional de todas as cobranças Stripe bem-sucedidas, inclusive links de pagamento sem repasse.</p></div>
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard label="Tarifas Stripe pagas" value={formatCurrencyFromCentavos(data.operatingFinancials.stripeFeesCentavos)} helper="Tarifas efetivas em balance transactions do Stripe." />
             <MetricCard label={`Reserva estimada de imposto (${data.operatingFinancials.taxReserveRatePercent.toLocaleString('pt-BR')}%)`} value={formatCurrencyFromCentavos(data.operatingFinancials.taxReserveCentavos)} helper="Reserva calculada sobre o valor bruto recebido." />
             <MetricCard label="Saldo após tarifas e reserva" value={formatCurrencyFromCentavos(data.operatingFinancials.balanceAfterFeesAndTaxReserveCentavos)} helper="Não representa lucro operacional ou imposto apurado." />
+            <MetricCard label="Margem líquida Cuide-me" value={formatCurrencyFromCentavos(data.operatingFinancials.netCuidemeMarginCentavos)} helper="Valor recebido menos tarifa Stripe, reserva fiscal e repasses profissionais." />
           </div>
           <p className="mt-4 text-xs text-amber-800">A reserva de 6% é uma estimativa operacional para o Simples Nacional e deve ser conferida na apuração fiscal com a contabilidade.</p>
           {data.operatingFinancials.note ? <p className="mt-2 text-xs text-amber-800">{data.operatingFinancials.note}</p> : null}
+          {data.operatingFinancials.netCuidemeMarginNote ? <p className="mt-2 text-xs text-amber-800">{data.operatingFinancials.netCuidemeMarginNote}</p> : null}
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

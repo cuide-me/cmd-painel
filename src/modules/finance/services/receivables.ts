@@ -89,6 +89,28 @@ async function getProfessionalPayoutsByChargeIds(chargeIds: string[]): Promise<M
   return payouts;
 }
 
+async function getReceivableSettingsByChargeIds(chargeIds: string[]): Promise<Map<string, boolean>> {
+  const uniqueIds = [...new Set(chargeIds)];
+  const settings = new Map<string, boolean>();
+  if (uniqueIds.length === 0) return settings;
+
+  const db = getFirestore();
+  const documents = await db.getAll(...uniqueIds.map((id) => db.collection('receivableSettings').doc(id)));
+  documents.forEach((document: DocumentSnapshot) => {
+    const setting = document.data() as FirestoreRecord | undefined;
+    if (setting?.ignoredFromTotals === true) settings.set(document.id, true);
+  });
+  return settings;
+}
+
+export async function setReceivableIgnoredFromTotals(stripeChargeId: string, ignoredFromTotals: boolean, updatedBy: string): Promise<void> {
+  await getFirestore().collection('receivableSettings').doc(stripeChargeId).set({
+    ignoredFromTotals,
+    updatedAt: new Date().toISOString(),
+    updatedBy,
+  }, { merge: true });
+}
+
 export async function saveProfessionalPayoutForReceivable(input: {
   stripeChargeId: string;
   amountCentavos: number;
@@ -317,11 +339,12 @@ function asPerson(id: string | undefined, users: Map<string, FirestoreRecord>): 
 
 async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
   const paymentKeys = charges.flatMap(getPaymentKeys);
-  const [directJobsByPaymentKey, jobsByPaymentRecords, jobsByMetadataId, professionalPayoutsByChargeId] = await Promise.all([
+  const [directJobsByPaymentKey, jobsByPaymentRecords, jobsByMetadataId, professionalPayoutsByChargeId, receivableSettingsByChargeId] = await Promise.all([
     getJobsByPaymentKeys(paymentKeys),
     getJobsByPaymentRecords(paymentKeys),
     getJobsByIds(charges.flatMap(getJobIdsFromCharge)),
     getProfessionalPayoutsByChargeIds(charges.map((charge) => charge.id)),
+    getReceivableSettingsByChargeIds(charges.map((charge) => charge.id)),
   ]);
   const jobsByPaymentKey = new Map([...jobsByPaymentRecords, ...directJobsByPaymentKey]);
   const userIds = new Set<string>();
@@ -366,6 +389,7 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
       refundedAmountCentavos: charge.amount_refunded || 0,
       stripeFeeCentavos,
       professionalPayoutCentavos,
+      ignoredFromTotals: receivableSettingsByChargeId.get(charge.id) === true,
       ...financials,
     };
   });
@@ -460,12 +484,15 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
   }
 
   const rows = await mapCharges(charges);
-  const succeeded = rows.filter((row) => row.status === 'succeeded');
+  const includedRows = rows.filter((row) => !row.ignoredFromTotals);
+  const succeeded = includedRows.filter((row) => row.status === 'succeeded');
+  const includedChargeIds = new Set(includedRows.map((row) => row.id));
+  const includedCharges = charges.filter((charge) => includedChargeIds.has(charge.id));
   const isComplete = !hasMore;
   const gmvCentavos = succeeded.reduce((sum, row) => sum + row.amountCentavos, 0);
   const activeClients = new Set(succeeded.flatMap((row) => row.client ? [row.client.id] : [])).size;
   const activeProfessionals = new Set(succeeded.flatMap((row) => row.professional ? [row.professional.id] : [])).size;
-  const connectFinancials = calculateConnectFinancials(charges.map((charge) => ({
+  const connectFinancials = calculateConnectFinancials(includedCharges.map((charge) => ({
     status: charge.status,
     destination: Boolean(charge.transfer || charge.on_behalf_of),
     amount: charge.amount,
@@ -475,17 +502,21 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
       : null,
     stripeFeeAmount: getStripeFeeCentavos(charge),
   })));
-  const operatingFinancials = calculateOperatingFinancials(charges.map((charge) => ({
+  const operatingFinancials = calculateOperatingFinancials(includedCharges.map((charge) => ({
     status: charge.status,
     amount: charge.amount,
     stripeFeeAmount: getStripeFeeCentavos(charge),
   })));
+  const hasCompleteCuidemeMargins = succeeded.every((row) => row.netCuidemeMarginCentavos !== null);
+  const netCuidemeMarginCentavos = hasCompleteCuidemeMargins
+    ? succeeded.reduce((sum, row) => sum + (row.netCuidemeMarginCentavos || 0), 0)
+    : null;
 
   return {
     window,
     generatedAt: new Date().toISOString(),
     coverage: {
-      loadedRecords: rows.length,
+      loadedRecords: includedRows.length,
       hasMore,
       isComplete,
       note: isComplete ? undefined : 'Resumo parcial: o periodo excede 1.000 charges. Refine o periodo para leitura completa.',
@@ -496,7 +527,7 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
     averageTicketCentavos: isComplete && succeeded.length > 0 ? Math.round(gmvCentavos / succeeded.length) : null,
     activeClients: isComplete ? activeClients : null,
     activeProfessionals: isComplete ? activeProfessionals : null,
-    soldShifts: isComplete ? succeeded.filter((row) => row.job !== null).length : null,
+    soldShifts: isComplete ? succeeded.length : null,
     refundedCentavos: isComplete ? rows.reduce((sum, row) => sum + row.refundedAmountCentavos, 0) : null,
     operatingFinancials: {
       ...operatingFinancials,
@@ -505,9 +536,13 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
       balanceAfterFeesAndTaxReserveCentavos: isComplete
         ? operatingFinancials.balanceAfterFeesAndTaxReserveCentavos
         : null,
+      netCuidemeMarginCentavos: isComplete ? netCuidemeMarginCentavos : null,
       note: operatingFinancials.isComplete
         ? undefined
         : 'Uma ou mais cobranças ainda não possuem tarifa Stripe disponível para leitura.',
+      netCuidemeMarginNote: hasCompleteCuidemeMargins
+        ? undefined
+        : 'Informe o repasse profissional e aguarde a tarifa Stripe para calcular a margem líquida de todas as transações incluídas.',
     },
     connectFinancials: {
       ...connectFinancials,

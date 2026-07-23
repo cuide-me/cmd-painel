@@ -4,11 +4,12 @@ const requireAdminPermission = jest.fn();
 const getFinancialOverview = jest.fn();
 const listReceivables = jest.fn();
 const saveProfessionalPayoutForReceivable = jest.fn();
+const setReceivableIgnoredFromTotals = jest.fn();
 const listPayoutTransfers = jest.fn();
 const createManualPayout = jest.fn();
 
 jest.mock('@/lib/server/auth', () => ({ requireAdminPermission }));
-jest.mock('@/modules/finance/services/receivables', () => ({ getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable }));
+jest.mock('@/modules/finance/services/receivables', () => ({ getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals }));
 jest.mock('@/modules/finance/services/payout-transfers', () => ({ createManualPayout, listPayoutTransfers }));
 
 import { GET as overviewGet } from '@/app/api/admin/financeiro/overview/route';
@@ -59,6 +60,7 @@ describe('admin finance API routes', () => {
     getFinancialOverview.mockResolvedValue(overview);
     listReceivables.mockResolvedValue({ items: [] });
     saveProfessionalPayoutForReceivable.mockResolvedValue(undefined);
+    setReceivableIgnoredFromTotals.mockResolvedValue(undefined);
     listPayoutTransfers.mockResolvedValue({ items: [] });
     createManualPayout.mockResolvedValue({ id: 'manual-1' });
   });
@@ -115,6 +117,16 @@ describe('admin finance API routes', () => {
       jobId: 'job-1',
       jobLabel: 'Atendimento domiciliar',
     }, 'finance-user');
+  });
+
+  it('persists the option to ignore a receivable from overview totals', async () => {
+    const response = await receivablesPost(new NextRequest('http://localhost/api/admin/financeiro/recebimentos', {
+      method: 'POST',
+      body: JSON.stringify({ stripeChargeId: 'ch_123', ignoredFromTotals: true }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(setReceivableIgnoredFromTotals).toHaveBeenCalledWith('ch_123', true, 'finance-user');
   });
 
   it('falls back to safe financial defaults for invalid payout query parameters', async () => {
