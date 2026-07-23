@@ -1,4 +1,4 @@
-import { calculateConnectFinancials, calculateOperatingFinancials, calculateReceivableFinancials } from '@/modules/finance/services/receivables';
+import { calculateConnectFinancials, calculateOperatingFinancials, calculateOverviewTotals, calculateReceivableFinancials } from '@/modules/finance/services/receivables';
 import { getTransferLifecycle } from '@/modules/finance/services/payout-transfers';
 
 describe('Connect financial calculations', () => {
@@ -46,6 +46,24 @@ describe('Connect financial calculations', () => {
       balanceAfterFeesAndTaxReserveCentavos: 13_600,
       isComplete: true,
     });
+  });
+
+  it('excludes ignored transactions from every overview total while retaining an audit summary', () => {
+    const result = calculateOverviewTotals([
+      { amountCentavos: 10_000, refundedAmountCentavos: 0, status: 'succeeded', ignoredFromTotals: false, client: { id: 'client-1', name: 'Ana' }, professional: { id: 'pro-1', name: 'Bia' } },
+      { amountCentavos: 5_000, refundedAmountCentavos: 5_000, status: 'refunded', ignoredFromTotals: true, client: { id: 'client-2', name: 'Caio' }, professional: { id: 'pro-2', name: 'Dani' } },
+      { amountCentavos: 7_000, refundedAmountCentavos: 0, status: 'succeeded', ignoredFromTotals: true, client: null, professional: null },
+    ]);
+
+    expect(result).toMatchObject({
+      gmvCentavos: 10_000,
+      refundedCentavos: 0,
+      activeClients: 1,
+      activeProfessionals: 1,
+      ignoredTransactions: 2,
+      ignoredAmountCentavos: 12_000,
+    });
+    expect(result.succeededRows).toHaveLength(1);
   });
 
   it('calculates a receivable net margin from payment less fees, tax reserve, and professional payout', () => {

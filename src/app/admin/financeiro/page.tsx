@@ -77,11 +77,12 @@ export default function FinanceOverviewPage() {
           <MetricCard label="Plantões vendidos" value={data.soldShifts?.toLocaleString('pt-BR') || 'Indisponível'} helper="Recebimentos conciliados a atendimentos." />
           <MetricCard label="Clientes ativos" value={data.activeClients?.toLocaleString('pt-BR') || 'Indisponível'} helper="Clientes em recebimentos conciliados." />
           <MetricCard label="Profissionais ativos" value={data.activeProfessionals?.toLocaleString('pt-BR') || 'Indisponível'} helper="Profissionais em recebimentos conciliados." />
+          <MetricCard label="Transações ignoradas" value={data.ignoredTransactions?.toLocaleString('pt-BR') || 'Indisponível'} helper={`${formatCurrencyFromCentavos(data.ignoredAmountCentavos)} fora dos totais.`} />
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <div><h2 className="text-base font-semibold text-slate-950">Custos de recebimento e reserva fiscal</h2><p className="mt-1 text-sm text-slate-600">Apuração operacional de todas as cobranças Stripe bem-sucedidas, inclusive links de pagamento sem repasse.</p></div>
+            <div><h2 className="text-base font-semibold text-slate-950">Custos de recebimento e reserva fiscal</h2><p className="mt-1 text-sm text-slate-600">Apuração operacional das cobranças Stripe bem-sucedidas incluídas nos totais.</p></div>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard label="Tarifas Stripe pagas" value={formatCurrencyFromCentavos(data.operatingFinancials.stripeFeesCentavos)} helper="Tarifas efetivas em balance transactions do Stripe." />

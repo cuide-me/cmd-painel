@@ -68,6 +68,8 @@ export interface FinancialOverview {
   activeProfessionals: number | null;
   soldShifts: number | null;
   refundedCentavos: number | null;
+  ignoredTransactions: number | null;
+  ignoredAmountCentavos: number | null;
   operatingFinancials: {
     stripeFeesCentavos: number | null;
     taxReserveCentavos: number | null;

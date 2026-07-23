@@ -204,6 +204,24 @@ export function calculateOperatingFinancials(charges: Array<{
   };
 }
 
+export function calculateOverviewTotals<T extends Pick<ReceivableRow, 'amountCentavos' | 'client' | 'professional' | 'refundedAmountCentavos' | 'status' | 'ignoredFromTotals'>>(rows: T[]) {
+  const includedRows = rows.filter((row) => !row.ignoredFromTotals);
+  const succeededRows = includedRows.filter((row) => row.status === 'succeeded');
+
+  return {
+    includedRows,
+    succeededRows,
+    gmvCentavos: succeededRows.reduce((sum, row) => sum + row.amountCentavos, 0),
+    refundedCentavos: includedRows.reduce((sum, row) => sum + row.refundedAmountCentavos, 0),
+    activeClients: new Set(succeededRows.flatMap((row) => row.client ? [row.client.id] : [])).size,
+    activeProfessionals: new Set(succeededRows.flatMap((row) => row.professional ? [row.professional.id] : [])).size,
+    ignoredTransactions: rows.length - includedRows.length,
+    ignoredAmountCentavos: rows
+      .filter((row) => row.ignoredFromTotals)
+      .reduce((sum, row) => sum + row.amountCentavos, 0),
+  };
+}
+
 function getPaymentKeys(charge: Stripe.Charge): string[] {
   return [charge.id, getPaymentIntentId(charge)].filter((value): value is string => Boolean(value));
 }
@@ -484,14 +502,10 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
   }
 
   const rows = await mapCharges(charges);
-  const includedRows = rows.filter((row) => !row.ignoredFromTotals);
-  const succeeded = includedRows.filter((row) => row.status === 'succeeded');
-  const includedChargeIds = new Set(includedRows.map((row) => row.id));
+  const overviewTotals = calculateOverviewTotals(rows);
+  const includedChargeIds = new Set(overviewTotals.includedRows.map((row) => row.id));
   const includedCharges = charges.filter((charge) => includedChargeIds.has(charge.id));
   const isComplete = !hasMore;
-  const gmvCentavos = succeeded.reduce((sum, row) => sum + row.amountCentavos, 0);
-  const activeClients = new Set(succeeded.flatMap((row) => row.client ? [row.client.id] : [])).size;
-  const activeProfessionals = new Set(succeeded.flatMap((row) => row.professional ? [row.professional.id] : [])).size;
   const connectFinancials = calculateConnectFinancials(includedCharges.map((charge) => ({
     status: charge.status,
     destination: Boolean(charge.transfer || charge.on_behalf_of),
@@ -507,28 +521,30 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
     amount: charge.amount,
     stripeFeeAmount: getStripeFeeCentavos(charge),
   })));
-  const hasCompleteCuidemeMargins = succeeded.every((row) => row.netCuidemeMarginCentavos !== null);
+  const hasCompleteCuidemeMargins = overviewTotals.succeededRows.every((row) => row.netCuidemeMarginCentavos !== null);
   const netCuidemeMarginCentavos = hasCompleteCuidemeMargins
-    ? succeeded.reduce((sum, row) => sum + (row.netCuidemeMarginCentavos || 0), 0)
+    ? overviewTotals.succeededRows.reduce((sum, row) => sum + (row.netCuidemeMarginCentavos || 0), 0)
     : null;
 
   return {
     window,
     generatedAt: new Date().toISOString(),
     coverage: {
-      loadedRecords: includedRows.length,
+      loadedRecords: overviewTotals.includedRows.length,
       hasMore,
       isComplete,
       note: isComplete ? undefined : 'Resumo parcial: o periodo excede 1.000 charges. Refine o periodo para leitura completa.',
     },
-    gmvCentavos: isComplete ? gmvCentavos : null,
-    totalReceivedCentavos: isComplete ? gmvCentavos : null,
-    successfulPayments: isComplete ? succeeded.length : null,
-    averageTicketCentavos: isComplete && succeeded.length > 0 ? Math.round(gmvCentavos / succeeded.length) : null,
-    activeClients: isComplete ? activeClients : null,
-    activeProfessionals: isComplete ? activeProfessionals : null,
-    soldShifts: isComplete ? succeeded.length : null,
-    refundedCentavos: isComplete ? rows.reduce((sum, row) => sum + row.refundedAmountCentavos, 0) : null,
+    gmvCentavos: isComplete ? overviewTotals.gmvCentavos : null,
+    totalReceivedCentavos: isComplete ? overviewTotals.gmvCentavos : null,
+    successfulPayments: isComplete ? overviewTotals.succeededRows.length : null,
+    averageTicketCentavos: isComplete && overviewTotals.succeededRows.length > 0 ? Math.round(overviewTotals.gmvCentavos / overviewTotals.succeededRows.length) : null,
+    activeClients: isComplete ? overviewTotals.activeClients : null,
+    activeProfessionals: isComplete ? overviewTotals.activeProfessionals : null,
+    soldShifts: isComplete ? overviewTotals.succeededRows.length : null,
+    refundedCentavos: isComplete ? overviewTotals.refundedCentavos : null,
+    ignoredTransactions: isComplete ? overviewTotals.ignoredTransactions : null,
+    ignoredAmountCentavos: isComplete ? overviewTotals.ignoredAmountCentavos : null,
     operatingFinancials: {
       ...operatingFinancials,
       stripeFeesCentavos: isComplete ? operatingFinancials.stripeFeesCentavos : null,
