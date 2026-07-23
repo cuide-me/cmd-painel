@@ -2,7 +2,7 @@
  * Alertas baseados em dados reais (Firebase + Stripe)
  */
 
-import { Timestamp, serverTimestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, type DocumentSnapshot, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { cache } from '@/lib/cache';
 import { getStripeClient } from '@/lib/server/stripe';
@@ -222,7 +222,9 @@ async function mergeAlertLifecycles(alerts: OperationalAlert[]): Promise<Operati
 
   const db = getFirestore();
   const stateDocuments = await db.getAll(...alerts.map((alert) => db.collection('adminAlertStates').doc(alert.id)));
-  const lifecycleById = new Map(stateDocuments.map((document) => [document.id, toLifecycle(document.data())]));
+  const lifecycleById = new Map<string, AlertLifecycle>(
+    stateDocuments.map((document: DocumentSnapshot) => [document.id, toLifecycle(document.data())]),
+  );
 
   return alerts.map((alert) => {
     const lifecycle = lifecycleById.get(alert.id) || alert.lifecycle;
@@ -567,9 +569,9 @@ export async function updateAlertLifecycle(
     ownerId: updatedBy,
     ownerName: ownerName.trim() || null,
     note,
-    acknowledgedAt: input.status === 'acknowledged' ? serverTimestamp() : null,
-    resolvedAt: input.status === 'resolved' ? serverTimestamp() : null,
-    updatedAt: serverTimestamp(),
+    acknowledgedAt: input.status === 'acknowledged' ? FieldValue.serverTimestamp() : null,
+    resolvedAt: input.status === 'resolved' ? FieldValue.serverTimestamp() : null,
+    updatedAt: FieldValue.serverTimestamp(),
     updatedBy,
   }, { merge: true });
 

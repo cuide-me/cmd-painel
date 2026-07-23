@@ -2,7 +2,7 @@
  * Listagem de tickets (Service Desk) baseada em dados reais
  */
 
-import { Timestamp, serverTimestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getFirestore } from '@/lib/server/firebaseAdmin';
 import { getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { hoursSince } from '@/lib/admin/dateHelpers';
@@ -121,8 +121,8 @@ export async function updateTicketOperationalContext(
       ownerName,
       nextAction: input.nextAction?.trim() || null,
       dueAt,
-      resolvedAt: input.status === 'resolved' ? serverTimestamp() : null,
-      updatedAt: serverTimestamp(),
+      resolvedAt: input.status === 'resolved' ? FieldValue.serverTimestamp() : null,
+      updatedAt: FieldValue.serverTimestamp(),
       updatedBy,
     },
   }, { merge: true });

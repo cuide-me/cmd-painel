@@ -2,7 +2,7 @@
  * Listagem de jobs com dados reais do Firestore
  */
 
-import { serverTimestamp, type QueryDocumentSnapshot, type DocumentSnapshot } from 'firebase-admin/firestore';
+import { FieldValue, type QueryDocumentSnapshot, type DocumentSnapshot } from 'firebase-admin/firestore';
 import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { normalizeJobStatus, type NormalizedJobStatus, hasJobProfessional } from '../statusNormalizer';
 import { hoursSince, toDate } from '@/lib/admin/dateHelpers';
@@ -309,8 +309,8 @@ export async function updateJobOperationalContext(
       ownerName: cleanText(ownerName) || null,
       nextAction,
       dueAt,
-      resolvedAt: input.status === 'resolved' ? serverTimestamp() : null,
-      updatedAt: serverTimestamp(),
+      resolvedAt: input.status === 'resolved' ? FieldValue.serverTimestamp() : null,
+      updatedAt: FieldValue.serverTimestamp(),
       updatedBy,
     },
   }, { merge: true });
