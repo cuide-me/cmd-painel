@@ -13,11 +13,13 @@ export interface AdminUserRow {
   bairro?: string;
   especialidades?: string[];
   especialidade?: string;
+  disponibilidade?: string;
 
   // Jobs (agregado)
   jobsCriados?: number;
   jobsConcluidos?: number;
   jobsAceitos?: number;
+  jobsAtivos?: number;
   jobsCancelados?: number;
 
   // Pagamentos (agregado)

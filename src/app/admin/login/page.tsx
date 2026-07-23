@@ -17,7 +17,6 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // Validar senha no backend (não no client)
       const response = await fetch('/api/admin/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -30,13 +29,12 @@ export default function AdminLoginPage() {
         const auth = getFirebaseAuth();
         await signInWithCustomToken(auth, data.firebaseCustomToken);
         
-        console.log('[Login] Acesso concedido');
         router.push('/admin');
       } else {
         setError(data.message || 'Senha incorreta');
       }
-    } catch (err: any) {
-      console.error('[Login] Erro:', err);
+    } catch (requestError: unknown) {
+      console.error('[Login] Erro:', requestError);
       setError('Erro ao fazer login');
     } finally {
       setLoading(false);
@@ -44,36 +42,31 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-        {/* Logo/Header */}
-        <div className="text-center mb-8">
-          <div className="bg-blue-600 text-white w-16 h-16 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
-            🎯
-          </div>
-          <h1 className="text-3xl font-bold text-black mb-2">Cuide-me Admin</h1>
-          <p className="text-black text-sm">Acesso restrito ao painel administrativo</p>
-        </div>
+    <main className="cm-admin-canvas flex min-h-screen items-center justify-center p-4 sm:p-6">
+      <section className="w-full max-w-md rounded-xl border border-[#b7dde1] bg-white p-6 shadow-xl shadow-[#176172]/10 sm:p-8" aria-labelledby="admin-login-title">
+        <header className="mb-8 text-center">
+          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#176172] text-3xl font-bold text-white" aria-hidden="true">C</span>
+          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-[#176172]">Cuide-me | Central de operacao</p>
+          <h1 id="admin-login-title" className="mt-2 text-3xl font-semibold text-[#173842]">Bem-vindo de volta</h1>
+          <p className="mt-2 text-sm leading-6 text-[#587078]">Acesse a visao que ajuda a cuidar de cada atendimento.</p>
+        </header>
 
-        {/* Formulário */}
         <form onSubmit={handleLogin} className="space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-red-800 text-sm">❌ {error}</p>
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-3" role="alert">
+              <p className="text-sm text-rose-800">{error}</p>
             </div>
           )}
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-black mb-2">
-              Senha
-            </label>
+            <label htmlFor="password" className="mb-2 block text-sm font-medium text-[#173842]">Senha</label>
             <input
               id="password"
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Digite a senha de administrador"
-              className="w-full px-4 py-3 border border-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Digite a senha administrativa"
+              className="w-full rounded-lg border border-[#b7dde1] px-4 py-3 text-[#173842] outline-none transition placeholder:text-[#89a0a7] focus:border-[#1195a8] focus:ring-2 focus:ring-[#dff4f5]"
               required
               autoComplete="current-password"
             />
@@ -82,24 +75,21 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#176172] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#124b58] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? (
               <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                 Entrando...
               </>
-            ) : (
-              <>🔐 Entrar no Painel</>
-            )}
+            ) : 'Entrar na central'}
           </button>
         </form>
 
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-xs text-black">© 2025 Cuide-me - Sistema Administrativo</p>
-        </div>
-      </div>
-    </div>
+        <footer className="mt-8 border-t border-[#dff4f5] pt-4 text-center">
+          <p className="text-xs text-[#587078]">Cuide-me: cuidar com verdade, conectar com responsabilidade.</p>
+        </footer>
+      </section>
+    </main>
   );
 }

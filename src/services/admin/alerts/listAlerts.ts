@@ -2,7 +2,7 @@
  * Alertas baseados em dados reais (Firebase + Stripe)
  */
 
-import { Timestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { Timestamp, serverTimestamp, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { cache } from '@/lib/cache';
 import { getStripeClient } from '@/lib/server/stripe';
@@ -16,6 +16,8 @@ import type {
   AlertsResponse,
   ListAlertsParams,
   OperationalAlert,
+  AlertLifecycle,
+  UpdateAlertLifecycleInput,
 } from './types';
 
 function clampItems<T>(items: T[], limit: number = 8): T[] {
@@ -30,6 +32,24 @@ const severityRank: Record<AlertSeverity, number> = {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function toLifecycle(value: unknown): AlertLifecycle {
+  const lifecycle = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const status = lifecycle.status === 'acknowledged' || lifecycle.status === 'resolved'
+    ? lifecycle.status
+    : 'open';
+
+  return {
+    status,
+    ownerId: typeof lifecycle.ownerId === 'string' && lifecycle.ownerId.trim() ? lifecycle.ownerId.trim() : null,
+    ownerName: typeof lifecycle.ownerName === 'string' && lifecycle.ownerName.trim() ? lifecycle.ownerName.trim() : null,
+    note: typeof lifecycle.note === 'string' && lifecycle.note.trim() ? lifecycle.note.trim() : null,
+    acknowledgedAt: toDate(lifecycle.acknowledgedAt)?.toISOString() || null,
+    resolvedAt: toDate(lifecycle.resolvedAt)?.toISOString() || null,
+    updatedAt: toDate(lifecycle.updatedAt)?.toISOString() || null,
+    updatedBy: typeof lifecycle.updatedBy === 'string' && lifecycle.updatedBy.trim() ? lifecycle.updatedBy.trim() : null,
+  };
 }
 
 function freshnessFromLatest(
@@ -184,6 +204,33 @@ function pushAlert(
     lastDetectedAt,
     updatedAt,
     actionHint: params.actionHint,
+    lifecycle: {
+      status: 'open',
+      ownerId: null,
+      ownerName: null,
+      note: null,
+      acknowledgedAt: null,
+      resolvedAt: null,
+      updatedAt: null,
+      updatedBy: null,
+    },
+  });
+}
+
+async function mergeAlertLifecycles(alerts: OperationalAlert[]): Promise<OperationalAlert[]> {
+  if (alerts.length === 0) return alerts;
+
+  const db = getFirestore();
+  const stateDocuments = await db.getAll(...alerts.map((alert) => db.collection('adminAlertStates').doc(alert.id)));
+  const lifecycleById = new Map(stateDocuments.map((document) => [document.id, toLifecycle(document.data())]));
+
+  return alerts.map((alert) => {
+    const lifecycle = lifecycleById.get(alert.id) || alert.lifecycle;
+    return {
+      ...alert,
+      status: lifecycle.status,
+      lifecycle,
+    };
   });
 }
 
@@ -491,7 +538,8 @@ async function listAlertsUncached(params?: ListAlertsParams): Promise<AlertsResp
     };
   }
 
-  const sortedAlerts = sortBySeverityAndRecency(alerts);
+  const alertsWithLifecycle = await mergeAlertLifecycles(alerts);
+  const sortedAlerts = sortBySeverityAndRecency(alertsWithLifecycle);
   const filteredAlerts = applyFilters(sortedAlerts, filtersApplied);
 
   return {
@@ -502,6 +550,30 @@ async function listAlertsUncached(params?: ListAlertsParams): Promise<AlertsResp
     summary: buildSummary(filteredAlerts),
     items: filteredAlerts,
   };
+}
+
+export async function updateAlertLifecycle(
+  alertId: string,
+  input: UpdateAlertLifecycleInput,
+  updatedBy: string,
+  ownerName: string,
+): Promise<void> {
+  getFirebaseAdmin();
+  const db = getFirestore();
+  const note = input.note?.trim() || null;
+
+  await db.collection('adminAlertStates').doc(alertId).set({
+    status: input.status,
+    ownerId: updatedBy,
+    ownerName: ownerName.trim() || null,
+    note,
+    acknowledgedAt: input.status === 'acknowledged' ? serverTimestamp() : null,
+    resolvedAt: input.status === 'resolved' ? serverTimestamp() : null,
+    updatedAt: serverTimestamp(),
+    updatedBy,
+  }, { merge: true });
+
+  cache.invalidatePattern(/^admin:alerts:/);
 }
 
 export async function listAlerts(params?: ListAlertsParams): Promise<AlertsResponse> {

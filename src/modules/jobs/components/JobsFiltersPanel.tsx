@@ -1,12 +1,14 @@
 import { Button, Card } from '@/components/admin/AdminLayout';
-import type { JobStatusFilter, ListJobsResult } from '@/services/admin/jobs';
+import type { JobStatusFilter, ListJobsResult, OperationalJobStatusFilter } from '@/services/admin/jobs';
 
 export interface JobsFiltersState {
   statusFilter: JobStatusFilter;
+  operationalStatus: OperationalJobStatusFilter;
   regionFilter: string;
   bairroFilter: string;
   specialtyFilter: string;
   criticalOnly: boolean;
+  mineOnly: boolean;
   agingMinHours?: number;
   searchTerm?: string;
 }
@@ -67,6 +69,21 @@ export function JobsFiltersPanel({
         </div>
 
         <div>
+          <label htmlFor="jobs-operational-status" className="sr-only">Estado operacional</label>
+          <select
+            id="jobs-operational-status"
+            value={filters.operationalStatus}
+            onChange={event => onFiltersChange(current => ({ ...current, operationalStatus: event.target.value as OperationalJobStatusFilter }))}
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          >
+            <option value="all">Acompanhamento: todos</option>
+            <option value="unassigned">Sem acompanhamento</option>
+            <option value="in_progress">Em acompanhamento</option>
+            <option value="resolved">Tratativa resolvida</option>
+          </select>
+        </div>
+
+        <div>
           <label htmlFor="jobs-neighborhood" className="sr-only">Bairro</label>
           <input
             id="jobs-neighborhood"
@@ -100,6 +117,16 @@ export function JobsFiltersPanel({
             onChange={event => onFiltersChange(current => ({ ...current, criticalOnly: event.target.checked }))}
           />
           <label htmlFor="criticalOnly" className="text-sm text-slate-700">Somente criticos</label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            id="jobs-mine"
+            type="checkbox"
+            checked={filters.mineOnly}
+            onChange={event => onFiltersChange(current => ({ ...current, mineOnly: event.target.checked }))}
+          />
+          <label htmlFor="jobs-mine" className="text-sm text-slate-700">Minhas atribuicoes ativas</label>
         </div>
 
         <div>

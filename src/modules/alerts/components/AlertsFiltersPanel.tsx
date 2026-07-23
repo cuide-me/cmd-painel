@@ -4,6 +4,7 @@ export interface AlertsFiltersState {
   severityFilter: AlertSeverity | 'all';
   typeFilter: AlertType | 'all';
   statusFilter: AlertStatus | 'all';
+  mineOnly: boolean;
   searchTerm?: string;
 }
 
@@ -96,6 +97,15 @@ export function AlertsFiltersPanel({
           Limpar
         </button>
       </div>
+
+      <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+        <input
+          type="checkbox"
+          checked={filters.mineOnly}
+          onChange={event => onFiltersChange(current => ({ ...current, mineOnly: event.target.checked }))}
+        />
+        Minhas atribuicoes ativas
+      </label>
     </div>
   );
 }

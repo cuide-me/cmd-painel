@@ -3,7 +3,7 @@ import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { getStorage } from 'firebase-admin/storage';
 import { getStripeClient } from '@/lib/server/stripe';
 import { cache } from '@/lib/cache';
-import { isJobCompleted, isJobCancelled } from '../statusNormalizer';
+import { isJobCompleted, isJobCancelled, normalizeJobStatus } from '../statusNormalizer';
 import type { AdminUserRow, ListUsersParams, ListUsersResult } from './types';
 
 /**
@@ -115,7 +115,7 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
   // Agregacoes: jobs, pagamentos, avaliacoes, tickets
   // ═══════════════════════════════════════════════════════
   const jobsByClient = new Map<string, { created: number; completed: number; cancelled: number }>();
-  const jobsByProfessional = new Map<string, { accepted: number; completed: number; cancelled: number }>();
+  const jobsByProfessional = new Map<string, { accepted: number; active: number; completed: number; cancelled: number }>();
 
   const paymentsByUser = new Map<string, number>();
   const ratingsByProfessional = new Map<string, { sum: number; count: number }>();
@@ -143,10 +143,11 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
 
       if (professionalId && userIds.has(professionalId)) {
         if (!jobsByProfessional.has(professionalId)) {
-          jobsByProfessional.set(professionalId, { accepted: 0, completed: 0, cancelled: 0 });
+          jobsByProfessional.set(professionalId, { accepted: 0, active: 0, completed: 0, cancelled: 0 });
         }
         const stats = jobsByProfessional.get(professionalId)!;
         stats.accepted++;
+        if (normalizeJobStatus(data.status || 'pending') === 'active') stats.active++;
         if (isJobCompleted(data)) stats.completed++;
         if (isJobCancelled(data)) stats.cancelled++;
       }
@@ -237,7 +238,7 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
     }
 
     const jobsCliente = jobsByClient.get(doc.id) || { created: 0, completed: 0, cancelled: 0 };
-    const jobsProfissional = jobsByProfessional.get(doc.id) || { accepted: 0, completed: 0, cancelled: 0 };
+    const jobsProfissional = jobsByProfessional.get(doc.id) || { accepted: 0, active: 0, completed: 0, cancelled: 0 };
 
     const ratingsProf = ratingsByProfessional.get(doc.id);
     const ratingsUser = ratingsByUser.get(doc.id);
@@ -257,10 +258,12 @@ export async function listUsers(params?: ListUsersParams): Promise<ListUsersResu
       bairro: data.bairro || '',
       especialidades,
       especialidade,
+      disponibilidade: typeof data.disponibilidade === 'string' ? data.disponibilidade.trim() || undefined : undefined,
 
       jobsCriados: jobsCliente.created,
       jobsConcluidos: data.perfil === 'profissional' ? jobsProfissional.completed : jobsCliente.completed,
       jobsAceitos: jobsProfissional.accepted,
+      jobsAtivos: jobsProfissional.active,
       jobsCancelados: data.perfil === 'profissional' ? jobsProfissional.cancelled : jobsCliente.cancelled,
 
       pagamentosRealizados: paymentsByUser.get(doc.id) || 0,

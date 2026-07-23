@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import type { KpiDashboardResponse } from '@/services/admin/kpiDashboardTypes';
-import type { AlertSeverity, AlertsResponse } from '@/services/admin/alerts';
+import type { AlertSeverity, AlertsResponse, UpdateAlertLifecycleInput } from '@/services/admin/alerts';
 import { AlertSummaryCard, AlertsExecutiveSummary } from '@/modules/alerts/components/AlertsExecutiveSummary';
 import { AlertsFiltersPanel, type AlertsFiltersState } from '@/modules/alerts/components/AlertsFiltersPanel';
 import { AffectedItemsList, DashboardAlertsList, OperationalAlertsList } from '@/modules/alerts/components/AlertsResults';
@@ -14,6 +14,7 @@ const DEFAULT_FILTERS: AlertsFiltersState = {
   severityFilter: 'all',
   typeFilter: 'all',
   statusFilter: 'all',
+  mineOnly: false,
   searchTerm: undefined,
 };
 
@@ -73,7 +74,7 @@ function SectionBlock({
 }
 
 export default function AdminAlertasPage() {
-  const { isAdmin, loading: authLoading } = useAdminAuth();
+  const { isAdmin, can, loading: authLoading, user } = useAdminAuth();
   const [alertsData, setAlertsData] = useState<AlertsResponse | null>(null);
   const [dashboardData, setDashboardData] = useState<KpiDashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,12 +126,15 @@ export default function AdminAlertasPage() {
 
   const sortedOperationalAlerts = useMemo(() => {
     if (!alertsData) return [];
-    return [...alertsData.items].sort((left, right) => {
+    const visibleAlerts = filters.mineOnly && user
+      ? alertsData.items.filter((alert) => alert.lifecycle.status === 'acknowledged' && alert.lifecycle.ownerId === user.uid)
+      : alertsData.items;
+    return [...visibleAlerts].sort((left, right) => {
       const severityDiff = severityOrder[left.severity] - severityOrder[right.severity];
       if (severityDiff !== 0) return severityDiff;
       return new Date(right.lastDetectedAt).getTime() - new Date(left.lastDetectedAt).getTime();
     });
-  }, [alertsData]);
+  }, [alertsData, filters.mineOnly, user]);
 
   const dashboardPriorityAlerts = useMemo(() => {
     if (!dashboardData) return [];
@@ -154,6 +158,17 @@ export default function AdminAlertasPage() {
   const clearFilters = () => {
     setSearchInput('');
     setFilters(DEFAULT_FILTERS);
+  };
+
+  const saveAlertLifecycle = async (alertId: string, input: UpdateAlertLifecycleInput) => {
+    const response = await authFetch(`/api/admin/alertas/${alertId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'Erro ao atualizar alerta');
+    await fetchData();
   };
 
   if (authLoading || loading) {
@@ -301,7 +316,11 @@ export default function AdminAlertasPage() {
         title="Fila priorizada de excecoes"
         description="Lista principal para acao. Severidade, bloco afetado, contexto e acao sugerida aparecem acima de qualquer detalhe secundario."
       >
-        <OperationalAlertsList alerts={sortedOperationalAlerts} />
+        <OperationalAlertsList
+          alerts={sortedOperationalAlerts}
+          canManage={can('alerts.manage')}
+          onSaveLifecycle={saveAlertLifecycle}
+        />
       </SectionBlock>
 
       <SectionBlock

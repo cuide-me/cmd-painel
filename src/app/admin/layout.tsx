@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -32,18 +32,13 @@ const secondaryMenuItems: MenuItem[] = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [quickMenuOpen, setQuickMenuOpen] = useState(false);
   const { user, isAdmin, loading, can, logout } = useAdminAuth();
-  const visibleMainMenuItems = mainMenuItems.filter(item => can(item.permission));
-  const visibleSecondaryMenuItems = secondaryMenuItems.filter(item => can(item.permission));
+  const visibleMainMenuItems = mainMenuItems.filter((item) => can(item.permission));
+  const visibleSecondaryMenuItems = secondaryMenuItems.filter((item) => can(item.permission));
+  const menuItems = [...visibleMainMenuItems, ...visibleSecondaryMenuItems];
 
   useEffect(() => {
-    // Não verificar autenticação na página de login
-    if (pathname === '/admin/login') {
-      return;
-    }
-
-    if (!loading && !isAdmin) {
+    if (pathname !== '/admin/login' && !loading && !isAdmin) {
       router.push('/admin/login');
     }
   }, [pathname, router, isAdmin, loading]);
@@ -52,202 +47,87 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     await logout();
   };
 
-  // Se estiver na página de login, renderizar sem layout
-  if (pathname === '/admin/login') {
-    return <>{children}</>;
-  }
+  if (pathname === '/admin/login') return <>{children}</>;
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="cm-admin-canvas flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3" />
-          <p className="text-sm text-gray-600">Validando sessão...</p>
+          <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-2 border-[#b7dde1] border-t-[#1195a8]" />
+          <p className="text-sm text-[#587078]">Validando sessao...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <a
-        href="#main-content"
-        className="sr-only z-[60] rounded bg-white px-3 py-2 text-sm font-medium text-blue-800 shadow focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
-      >
-        Pular para o conteúdo principal
+    <div className="cm-admin-canvas min-h-screen text-[var(--cm-text)]">
+      <a href="#main-content" className="sr-only z-[60] rounded-md bg-white px-3 py-2 text-sm font-medium text-[#176172] shadow focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+        Pular para o conteudo principal
       </a>
-      {/* Top Bar */}
-      <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-          <div className="h-full px-6 flex items-center justify-between max-w-[1920px] mx-auto">
-            {/* Logo & Breadcrumb */}
-            <div className="flex items-center gap-6">
-              <Link href="/admin" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <span className="text-2xl">📊</span>
-                <div>
-                  <h1 className="text-sm font-bold text-gray-900">Painel de KPI</h1>
-                  <p className="text-xs text-gray-500">Cuide.me</p>
-                </div>
-              </Link>
-              
-              {pathname !== '/admin' && (
-                <>
-                  <span className="text-gray-300">/</span>
-                  <span className="text-sm text-gray-900 font-medium">
-                    {(visibleMainMenuItems.find(item => item.href === pathname) || visibleSecondaryMenuItems.find(item => item.href === pathname))?.label || 'Página'}
-                  </span>
-                </>
-              )}
+      <div className="mx-auto flex min-h-screen max-w-[1920px]">
+        <aside className="hidden w-64 shrink-0 border-r border-[var(--cm-border)] bg-white/90 px-4 py-6 lg:flex lg:flex-col">
+          <Link href="/admin" className="flex items-center gap-3 px-2">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#176172] text-lg font-bold text-white" aria-hidden="true">C</span>
+            <div>
+              <p className="text-base font-bold text-[#173842]">Cuide-me</p>
+              <p className="text-xs text-[#587078]">Central de operacao</p>
             </div>
+          </Link>
 
-            {/* Actions */}
-            <div className="flex items-center gap-3">
-              {/* Quick Menu Button */}
-              <button
-                onClick={() => setQuickMenuOpen(!quickMenuOpen)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm"
-                title="Menu Rápido - Todos os Módulos"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-                <span>Módulos</span>
-              </button>
+          <nav className="mt-9 space-y-1" aria-label="Navegacao principal">
+            {menuItems.map((item) => (
+              <Link key={item.id} href={item.href} data-active={pathname === item.href} className="cm-admin-sidebar-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors">
+                <span className="text-base" aria-hidden="true">{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </nav>
 
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
-              
-              {/* User Menu */}
-              <div className="flex items-center gap-2 pl-3 border-l border-gray-200">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user?.displayName || 'Admin'}</p>
-                  <p className="text-xs text-gray-500">{user?.email || 'admin@cuide.me'}</p>
+          <div className="mt-auto border-t border-[var(--cm-border)] pt-4">
+            <p className="truncate px-2 text-sm font-medium text-[#173842]">{user?.displayName || 'Admin'}</p>
+            <p className="truncate px-2 pt-0.5 text-xs text-[#587078]">{user?.email || 'Sessao administrativa'}</p>
+            <button onClick={handleLogout} className="mt-3 w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-[#587078] transition-colors hover:bg-rose-50 hover:text-rose-700">
+              Sair da sessao
+            </button>
+          </div>
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          <header className="sticky top-0 z-40 border-b border-[var(--cm-border)] bg-white/90 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between gap-4">
+              <Link href="/admin" className="flex items-center gap-2 lg:hidden">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#176172] text-sm font-bold text-white" aria-hidden="true">C</span>
+                <span className="text-sm font-bold text-[#173842]">Cuide-me</span>
+              </Link>
+              <div className="hidden lg:block">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#587078]">Central de operacao</p>
+                <p className="mt-0.5 text-sm font-medium text-[#173842]">{menuItems.find((item) => item.href === pathname)?.label || 'Visao geral'}</p>
+              </div>
+              <div className="ml-auto flex items-center gap-3">
+                <div className="hidden text-right sm:block">
+                  <p className="text-sm font-medium text-[#173842]">{user?.displayName || 'Admin'}</p>
+                  <p className="text-xs text-[#587078]">Operacao Cuide-me</p>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
-                  title="Sair"
-                >
-                  <svg className="w-5 h-5 text-gray-600 group-hover:text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
+                <button onClick={handleLogout} className="rounded-full border border-[var(--cm-border)] px-3 py-1.5 text-xs font-semibold text-[#176172] transition-colors hover:bg-[var(--cm-brand-soft)]" title="Sair da sessao">
+                  Sair
                 </button>
               </div>
             </div>
-          </div>
-        </header>
+            <nav className="mt-3 flex gap-2 overflow-x-auto pb-0.5 lg:hidden" aria-label="Navegacao principal">
+              {menuItems.map((item) => (
+                <Link key={item.id} href={item.href} data-active={pathname === item.href} className="cm-admin-sidebar-link shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold">
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </header>
 
-        {/* Quick Access Menu (Dropdown) */}
-        {quickMenuOpen && (
-          <>
-            {/* Overlay */}
-            <div 
-              className="fixed inset-0 bg-black/20 z-40"
-              onClick={() => setQuickMenuOpen(false)}
-            />
-            
-            {/* Menu Dropdown */}
-            <div className="fixed top-20 right-6 z-50 bg-white rounded-lg shadow-2xl border border-gray-200 w-[800px] max-h-[80vh] overflow-hidden">
-              {/* Header */}
-              <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-white">🚀 Todos os Módulos</h3>
-                  <button
-                    onClick={() => setQuickMenuOpen(false)}
-                    className="p-1 hover:bg-white/20 rounded transition-colors"
-                  >
-                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <p className="text-sm text-blue-100 mt-1">Navegue rapidamente entre as áreas</p>
-              </div>
-
-              {/* Content */}
-              <div className="overflow-y-auto max-h-[calc(80vh-100px)] p-4">
-                {/* Main Modules */}
-                <div className="mb-4">
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-3">
-                    📊 Módulos Principais
-                  </div>
-                  <nav className="grid grid-cols-5 gap-3" aria-label="Módulos principais">
-                    {visibleMainMenuItems.filter((item) => !item.hiddenInMenu).map((item) => {
-                      const isActive = pathname === item.href;
-                      return (
-                        <Link
-                          key={item.id}
-                          href={item.href}
-                          onClick={() => setQuickMenuOpen(false)}
-                          className={`
-                            p-4 rounded-lg border transition-all hover:shadow-md
-                            ${isActive 
-                              ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-500' 
-                              : 'bg-white border-gray-200 hover:border-blue-300'
-                            }
-                          `}
-                        >
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="text-3xl">{item.icon}</span>
-                            <span className={`text-sm font-semibold ${isActive ? 'text-blue-700' : 'text-gray-900'}`}>
-                              {item.label}
-                            </span>
-                          </div>
-                          {item.description && (
-                            <p className="text-xs text-gray-500 line-clamp-2">{item.description}</p>
-                          )}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                </div>
-
-                {/* Secondary Modules */}
-                <div className="border-t border-gray-200 pt-4">
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-3">
-                    ⚙️ Administração
-                  </div>
-                  <nav className="grid grid-cols-2 gap-3" aria-label="Administração">
-                    {visibleSecondaryMenuItems.filter((item) => !item.hiddenInMenu).map((item) => {
-                      const isActive = pathname === item.href;
-                      return (
-                        <Link
-                          key={item.id}
-                          href={item.href}
-                          onClick={() => setQuickMenuOpen(false)}
-                          className={`
-                            p-4 rounded-lg border transition-all hover:shadow-md
-                            ${isActive 
-                              ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-500' 
-                              : 'bg-white border-gray-200 hover:border-blue-300'
-                            }
-                          `}
-                        >
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="text-3xl">{item.icon}</span>
-                            <span className={`text-sm font-semibold ${isActive ? 'text-blue-700' : 'text-gray-900'}`}>
-                              {item.label}
-                            </span>
-                          </div>
-                          {item.description && (
-                            <p className="text-xs text-gray-500">{item.description}</p>
-                          )}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-      {/* Page Content */}
-      <main id="main-content" className="p-6 max-w-[1920px] mx-auto" tabIndex={-1}>
-        {children}
-      </main>
+          <main id="main-content" className="mx-auto max-w-[1720px] p-4 sm:p-6 lg:p-8" tabIndex={-1}>
+            {children}
+          </main>
+        </div>
+      </div>
     </div>
   );
 }

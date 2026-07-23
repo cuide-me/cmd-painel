@@ -2,17 +2,35 @@
  * Listagem de jobs com dados reais do Firestore
  */
 
-import { type QueryDocumentSnapshot, type DocumentSnapshot } from 'firebase-admin/firestore';
+import { serverTimestamp, type QueryDocumentSnapshot, type DocumentSnapshot } from 'firebase-admin/firestore';
 import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
 import { normalizeJobStatus, type NormalizedJobStatus, hasJobProfessional } from '../statusNormalizer';
 import { hoursSince, toDate } from '@/lib/admin/dateHelpers';
 import { getJobClientId, getJobProfessionalId } from '@/modules/shared/domain/job-fields';
 import { cleanText, containsText, getDisplayName } from '@/modules/shared/domain/text';
-import type { AdminJobRow, ListJobsParams, ListJobsResult } from './types';
+import type { AdminJobRow, JobOperationalContext, ListJobsParams, ListJobsResult, UpdateJobOperationalInput } from './types';
 
 function toCreatedAtIso(value: unknown): string | null {
   const parsed = toDate(value);
   return parsed ? parsed.toISOString() : null;
+}
+
+function toOperationalContext(value: unknown): JobOperationalContext {
+  const operational = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const status = operational.status === 'in_progress' || operational.status === 'resolved'
+    ? operational.status
+    : 'unassigned';
+
+  return {
+    status,
+    ownerId: cleanText(operational.ownerId) || null,
+    ownerName: cleanText(operational.ownerName) || null,
+    nextAction: cleanText(operational.nextAction) || null,
+    dueAt: toCreatedAtIso(operational.dueAt),
+    resolvedAt: toCreatedAtIso(operational.resolvedAt),
+    updatedAt: toCreatedAtIso(operational.updatedAt),
+    updatedBy: cleanText(operational.updatedBy) || null,
+  };
 }
 
 function resolveCriticality(
@@ -83,6 +101,8 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
 
   const pageSize = Math.min(Math.max(params?.pageSize || 500, 50), 1000);
   const statusFilter = params?.statusFilter || 'all';
+  const operationalStatus = params?.operationalStatus || 'all';
+  const operationalOwnerId = cleanText(params?.operationalOwnerId);
   const searchTerm = cleanText(params?.searchTerm);
   const regionFilter = cleanText(params?.regionFilter);
   const bairroFilter = cleanText(params?.bairroFilter);
@@ -166,6 +186,7 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
       hasProfessional,
       isCritical: criticality.isCritical,
       criticalReason: criticality.reason,
+      operational: toOperationalContext(job.operational),
     };
   });
 
@@ -191,6 +212,14 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
 
   if (statusFilter !== 'all') {
     jobs = jobs.filter((job) => job.status === statusFilter);
+  }
+
+  if (operationalStatus !== 'all') {
+    jobs = jobs.filter((job) => job.operational.status === operationalStatus);
+  }
+
+  if (operationalOwnerId) {
+    jobs = jobs.filter((job) => job.operational.ownerId === operationalOwnerId);
   }
 
   if (criticalOnly) {
@@ -239,6 +268,7 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
     },
     filtersApplied: {
       statusFilter,
+      operationalStatus,
       searchTerm,
       regionFilter,
       bairroFilter,
@@ -249,4 +279,39 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
     suggestions,
     nextCursor,
   };
+}
+
+export async function updateJobOperationalContext(
+  jobId: string,
+  input: UpdateJobOperationalInput,
+  updatedBy: string,
+  ownerName: string,
+): Promise<void> {
+  getFirebaseAdmin();
+  const db = getFirestore();
+  const jobRef = db.collection('jobs').doc(jobId);
+  const job = await jobRef.get();
+
+  if (!job.exists) {
+    throw new Error('Atendimento nao encontrado');
+  }
+
+  const nextAction = cleanText(input.nextAction) || null;
+  const dueAt = input.dueAt ? new Date(input.dueAt) : null;
+  if (dueAt && Number.isNaN(dueAt.getTime())) {
+    throw new Error('Prazo operacional invalido');
+  }
+
+  await jobRef.set({
+    operational: {
+      status: input.status,
+      ownerId: updatedBy,
+      ownerName: cleanText(ownerName) || null,
+      nextAction,
+      dueAt,
+      resolvedAt: input.status === 'resolved' ? serverTimestamp() : null,
+      updatedAt: serverTimestamp(),
+      updatedBy,
+    },
+  }, { merge: true });
 }

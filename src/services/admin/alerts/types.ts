@@ -13,6 +13,22 @@ export type AlertType =
   | 'other_exceptions';
 export type AlertSource = 'jobs' | 'tickets' | 'stripe';
 
+export interface AlertLifecycle {
+  status: AlertStatus;
+  ownerId: string | null;
+  ownerName: string | null;
+  note: string | null;
+  acknowledgedAt: string | null;
+  resolvedAt: string | null;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export interface UpdateAlertLifecycleInput {
+  status: Exclude<AlertStatus, 'open'>;
+  note?: string | null;
+}
+
 export interface AlertAffectedItem {
   id: string;
   label: string;
@@ -36,6 +52,7 @@ export interface OperationalAlert {
   lastDetectedAt: string;
   updatedAt: string;
   actionHint?: string;
+  lifecycle: AlertLifecycle;
 }
 
 export interface AlertsFreshness {

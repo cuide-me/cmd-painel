@@ -184,6 +184,9 @@ export default function AdminUsersPage() {
   const perfilCompleto = users.filter(u => u.porcentagemPerfil === 100);
   const stripeAtivos = users.filter(u => u.stripeAccountStatus === 'Ativada');
   const verificados = users.filter(u => u.statusVerificacao === 'verificado');
+  const profissionaisAtivos = profissionais.filter(u => u.ativo === true);
+  const profissionaisComDisponibilidade = profissionais.filter(u => Boolean(u.disponibilidade));
+  const profissionaisEmAtendimento = profissionais.filter(u => (u.jobsAtivos || 0) > 0);
 
   const filteredUsers = perfilFilter === 'all' ? users : users.filter(u => u.perfil === perfilFilter);
   
@@ -239,6 +242,36 @@ export default function AdminUsersPage() {
           completeProfiles={perfilCompleto.length}
         />
       </div>
+
+      <Section title="Prontidao de oferta">
+        <div className="rounded-lg border border-[#b7dde1] bg-[#effafa] p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[#173842]">Cobertura observada da base profissional</p>
+              <p className="mt-1 text-sm text-[#587078]">Sinais disponiveis para orientar captacao e distribuicao. Isto nao representa horas livres ou capacidade futura.</p>
+            </div>
+            <span className="w-fit rounded-full border border-[#b7dde1] bg-white px-3 py-1 text-xs font-semibold text-[#176172]">Leitura observada</span>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <article className="rounded-lg border border-white bg-white/80 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#587078]">Profissionais ativos</p>
+              <p className="mt-2 text-2xl font-semibold text-[#173842]">{profissionaisAtivos.length.toLocaleString('pt-BR')}</p>
+              <p className="mt-1 text-xs text-[#587078]">Cadastro marcado como ativo.</p>
+            </article>
+            <article className="rounded-lg border border-white bg-white/80 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#587078]">Disponibilidade declarada</p>
+              <p className="mt-2 text-2xl font-semibold text-[#173842]">{profissionaisComDisponibilidade.length.toLocaleString('pt-BR')}</p>
+              <p className="mt-1 text-xs text-[#587078]">Campo livre informado no perfil.</p>
+            </article>
+            <article className="rounded-lg border border-white bg-white/80 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#587078]">Em atendimento ativo</p>
+              <p className="mt-2 text-2xl font-semibold text-[#173842]">{profissionaisEmAtendimento.length.toLocaleString('pt-BR')}</p>
+              <p className="mt-1 text-xs text-[#587078]">Profissionais com ao menos um job ativo.</p>
+            </article>
+          </div>
+          <p className="mt-4 text-xs text-[#176172]">Para prever capacidade por regiao, especialidade e turno, a base precisa registrar agenda estruturada, duracao do atendimento e horas ofertadas.</p>
+        </div>
+      </Section>
 
       {/* Tabs */}
       <Tabs

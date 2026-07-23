@@ -48,7 +48,7 @@ describe('GET /api/admin/jobs', () => {
     });
     listJobs.mockResolvedValue({ items: [], summary: {}, suggestions: {} });
 
-    const response = await GET(jobsRequest('?pageSize=50&status=active&q=joana&region=Zona%20Sul&bairro=Moema&specialty=enfermagem&criticalOnly=yes&agingMinHours=72'));
+    const response = await GET(jobsRequest('?pageSize=50&status=active&operationalStatus=in_progress&q=joana&region=Zona%20Sul&bairro=Moema&specialty=enfermagem&criticalOnly=yes&mine=true&agingMinHours=72'));
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ items: [], summary: {}, suggestions: {} });
@@ -56,11 +56,13 @@ describe('GET /api/admin/jobs', () => {
     expect(listJobs).toHaveBeenCalledWith({
       pageSize: 50,
       statusFilter: 'active',
+      operationalStatus: 'in_progress',
       searchTerm: 'joana',
       regionFilter: 'Zona Sul',
       bairroFilter: 'Moema',
       specialtyFilter: 'enfermagem',
       criticalOnly: true,
+      operationalOwnerId: 'admin-panel-user',
       agingMinHours: 72,
     });
   });

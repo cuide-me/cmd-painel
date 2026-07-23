@@ -11,6 +11,7 @@ import { DashboardTaxonomyTables } from '@/modules/dashboard/components/Dashboar
 import { SourceIntegrityBanner } from '@/modules/dashboard/components/SourceIntegrityBanner';
 import { RegionHeatmap } from '@/modules/dashboard/components/DashboardRegionHeatmap';
 import { ZoneDistributionPieCard } from '@/modules/dashboard/components/DashboardZoneDistribution';
+import { OperationalWorkQueue } from '@/modules/dashboard/components/OperationalWorkQueue';
 import type {
   DashboardZoneKey,
   DashboardMetric,
@@ -103,6 +104,12 @@ function SectionBlock({
   );
 }
 
+function priorityTone(status: 'critical' | 'warning' | 'ok' | 'info'): string {
+  if (status === 'critical') return 'border-rose-200 bg-rose-50 text-rose-800';
+  if (status === 'warning') return 'border-amber-200 bg-amber-50 text-amber-800';
+  return 'border-[#b7dde1] bg-[#effafa] text-[#176172]';
+}
+
 export default function AdminKpiDashboardPage() {
   const { isAdmin, loading: authLoading } = useAdminAuth();
   const [data, setData] = useState<KpiDashboardResponse | null>(null);
@@ -146,6 +153,33 @@ export default function AdminKpiDashboardPage() {
     if (!data) return [];
     return data.alerts.items.filter((item) => item.severity !== 'info');
   }, [data]);
+
+  const priorityItems = useMemo(() => {
+    if (!data) return [];
+
+    const alerts = highPriorityAlerts.map((alert) => ({
+      id: `alert-${alert.id}`,
+      status: alert.severity,
+      title: alert.title,
+      detail: alert.description,
+      action: alert.expectedAction,
+      href: '/admin/alertas',
+      source: 'Alerta',
+    }));
+    const bottlenecks = data.operationalHealth.bottlenecks
+      .filter((item) => item.status !== 'ok')
+      .map((item) => ({
+        id: `bottleneck-${item.id}`,
+        status: item.status,
+        title: item.label,
+        detail: item.description,
+        action: item.expectedAction,
+        href: '/admin/jobs',
+        source: `${item.volume.toLocaleString('pt-BR')} casos`,
+      }));
+
+    return [...alerts, ...bottlenecks].slice(0, 4);
+  }, [data, highPriorityAlerts]);
 
   const funnelJourneySteps = useMemo(() => {
     if (!data) return [];
@@ -287,22 +321,25 @@ export default function AdminKpiDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <header className="overflow-hidden rounded-xl border border-[#b7dde1] bg-[#effafa] p-5 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Cuide-me</p>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-950">Painel de KPI e Operacao</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Leitura executiva e operacional baseada na fonte real do produto: taxonomia canonica do GA4, operacao em Firebase e pagamentos no Stripe.
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#176172]">Central de operacao</p>
+            <h1 className="mt-2 text-3xl font-semibold text-[#173842]">Acompanhe o cuidado em movimento.</h1>
+            <p className="mt-2 text-sm text-[#48636b]">
+              Leitura diaria para proteger a experiencia das familias, apoiar profissionais e priorizar a operacao.
             </p>
             <div className="mt-4 flex flex-wrap gap-2 text-sm">
-              <Link href="/admin/jobs" className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-700 hover:border-slate-300 hover:bg-slate-50">
+              <Link href="/admin/jobs" className="rounded-full border border-[#b7dde1] bg-white px-3 py-1.5 text-[#176172] hover:bg-[#dff4f5]">
                 Ver atendimentos
               </Link>
-              <Link href="/admin/alertas" className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-700 hover:border-slate-300 hover:bg-slate-50">
+              <Link href="/admin/alertas" className="rounded-full border border-[#b7dde1] bg-white px-3 py-1.5 text-[#176172] hover:bg-[#dff4f5]">
                 Ver alertas
               </Link>
-              <Link href="/admin/users" className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-700 hover:border-slate-300 hover:bg-slate-50">
+              <Link href="/admin/financeiro" className="rounded-full border border-[#b7dde1] bg-white px-3 py-1.5 text-[#176172] hover:bg-[#dff4f5]">
+                Ver financeiro
+              </Link>
+              <Link href="/admin/users" className="rounded-full border border-[#b7dde1] bg-white px-3 py-1.5 text-[#176172] hover:bg-[#dff4f5]">
                 Ver usuarios
               </Link>
             </div>
@@ -312,7 +349,7 @@ export default function AdminKpiDashboardPage() {
             <select
               value={selectedZone}
               onChange={(event) => setSelectedZone(event.target.value as DashboardZoneKey | 'all')}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+              className="rounded-lg border border-[#b7dde1] bg-white px-3 py-2 text-sm text-[#173842]"
             >
               <option value="all">Todas as zonas</option>
               {data.liquidity.usersByZone.zones.map((zone) => (
@@ -322,7 +359,7 @@ export default function AdminKpiDashboardPage() {
             <select
               value={timeWindow}
               onChange={(event) => setTimeWindow(Number(event.target.value) as TimeWindow)}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+              className="rounded-lg border border-[#b7dde1] bg-white px-3 py-2 text-sm text-[#173842]"
             >
               <option value={7}>Janela 7 dias</option>
               <option value={14}>Janela 14 dias</option>
@@ -330,7 +367,7 @@ export default function AdminKpiDashboardPage() {
               <option value={60}>Janela 60 dias</option>
               <option value={90}>Janela 90 dias</option>
             </select>
-            <button onClick={fetchData} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            <button onClick={fetchData} className="rounded-lg bg-[#176172] px-4 py-2 text-sm font-medium text-white hover:bg-[#124b58]">
               Atualizar leitura
             </button>
           </div>
@@ -350,6 +387,37 @@ export default function AdminKpiDashboardPage() {
         historyNote={data.dataQuality.historyNote}
         limitations={data.dataQuality.limitations}
       />
+
+      <section className="rounded-xl border border-[#b7dde1] bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#176172]">Prioridades de agora</p>
+            <h2 className="mt-1 text-xl font-semibold text-[#173842]">O que merece acompanhamento imediato</h2>
+          </div>
+          <Link href="/admin/alertas" className="text-sm font-semibold text-[#176172] hover:text-[#1195a8]">Abrir central de alertas</Link>
+        </div>
+
+        {priorityItems.length > 0 ? (
+          <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-2">
+            {priorityItems.map((item) => (
+              <Link key={item.id} href={item.href} className={`block rounded-lg border p-4 transition-transform hover:-translate-y-0.5 ${priorityTone(item.status)}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold">{item.title}</p>
+                  <span className="shrink-0 text-xs font-semibold">{item.source}</span>
+                </div>
+                <p className="mt-2 text-sm leading-5 opacity-90">{item.detail}</p>
+                <p className="mt-3 text-xs font-semibold">Proxima acao: {item.action}</p>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-lg border border-[#b7dde1] bg-[#effafa] p-4 text-sm text-[#176172]">
+            Nenhum alerta ou gargalo exige intervencao imediata nesta janela. Mantenha a rotina de acompanhamento.
+          </div>
+        )}
+      </section>
+
+      <OperationalWorkQueue />
 
       <SectionBlock
         title="Bloco 1 — Visao executiva"

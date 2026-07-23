@@ -1,14 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --cm-brand: #2563eb;
-  --cm-brand-strong: #1d4ed8;
-  --cm-canvas: #f8fafc;
+  --cm-brand: #1195a8;
+  --cm-brand-strong: #176172;
+  --cm-brand-soft: #dff4f5;
+  --cm-canvas: #f4fbfc;
   --cm-surface: #ffffff;
-  --cm-text: #0f172a;
-  --cm-text-muted: #475569;
-  --cm-border: #cbd5e1;
-  --cm-focus: #1d4ed8;
+  --cm-text: #173842;
+  --cm-text-muted: #587078;
+  --cm-border: #c9e2e5;
+  --cm-focus: #1195a8;
 }
 
 @layer base {
@@ -19,7 +20,7 @@
   }
 
   html {
-    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: "Avenir Next", Avenir, "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
   }
 
   body {
@@ -35,6 +36,28 @@
     outline: 3px solid var(--cm-focus);
     outline-offset: 2px;
   }
+}
+
+.cm-admin-canvas {
+  background:
+    linear-gradient(180deg, rgba(223, 244, 245, 0.65) 0, rgba(244, 251, 252, 0) 19rem),
+    var(--cm-canvas);
+}
+
+.cm-admin-sidebar-link {
+  border: 1px solid transparent;
+  color: #48636b;
+}
+
+.cm-admin-sidebar-link:hover {
+  background: #effafa;
+  color: #176172;
+}
+
+.cm-admin-sidebar-link[data-active="true"] {
+  border-color: #b7dde1;
+  background: var(--cm-brand-soft);
+  color: #135563;
 }
 
 @keyframes pulse-slow {

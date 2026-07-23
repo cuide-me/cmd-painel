@@ -6,6 +6,26 @@ import type { NormalizedJobStatus } from '../statusNormalizer';
 
 export type JobStatusFilter = NormalizedJobStatus | 'all';
 
+export type OperationalQueueStatus = 'unassigned' | 'in_progress' | 'resolved';
+export type OperationalJobStatusFilter = OperationalQueueStatus | 'all';
+
+export interface JobOperationalContext {
+  status: OperationalQueueStatus;
+  ownerId: string | null;
+  ownerName: string | null;
+  nextAction: string | null;
+  dueAt: string | null;
+  resolvedAt: string | null;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+export interface UpdateJobOperationalInput {
+  nextAction?: string | null;
+  dueAt?: string | null;
+  status: Exclude<OperationalQueueStatus, 'unassigned'>;
+}
+
 export interface AdminJobRow {
   id: string;
   statusRaw?: string | null;
@@ -31,10 +51,12 @@ export interface AdminJobRow {
   hasProfessional: boolean;
   isCritical: boolean;
   criticalReason?: string;
+  operational: JobOperationalContext;
 }
 
 export interface JobsFilters {
   statusFilter: JobStatusFilter;
+  operationalStatus: OperationalJobStatusFilter;
   searchTerm?: string;
   regionFilter?: string;
   bairroFilter?: string;
@@ -44,6 +66,7 @@ export interface JobsFilters {
 }
 
 export interface ListJobsParams extends Partial<JobsFilters> {
+  operationalOwnerId?: string;
   pageSize?: number;
   cursor?: unknown;
 }
