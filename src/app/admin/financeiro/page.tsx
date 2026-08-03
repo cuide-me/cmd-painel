@@ -23,6 +23,7 @@ function MetricCard({ label, value, helper }: { label: string; value: string; he
 export default function FinanceOverviewPage() {
   const { can, loading: authLoading } = useAdminAuth();
   const [window, setWindow] = useState<FinanceTimeWindow>(30);
+  const [month, setMonth] = useState('');
   const [data, setData] = useState<FinancialOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +32,9 @@ export default function FinanceOverviewPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await authFetch(`/api/admin/financeiro/overview?window=${window}`);
+      const params = new URLSearchParams({ window: String(window) });
+      if (month) params.set('month', month);
+      const response = await authFetch(`/api/admin/financeiro/overview?${params}`);
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Erro ao carregar visão geral');
       setData(payload as FinancialOverview);
@@ -40,7 +43,7 @@ export default function FinanceOverviewPage() {
     } finally {
       setLoading(false);
     }
-  }, [window]);
+  }, [month, window]);
 
   useEffect(() => {
     if (can('finance.read')) void load();
@@ -59,6 +62,7 @@ export default function FinanceOverviewPage() {
             <select value={window} onChange={(event) => setWindow(Number(event.target.value) as FinanceTimeWindow)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
               {WINDOWS.map((item) => <option key={item} value={item}>Últimos {item} dias</option>)}
             </select>
+            <input value={month} onChange={(event) => setMonth(event.target.value)} type="month" aria-label="Filtrar visão geral por mês" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
             <button onClick={load} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800">Atualizar</button>
           </div>
         )}

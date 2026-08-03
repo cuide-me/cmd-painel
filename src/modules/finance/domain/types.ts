@@ -73,6 +73,7 @@ export interface ReceivablesResult {
 
 export interface FinancialOverview {
   window: FinanceTimeWindow;
+  month?: string;
   generatedAt: string;
   coverage: FinanceSourceCoverage;
   gmvCentavos: number | null;
@@ -147,6 +148,10 @@ export interface CreateManualPayoutInput {
 export interface PayoutTransfersResult {
   items: PayoutTransferRow[];
   nextCursor: string | null;
+  filtersApplied: {
+    window: FinanceTimeWindow;
+    month?: string;
+  };
   coverage: FinanceSourceCoverage;
   summary: Record<TransferLifecycle, number>;
   bankPayoutReconciliation: {

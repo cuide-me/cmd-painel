@@ -104,7 +104,7 @@ export default function ReceivablesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stripeChargeId: item.id,
+          ...(item.source === 'manual_pix' ? { manualPixId: item.id.replace(/^manual_pix_/, '') } : { stripeChargeId: item.id }),
           amountCentavos,
           protocol: item.job?.protocol,
           professionalName: item.professional?.name,
@@ -180,7 +180,10 @@ export default function ReceivablesPage() {
       const response = await authFetch('/api/admin/financeiro/recebimentos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripeChargeId: item.id, manualRefundedAmountCentavos: amountCentavos }),
+        body: JSON.stringify({
+          ...(item.source === 'manual_pix' ? { manualPixId: item.id.replace(/^manual_pix_/, '') } : { stripeChargeId: item.id }),
+          manualRefundedAmountCentavos: amountCentavos,
+        }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Erro ao registrar reembolso manual');
@@ -280,8 +283,8 @@ export default function ReceivablesPage() {
                 <td className="px-4 py-3 font-medium">{formatCurrencyFromCentavos(item.amountCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{formatCurrencyFromCentavos(item.stripeFeeCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{formatCurrencyFromCentavos(item.taxReserveCentavos, item.currency)} <span className="text-xs text-slate-500">estimado</span></td>
-                <td className="px-4 py-3"><div className="flex min-w-40 gap-1"><input value={payoutValues[item.id] ?? (item.professionalPayoutCentavos === null ? '' : (item.professionalPayoutCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setPayoutValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Repasse profissional para ${item.id}`} disabled={item.source !== 'stripe' || !can('finance.write') || savingPayoutId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar repasse profissional" onClick={() => void saveProfessionalPayout(item)} disabled={item.source !== 'stripe' || !can('finance.write') || savingPayoutId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div></td>
-                <td className="px-4 py-3"><div className="min-w-40 space-y-1"><div className="flex gap-1"><input value={manualRefundValues[item.id] ?? (item.manualRefundedAmountCentavos === null ? '' : (item.manualRefundedAmountCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setManualRefundValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Reembolso manual para ${item.id}`} disabled={item.source !== 'stripe' || !can('finance.write') || savingManualRefundId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar reembolso manual" onClick={() => void saveManualRefund(item)} disabled={item.source !== 'stripe' || !can('finance.write') || savingManualRefundId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div><p className="text-xs text-slate-500">{item.source === 'manual_pix' ? 'Não aplicável' : item.manualRefundedAmountCentavos === null ? `Stripe: ${formatCurrencyFromCentavos(item.refundedAmountCentavos, item.currency)}` : 'Manual'}</p></div></td>
+                <td className="px-4 py-3"><div className="flex min-w-40 gap-1"><input value={payoutValues[item.id] ?? (item.professionalPayoutCentavos === null ? '' : (item.professionalPayoutCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setPayoutValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Repasse profissional para ${item.id}`} disabled={!can('finance.write') || savingPayoutId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar repasse profissional" onClick={() => void saveProfessionalPayout(item)} disabled={!can('finance.write') || savingPayoutId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div></td>
+                <td className="px-4 py-3"><div className="min-w-40 space-y-1"><div className="flex gap-1"><input value={manualRefundValues[item.id] ?? (item.manualRefundedAmountCentavos === null ? '' : (item.manualRefundedAmountCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setManualRefundValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Reembolso manual para ${item.id}`} disabled={!can('finance.write') || savingManualRefundId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar reembolso manual" onClick={() => void saveManualRefund(item)} disabled={!can('finance.write') || savingManualRefundId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div><p className="text-xs text-slate-500">{item.source === 'manual_pix' ? 'Informado manualmente' : item.manualRefundedAmountCentavos === null ? `Stripe: ${formatCurrencyFromCentavos(item.refundedAmountCentavos, item.currency)}` : 'Manual'}</p></div></td>
                 <td className="px-4 py-3 font-medium">{formatCurrencyFromCentavos(item.netCuidemeMarginCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{item.paymentMethod || 'Não informado'}</td>
                 <td className="px-4 py-3">{statusLabel(item.status)}</td>

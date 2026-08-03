@@ -37,7 +37,7 @@ function getWindowStart(window: FinanceTimeWindow): number {
   return Math.floor((Date.now() - window * 24 * 60 * 60 * 1000) / 1000);
 }
 
-function getReceivablesDateRange(window: FinanceTimeWindow, month?: string): { gte: number; lt?: number } {
+function getDateRange(window: FinanceTimeWindow, month?: string): { gte: number; lt?: number } {
   if (month) {
     const [year, monthNumber] = month.split('-').map(Number);
     return {
@@ -154,6 +154,18 @@ export async function setReceivableManualProtocol(stripeChargeId: string, protoc
 export async function setReceivableManualRefund(stripeChargeId: string, amountCentavos: number, updatedBy: string): Promise<void> {
   await getFirestore().collection('receivableSettings').doc(stripeChargeId).set({
     manualRefundedAmountCentavos: amountCentavos,
+    updatedAt: new Date().toISOString(),
+    updatedBy,
+  }, { merge: true });
+}
+
+export async function setManualPixFinancialValue(input: {
+  manualPixId: string;
+  field: 'professionalPayoutCentavos' | 'manualRefundedAmountCentavos';
+  amountCentavos: number;
+}, updatedBy: string): Promise<void> {
+  await getFirestore().collection('manualReceivables').doc(input.manualPixId).set({
+    [input.field]: input.amountCentavos,
     updatedAt: new Date().toISOString(),
     updatedBy,
   }, { merge: true });
@@ -410,17 +422,27 @@ function toManualReceivableRow(id: string, data: FirestoreRecord): ReceivableRow
   const paidAt = data.paidAt;
   if (typeof amountCentavos !== 'number' || typeof clientName !== 'string' || typeof protocol !== 'string' || typeof paidAt !== 'string') return null;
 
+  const professionalPayoutCentavos = typeof data.professionalPayoutCentavos === 'number'
+    && Number.isSafeInteger(data.professionalPayoutCentavos)
+    && data.professionalPayoutCentavos >= 0
+    ? data.professionalPayoutCentavos
+    : null;
+  const manualRefundedAmountCentavos = typeof data.manualRefundedAmountCentavos === 'number'
+    && Number.isSafeInteger(data.manualRefundedAmountCentavos)
+    && data.manualRefundedAmountCentavos >= 0
+    ? data.manualRefundedAmountCentavos
+    : null;
   const financials = calculateReceivableFinancials({
     amountCentavos,
     stripeFeeCentavos: 0,
-    professionalPayoutCentavos: null,
+    professionalPayoutCentavos,
   });
 
   return {
     id: `manual_pix_${id}`,
     source: 'manual_pix',
     stripePaymentIntentId: null,
-    createdAt: typeof data.createdAt === 'string' ? data.createdAt : `${paidAt}T12:00:00.000Z`,
+    createdAt: `${paidAt}T12:00:00.000Z`,
     amountCentavos,
     currency: typeof data.currency === 'string' ? data.currency : 'brl',
     status: 'succeeded',
@@ -433,24 +455,31 @@ function toManualReceivableRow(id: string, data: FirestoreRecord): ReceivableRow
     manualProtocol: protocol,
     reconciliation: 'unlinked',
     refundedAmountCentavos: 0,
-    manualRefundedAmountCentavos: null,
+    manualRefundedAmountCentavos,
     stripeFeeCentavos: 0,
-    professionalPayoutCentavos: null,
+    professionalPayoutCentavos,
     ignoredFromTotals: false,
     ...financials,
   };
 }
 
 async function listManualReceivables(window: FinanceTimeWindow, month?: string): Promise<ReceivableRow[]> {
-  const range = getReceivablesDateRange(window, month);
+  const range = getDateRange(window, month);
   const rangeStart = new Date(range.gte * 1000).toISOString();
   const rangeEnd = range.lt ? new Date(range.lt * 1000).toISOString() : undefined;
   const snapshot = await getFirestore().collection('manualReceivables').get();
+  const seenPayments = new Set<string>();
   return snapshot.docs
     .map((document: QueryDocumentSnapshot) => toManualReceivableRow(document.id, document.data() as FirestoreRecord))
     .filter((row: ReceivableRow | null): row is ReceivableRow => Boolean(
       row && row.createdAt >= rangeStart && (!rangeEnd || row.createdAt < rangeEnd)
     ))
+    .filter((row: ReceivableRow) => {
+      const key = [row.client?.name, row.manualProtocol, row.amountCentavos, row.createdAt].join('|');
+      if (seenPayments.has(key)) return false;
+      seenPayments.add(key);
+      return true;
+    })
     .sort((first: ReceivableRow, second: ReceivableRow) => second.createdAt.localeCompare(first.createdAt));
 }
 
@@ -554,7 +583,7 @@ export async function listReceivables(filters: ReceivablesFilters): Promise<Rece
   // Stripe cannot filter charges by the job participants stored in Firestore.
   // Fetch only the remaining capacity so advancing the cursor never skips a matching row.
   while (items.length < pageSize && hasMore && scannedRecords < MAX_FILTER_SCAN_RECORDS) {
-    const dateRange = getReceivablesDateRange(filters.window, filters.month);
+    const dateRange = getDateRange(filters.window, filters.month);
     const response = await stripe.charges.list({
       created: dateRange,
       limit: Math.min(pageSize - items.length, MAX_FILTER_SCAN_RECORDS - scannedRecords),
@@ -609,7 +638,7 @@ export function calculateNetCuidemeMargin(rows: Array<Pick<ReceivableRow, 'netCu
   return rows.reduce((sum, row) => sum + (row.netCuidemeMarginCentavos ?? 0), 0);
 }
 
-export async function getFinancialOverview(window: FinanceTimeWindow): Promise<FinancialOverview> {
+export async function getFinancialOverview(window: FinanceTimeWindow, month?: string): Promise<FinancialOverview> {
   const stripe = getStripeClient();
   const charges: Stripe.Charge[] = [];
   let cursor: string | undefined;
@@ -617,7 +646,7 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
 
   for (let page = 0; page < OVERVIEW_PAGE_LIMIT; page += 1) {
     const response = await stripe.charges.list({
-      created: { gte: getWindowStart(window) },
+      created: getDateRange(window, month),
       limit: MAX_PAGE_SIZE,
       expand: ['data.application_fee', 'data.balance_transaction'],
       ...(cursor ? { starting_after: cursor } : {}),
@@ -653,6 +682,7 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
 
   return {
     window,
+    month,
     generatedAt: new Date().toISOString(),
     coverage: {
       loadedRecords: overviewTotals.includedRows.length,

@@ -6,12 +6,13 @@ const listReceivables = jest.fn();
 const saveProfessionalPayoutForReceivable = jest.fn();
 const setReceivableIgnoredFromTotals = jest.fn();
 const setReceivableManualRefund = jest.fn();
+const setManualPixFinancialValue = jest.fn();
 const createManualReceivable = jest.fn();
 const listPayoutTransfers = jest.fn();
 const createManualPayout = jest.fn();
 
 jest.mock('@/lib/server/auth', () => ({ requireAdminPermission }));
-jest.mock('@/modules/finance/services/receivables', () => ({ createManualReceivable, getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals, setReceivableManualRefund }));
+jest.mock('@/modules/finance/services/receivables', () => ({ createManualReceivable, getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable, setManualPixFinancialValue, setReceivableIgnoredFromTotals, setReceivableManualRefund }));
 jest.mock('@/modules/finance/services/payout-transfers', () => ({ createManualPayout, listPayoutTransfers }));
 
 import { GET as overviewGet } from '@/app/api/admin/financeiro/overview/route';
@@ -97,6 +98,16 @@ describe('admin finance API routes', () => {
     });
   });
 
+  it('forwards a calendar month to overview, payouts, and results', async () => {
+    await overviewGet(request('/api/admin/financeiro/overview?window=90&month=2026-07'));
+    await payoutsGet(request('/api/admin/financeiro/repasses?window=90&month=2026-07'));
+    await resultsGet(request('/api/admin/financeiro/resultados?window=90&month=2026-07'));
+
+    expect(getFinancialOverview).toHaveBeenNthCalledWith(1, 90, '2026-07');
+    expect(listPayoutTransfers).toHaveBeenCalledWith({ window: 90, month: '2026-07', cursor: undefined, pageSize: 50 });
+    expect(getFinancialOverview).toHaveBeenNthCalledWith(2, 90, '2026-07');
+  });
+
   it('saves a manual professional payout against its Stripe charge', async () => {
     const response = await receivablesPost(new NextRequest('http://localhost/api/admin/financeiro/recebimentos', {
       method: 'POST',
@@ -144,6 +155,20 @@ describe('admin finance API routes', () => {
     expect(setReceivableManualRefund).toHaveBeenCalledWith('ch_123', 2_500, 'finance-user');
   });
 
+  it('persists payout and refund values on a manual PIX payment', async () => {
+    await receivablesPost(new NextRequest('http://localhost/api/admin/financeiro/recebimentos', {
+      method: 'POST',
+      body: JSON.stringify({ manualPixId: 'pix-1', amountCentavos: 8_000 }),
+    }));
+    await receivablesPost(new NextRequest('http://localhost/api/admin/financeiro/recebimentos', {
+      method: 'POST',
+      body: JSON.stringify({ manualPixId: 'pix-1', manualRefundedAmountCentavos: 2_000 }),
+    }));
+
+    expect(setManualPixFinancialValue).toHaveBeenNthCalledWith(1, { manualPixId: 'pix-1', field: 'professionalPayoutCentavos', amountCentavos: 8_000 }, 'finance-user');
+    expect(setManualPixFinancialValue).toHaveBeenNthCalledWith(2, { manualPixId: 'pix-1', field: 'manualRefundedAmountCentavos', amountCentavos: 2_000 }, 'finance-user');
+  });
+
   it('creates a manually recorded PIX payment', async () => {
     const response = await receivablesPost(new NextRequest('http://localhost/api/admin/financeiro/recebimentos', {
       method: 'POST',
@@ -175,7 +200,7 @@ describe('admin finance API routes', () => {
     const response = await payoutsGet(request('/api/admin/financeiro/repasses?window=12&pageSize=-10'));
 
     expect(response.status).toBe(200);
-    expect(listPayoutTransfers).toHaveBeenCalledWith({ window: 30, cursor: undefined, pageSize: 50 });
+    expect(listPayoutTransfers).toHaveBeenCalledWith({ window: 30, month: undefined, cursor: undefined, pageSize: 50 });
   });
 
   it('registers a validated manual payout using finance write permission', async () => {
@@ -209,7 +234,7 @@ describe('admin finance API routes', () => {
     const lines = payload.lines as Array<{ id: string; status: string; amountCentavos: number | null }>;
 
     expect(response.status).toBe(200);
-    expect(getFinancialOverview).toHaveBeenCalledWith(365);
+    expect(getFinancialOverview).toHaveBeenCalledWith(365, undefined);
     expect(lines.find((line) => line.id === 'connect_commission_net_of_refunds')).toMatchObject({ status: 'available', amountCentavos: 2_000 });
     expect(lines.find((line) => line.id === 'net_revenue')).toMatchObject({ status: 'unavailable', amountCentavos: null });
     expect(lines.find((line) => line.id === 'operating_profit')).toMatchObject({ status: 'unavailable', amountCentavos: null });

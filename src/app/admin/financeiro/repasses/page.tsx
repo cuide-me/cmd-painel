@@ -37,6 +37,7 @@ function SummaryCard({ label, value, tone }: { label: string; value: number; ton
 
 export default function PayoutsPage() {
   const [window, setWindow] = useState<FinanceTimeWindow>(30);
+  const [month, setMonth] = useState('');
   const [cursorHistory, setCursorHistory] = useState<Array<string | null>>([null]);
   const [data, setData] = useState<PayoutTransfersResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export default function PayoutsPage() {
     setError(null);
     try {
       const params = new URLSearchParams({ window: String(window), pageSize: '50' });
+      if (month) params.set('month', month);
       if (cursor) params.set('cursor', cursor);
       const response = await authFetch(`/api/admin/financeiro/repasses?${params.toString()}`);
       const payload = await response.json();
@@ -61,9 +63,9 @@ export default function PayoutsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentCursor, window]);
+  }, [currentCursor, month, window]);
 
-  useEffect(() => { void load(null); }, [window, load]);
+  useEffect(() => { void load(null); }, [window, month, load]);
 
   const changeWindow = (value: FinanceTimeWindow) => {
     setCursorHistory([null]);
@@ -120,7 +122,7 @@ export default function PayoutsPage() {
   };
 
   return <div className="space-y-6">
-    <FinancePageHeader title="Repasses" description="Transfers Stripe Connect e repasses manuais destinados aos profissionais." actions={<div className="flex gap-2"><select value={window} onChange={(event) => changeWindow(Number(event.target.value) as FinanceTimeWindow)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{WINDOWS.map((item) => <option key={item} value={item}>Últimos {item} dias</option>)}</select><button onClick={() => setShowManualForm((current) => !current)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white">Registrar manual</button></div>} />
+    <FinancePageHeader title="Repasses" description="Transfers Stripe Connect e repasses manuais destinados aos profissionais." actions={<div className="flex flex-wrap gap-2"><select value={window} onChange={(event) => changeWindow(Number(event.target.value) as FinanceTimeWindow)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{WINDOWS.map((item) => <option key={item} value={item}>Últimos {item} dias</option>)}</select><input value={month} onChange={(event) => { setCursorHistory([null]); setMonth(event.target.value); }} type="month" aria-label="Filtrar repasses por mês" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" /><button onClick={() => setShowManualForm((current) => !current)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white">Registrar manual</button></div>} />
     {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
     {showManualForm ? <form onSubmit={createManualPayout} className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-3">
       <input required name="protocol" placeholder="Protocolo (ex.: CDM-2026-00015)" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
