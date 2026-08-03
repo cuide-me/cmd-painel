@@ -50,9 +50,9 @@ describe('Connect financial calculations', () => {
 
   it('excludes ignored transactions from every overview total while retaining an audit summary', () => {
     const result = calculateOverviewTotals([
-      { amountCentavos: 10_000, refundedAmountCentavos: 0, status: 'succeeded', ignoredFromTotals: false, client: { id: 'client-1', name: 'Ana' }, professional: { id: 'pro-1', name: 'Bia' } },
-      { amountCentavos: 5_000, refundedAmountCentavos: 5_000, status: 'refunded', ignoredFromTotals: true, client: { id: 'client-2', name: 'Caio' }, professional: { id: 'pro-2', name: 'Dani' } },
-      { amountCentavos: 7_000, refundedAmountCentavos: 0, status: 'succeeded', ignoredFromTotals: true, client: null, professional: null },
+      { amountCentavos: 10_000, refundedAmountCentavos: 0, manualRefundedAmountCentavos: null, status: 'succeeded', ignoredFromTotals: false, client: { id: 'client-1', name: 'Ana' }, professional: { id: 'pro-1', name: 'Bia' } },
+      { amountCentavos: 5_000, refundedAmountCentavos: 5_000, manualRefundedAmountCentavos: null, status: 'refunded', ignoredFromTotals: true, client: { id: 'client-2', name: 'Caio' }, professional: { id: 'pro-2', name: 'Dani' } },
+      { amountCentavos: 7_000, refundedAmountCentavos: 0, manualRefundedAmountCentavos: null, status: 'succeeded', ignoredFromTotals: true, client: null, professional: null },
     ]);
 
     expect(result).toMatchObject({
@@ -66,14 +66,23 @@ describe('Connect financial calculations', () => {
     expect(result.succeededRows).toHaveLength(1);
   });
 
-  it('calculates a receivable net margin from payment less fees, tax reserve, and professional payout', () => {
+  it('uses a manually recorded refund in preference to the Stripe refund amount', () => {
+    const result = calculateOverviewTotals([
+      { amountCentavos: 10_000, refundedAmountCentavos: 1_000, manualRefundedAmountCentavos: 2_500, status: 'succeeded', ignoredFromTotals: false, client: null, professional: null },
+    ]);
+
+    expect(result.refundedCentavos).toBe(2_500);
+  });
+
+  it('calculates a receivable net margin from payment less refunds, fees, tax reserve, and professional payout', () => {
     expect(calculateReceivableFinancials({
       amountCentavos: 15_000,
       professionalPayoutCentavos: 11_461,
       stripeFeeCentavos: 639,
+      refundedAmountCentavos: 2_000,
     })).toEqual({
       taxReserveCentavos: 900,
-      netCuidemeMarginCentavos: 2_000,
+      netCuidemeMarginCentavos: 0,
     });
   });
 
@@ -82,6 +91,7 @@ describe('Connect financial calculations', () => {
       amountCentavos: 15_000,
       professionalPayoutCentavos: null,
       stripeFeeCentavos: 639,
+      refundedAmountCentavos: 0,
     })).toEqual({
       taxReserveCentavos: 900,
       netCuidemeMarginCentavos: null,

@@ -43,6 +43,14 @@ const overview = {
   activeProfessionals: 1,
   soldShifts: 1,
   refundedCentavos: 0,
+  operatingFinancials: {
+    stripeFeesCentavos: 320,
+    taxReserveCentavos: 600,
+    taxReserveRatePercent: 6,
+    balanceAfterFeesAndTaxReserveCentavos: 9_080,
+    netCuidemeMarginCentavos: 2_000,
+    isComplete: true,
+  },
   connectFinancials: {
     destinationCharges: 1,
     legacyCharges: 0,
@@ -238,6 +246,7 @@ describe('admin finance API routes', () => {
     expect(response.status).toBe(200);
     expect(getFinancialOverview).toHaveBeenCalledWith(365, undefined);
     expect(lines.find((line) => line.id === 'connect_commission_net_of_refunds')).toMatchObject({ status: 'available', amountCentavos: 2_000 });
+    expect(lines.find((line) => line.id === 'net_cuideme_margin')).toMatchObject({ status: 'available', amountCentavos: 2_000 });
     expect(lines.find((line) => line.id === 'net_revenue')).toMatchObject({ status: 'unavailable', amountCentavos: null });
     expect(lines.find((line) => line.id === 'operating_profit')).toMatchObject({ status: 'unavailable', amountCentavos: null });
   });

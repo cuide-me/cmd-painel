@@ -73,13 +73,14 @@ export function calculateReceivableFinancials(input: {
   amountCentavos: number;
   stripeFeeCentavos: number | null;
   professionalPayoutCentavos: number | null;
+  refundedAmountCentavos: number;
 }) {
   const taxReserveCentavos = Math.round(input.amountCentavos * SIMPLES_NACIONAL_TAX_RESERVE_RATE);
   return {
     taxReserveCentavos,
     netCuidemeMarginCentavos: input.stripeFeeCentavos === null || input.professionalPayoutCentavos === null
       ? null
-      : input.amountCentavos - input.stripeFeeCentavos - taxReserveCentavos - input.professionalPayoutCentavos,
+      : input.amountCentavos - input.refundedAmountCentavos - input.stripeFeeCentavos - taxReserveCentavos - input.professionalPayoutCentavos,
   };
 }
 
@@ -272,7 +273,7 @@ export function calculateOperatingFinancials(charges: Array<{
   };
 }
 
-export function calculateOverviewTotals<T extends Pick<ReceivableRow, 'amountCentavos' | 'client' | 'professional' | 'refundedAmountCentavos' | 'status' | 'ignoredFromTotals'>>(rows: T[]) {
+export function calculateOverviewTotals<T extends Pick<ReceivableRow, 'amountCentavos' | 'client' | 'professional' | 'refundedAmountCentavos' | 'manualRefundedAmountCentavos' | 'status' | 'ignoredFromTotals'>>(rows: T[]) {
   const includedRows = rows.filter((row) => !row.ignoredFromTotals);
   const succeededRows = includedRows.filter((row) => row.status === 'succeeded');
 
@@ -280,7 +281,7 @@ export function calculateOverviewTotals<T extends Pick<ReceivableRow, 'amountCen
     includedRows,
     succeededRows,
     gmvCentavos: succeededRows.reduce((sum, row) => sum + row.amountCentavos, 0),
-    refundedCentavos: includedRows.reduce((sum, row) => sum + row.refundedAmountCentavos, 0),
+    refundedCentavos: includedRows.reduce((sum, row) => sum + (row.manualRefundedAmountCentavos ?? row.refundedAmountCentavos), 0),
     activeClients: new Set(succeededRows.flatMap((row) => row.client ? [row.client.id] : [])).size,
     activeProfessionals: new Set(succeededRows.flatMap((row) => row.professional ? [row.professional.id] : [])).size,
     ignoredTransactions: rows.length - includedRows.length,
@@ -444,6 +445,7 @@ function toManualReceivableRow(id: string, data: FirestoreRecord): ReceivableRow
     amountCentavos,
     stripeFeeCentavos: 0,
     professionalPayoutCentavos,
+    refundedAmountCentavos: manualRefundedAmountCentavos || 0,
   });
 
   return {
@@ -540,10 +542,12 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
     const professionalId = job ? getJobProfessionalId(job) : undefined;
     const stripeFeeCentavos = getStripeFeeCentavos(charge);
     const professionalPayoutCentavos = professionalPayoutsByChargeId.get(charge.id) ?? null;
+    const manualRefundedAmountCentavos = receivableSettingsByChargeId.get(charge.id)?.manualRefundedAmountCentavos ?? null;
     const financials = calculateReceivableFinancials({
       amountCentavos: charge.amount,
       stripeFeeCentavos,
       professionalPayoutCentavos,
+      refundedAmountCentavos: manualRefundedAmountCentavos ?? charge.amount_refunded ?? 0,
     });
 
     return {
@@ -561,7 +565,7 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
       manualProtocol: receivableSettingsByChargeId.get(charge.id)?.manualProtocol || null,
       reconciliation: job ? 'reconciled' : 'unlinked',
       refundedAmountCentavos: charge.amount_refunded || 0,
-      manualRefundedAmountCentavos: receivableSettingsByChargeId.get(charge.id)?.manualRefundedAmountCentavos ?? null,
+      manualRefundedAmountCentavos,
       stripeFeeCentavos,
       professionalPayoutCentavos,
       ignoredFromTotals: receivableSettingsByChargeId.get(charge.id)?.excludedFromFinance === true,
@@ -687,8 +691,9 @@ export async function getFinancialOverview(window: FinanceTimeWindow, month?: st
     amount: charge.amount,
     stripeFeeAmount: getStripeFeeCentavos(charge),
   })));
-  const hasCompleteCuidemeMargins = overviewTotals.succeededRows.every((row) => row.netCuidemeMarginCentavos !== null);
-  const netCuidemeMarginCentavos = calculateNetCuidemeMargin(overviewTotals.succeededRows);
+  const rowsWithMargin = overviewTotals.includedRows.filter((row) => row.status === 'succeeded' || row.status === 'refunded');
+  const hasCompleteCuidemeMargins = rowsWithMargin.every((row) => row.netCuidemeMarginCentavos !== null);
+  const netCuidemeMarginCentavos = calculateNetCuidemeMargin(rowsWithMargin);
 
   return {
     window,

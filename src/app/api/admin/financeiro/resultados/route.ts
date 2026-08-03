@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         { id: 'gross_revenue', label: 'Receita Bruta consolidada', amountCentavos: null, status: 'unavailable', reason: 'Há cobranças legadas sem semântica financeira consolidada no contrato atual.' },
         { id: 'taxes', label: '(-) Impostos', amountCentavos: null, status: 'unavailable', reason: 'Fonte fiscal não conectada.' },
         { id: 'refunds', label: '(-) Estornos e Reembolsos', amountCentavos: overview.refundedCentavos, status: overview.refundedCentavos === null ? 'unavailable' : 'available' },
+        { id: 'net_cuideme_margin', label: '= Margem líquida Cuide-me', amountCentavos: overview.operatingFinancials.netCuidemeMarginCentavos, status: overview.operatingFinancials.netCuidemeMarginCentavos === null ? 'unavailable' : 'available', reason: overview.operatingFinancials.netCuidemeMarginNote },
         { id: 'net_revenue', label: '= Receita Líquida', amountCentavos: null, status: 'unavailable', reason: 'Componentes obrigatórios ainda indisponíveis.' },
         { id: 'operating_costs', label: '(-) Custos Operacionais', amountCentavos: null, status: 'unavailable', reason: 'Não há fonte de custos aprovada.' },
         { id: 'operating_profit', label: '= Lucro Operacional', amountCentavos: null, status: 'unavailable', reason: 'Componentes obrigatórios ainda indisponíveis.' },
