@@ -75,12 +75,13 @@ export function calculateReceivableFinancials(input: {
   professionalPayoutCentavos: number | null;
   refundedAmountCentavos: number;
 }) {
-  const taxReserveCentavos = Math.round(input.amountCentavos * SIMPLES_NACIONAL_TAX_RESERVE_RATE);
+  const netReceivedCentavos = Math.max(input.amountCentavos - input.refundedAmountCentavos, 0);
+  const taxReserveCentavos = Math.round(netReceivedCentavos * SIMPLES_NACIONAL_TAX_RESERVE_RATE);
   return {
     taxReserveCentavos,
     netCuidemeMarginCentavos: input.stripeFeeCentavos === null || input.professionalPayoutCentavos === null
       ? null
-      : input.amountCentavos - input.refundedAmountCentavos - input.stripeFeeCentavos - taxReserveCentavos - input.professionalPayoutCentavos,
+      : netReceivedCentavos - input.stripeFeeCentavos - taxReserveCentavos - input.professionalPayoutCentavos,
   };
 }
 
@@ -253,14 +254,18 @@ export function calculateOperatingFinancials(charges: Array<{
   status: string;
   amount: number;
   stripeFeeAmount: number | null;
+  refundedAmount: number;
 }>) {
-  const succeeded = charges.filter((charge) => charge.status === 'succeeded');
-  const hasCompleteFees = succeeded.every((charge) => typeof charge.stripeFeeAmount === 'number');
-  const gmvCentavos = succeeded.reduce((sum, charge) => sum + charge.amount, 0);
+  const received = charges.filter((charge) => charge.status === 'succeeded' || charge.status === 'refunded');
+  const hasCompleteFees = received.every((charge) => typeof charge.stripeFeeAmount === 'number');
+  const netReceivedCentavos = received.reduce((sum, charge) => sum + Math.max(charge.amount - charge.refundedAmount, 0), 0);
   const stripeFeesCentavos = hasCompleteFees
-    ? succeeded.reduce((sum, charge) => sum + (charge.stripeFeeAmount || 0), 0)
+    ? received.reduce((sum, charge) => sum + (charge.stripeFeeAmount || 0), 0)
     : null;
-  const taxReserveCentavos = Math.round(gmvCentavos * SIMPLES_NACIONAL_TAX_RESERVE_RATE);
+  const taxReserveCentavos = received.reduce(
+    (sum, charge) => sum + Math.round(Math.max(charge.amount - charge.refundedAmount, 0) * SIMPLES_NACIONAL_TAX_RESERVE_RATE),
+    0
+  );
 
   return {
     stripeFeesCentavos,
@@ -268,7 +273,7 @@ export function calculateOperatingFinancials(charges: Array<{
     taxReserveRatePercent: SIMPLES_NACIONAL_TAX_RESERVE_RATE * 100,
     balanceAfterFeesAndTaxReserveCentavos: stripeFeesCentavos === null
       ? null
-      : gmvCentavos - stripeFeesCentavos - taxReserveCentavos,
+      : netReceivedCentavos - stripeFeesCentavos - taxReserveCentavos,
     isComplete: hasCompleteFees,
   };
 }
@@ -694,6 +699,7 @@ export async function getFinancialOverview(window: FinanceTimeWindow, month?: st
     status: row.status,
     amount: row.amountCentavos,
     stripeFeeAmount: row.stripeFeeCentavos,
+    refundedAmount: row.manualRefundedAmountCentavos ?? row.refundedAmountCentavos,
   })));
   const rowsWithMargin = overviewTotals.includedRows.filter((row) => row.status === 'succeeded' || row.status === 'refunded');
   const hasCompleteCuidemeMargins = rowsWithMargin.every((row) => row.netCuidemeMarginCentavos !== null);

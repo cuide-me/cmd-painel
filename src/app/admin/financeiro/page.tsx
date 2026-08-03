@@ -89,8 +89,8 @@ export default function FinanceOverviewPage() {
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard label="Tarifas Stripe pagas" value={formatCurrencyFromCentavos(data.operatingFinancials.stripeFeesCentavos)} helper="Tarifas efetivas em balance transactions do Stripe." />
-            <MetricCard label={`Reserva estimada de imposto (${data.operatingFinancials.taxReserveRatePercent.toLocaleString('pt-BR')}%)`} value={formatCurrencyFromCentavos(data.operatingFinancials.taxReserveCentavos)} helper="Reserva calculada sobre o valor bruto recebido." />
-            <MetricCard label="Saldo após tarifas e reserva" value={formatCurrencyFromCentavos(data.operatingFinancials.balanceAfterFeesAndTaxReserveCentavos)} helper="Não representa lucro operacional ou imposto apurado." />
+            <MetricCard label={`Reserva estimada de imposto (${data.operatingFinancials.taxReserveRatePercent.toLocaleString('pt-BR')}%)`} value={formatCurrencyFromCentavos(data.operatingFinancials.taxReserveCentavos)} helper="Reserva calculada sobre o valor líquido após reembolsos." />
+            <MetricCard label="Saldo após reembolsos, tarifas e reserva" value={formatCurrencyFromCentavos(data.operatingFinancials.balanceAfterFeesAndTaxReserveCentavos)} helper="Não representa lucro operacional ou imposto apurado." />
             <MetricCard label="Margem líquida Cuide-me" value={formatCurrencyFromCentavos(data.operatingFinancials.netCuidemeMarginCentavos)} helper="Valor recebido menos reembolsos, tarifa Stripe, reserva fiscal e repasses profissionais." />
           </div>
           <p className="mt-4 text-xs text-amber-800">A reserva de 6% é uma estimativa operacional para o Simples Nacional e deve ser conferida na apuração fiscal com a contabilidade.</p>

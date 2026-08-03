@@ -238,7 +238,7 @@ describe('listReceivables pagination', () => {
     expect(overview).toMatchObject({
       gmvCentavos: 15_000,
       refundedCentavos: 2_500,
-      operatingFinancials: { netCuidemeMarginCentavos: 1_600 },
+      operatingFinancials: { netCuidemeMarginCentavos: 1_750 },
     });
   });
 });

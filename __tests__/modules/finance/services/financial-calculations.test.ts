@@ -32,18 +32,18 @@ describe('Connect financial calculations', () => {
     expect(result.stripeFeesCentavos).toBeNull();
   });
 
-  it('calculates Stripe fees and a 6% tax reserve for all successful charges', () => {
+  it('calculates Stripe fees and a 6% tax reserve on amounts net of refunds', () => {
     const result = calculateOperatingFinancials([
-      { status: 'succeeded', amount: 10_000, stripeFeeAmount: 320 },
-      { status: 'succeeded', amount: 5_000, stripeFeeAmount: 180 },
-      { status: 'failed', amount: 8_000, stripeFeeAmount: null },
+      { status: 'succeeded', amount: 10_000, stripeFeeAmount: 320, refundedAmount: 0 },
+      { status: 'succeeded', amount: 5_000, stripeFeeAmount: 180, refundedAmount: 2_000 },
+      { status: 'failed', amount: 8_000, stripeFeeAmount: null, refundedAmount: 0 },
     ]);
 
     expect(result).toEqual({
       stripeFeesCentavos: 500,
-      taxReserveCentavos: 900,
+      taxReserveCentavos: 780,
       taxReserveRatePercent: 6,
-      balanceAfterFeesAndTaxReserveCentavos: 13_600,
+      balanceAfterFeesAndTaxReserveCentavos: 11_720,
       isComplete: true,
     });
   });
@@ -81,8 +81,20 @@ describe('Connect financial calculations', () => {
       stripeFeeCentavos: 639,
       refundedAmountCentavos: 2_000,
     })).toEqual({
-      taxReserveCentavos: 900,
-      netCuidemeMarginCentavos: 0,
+      taxReserveCentavos: 780,
+      netCuidemeMarginCentavos: 120,
+    });
+  });
+
+  it('reconciles the audited margin after applying a refund before the tax reserve', () => {
+    expect(calculateReceivableFinancials({
+      amountCentavos: 538_448,
+      refundedAmountCentavos: 20_717,
+      stripeFeeCentavos: 21_680,
+      professionalPayoutCentavos: 420_283,
+    })).toEqual({
+      taxReserveCentavos: 31_064,
+      netCuidemeMarginCentavos: 44_704,
     });
   });
 

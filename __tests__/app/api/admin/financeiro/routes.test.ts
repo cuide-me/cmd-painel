@@ -246,8 +246,11 @@ describe('admin finance API routes', () => {
     expect(response.status).toBe(200);
     expect(getFinancialOverview).toHaveBeenCalledWith(365, undefined);
     expect(lines.find((line) => line.id === 'connect_commission_net_of_refunds')).toMatchObject({ status: 'available', amountCentavos: 2_000 });
+    expect(lines.find((line) => line.id === 'stripe_fees')).toMatchObject({ status: 'available', amountCentavos: 320 });
+    expect(lines.find((line) => line.id === 'gross_revenue')).toMatchObject({ status: 'available', amountCentavos: 10_000 });
+    expect(lines.find((line) => line.id === 'taxes')).toMatchObject({ status: 'available', amountCentavos: 600 });
+    expect(lines.find((line) => line.id === 'net_revenue')).toMatchObject({ status: 'available', amountCentavos: 9_080 });
     expect(lines.find((line) => line.id === 'net_cuideme_margin')).toMatchObject({ status: 'available', amountCentavos: 2_000 });
-    expect(lines.find((line) => line.id === 'net_revenue')).toMatchObject({ status: 'unavailable', amountCentavos: null });
     expect(lines.find((line) => line.id === 'operating_profit')).toMatchObject({ status: 'unavailable', amountCentavos: null });
   });
 });
