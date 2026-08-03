@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminPermission } from '@/lib/server/auth';
-import { createManualReceivable, listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals, setReceivableManualProtocol, setReceivableManualRefund } from '@/modules/finance/services/receivables';
+import { createManualReceivable, listReceivables, saveProfessionalPayoutForReceivable, setManualPixFinancialValue, setReceivableIgnoredFromTotals, setReceivableManualProtocol, setReceivableManualRefund } from '@/modules/finance/services/receivables';
 import type { FinanceTimeWindow, ReceivableStatus } from '@/modules/finance/domain/types';
 
 const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
@@ -71,11 +71,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(receivable, { status: 201 });
     }
     const stripeChargeId = typeof body.stripeChargeId === 'string' ? body.stripeChargeId.trim() : '';
+    const manualPixId = typeof body.manualPixId === 'string' ? body.manualPixId.trim() : '';
     if (stripeChargeId.startsWith('ch_') && typeof body.ignoredFromTotals === 'boolean') {
       await setReceivableIgnoredFromTotals(stripeChargeId, body.ignoredFromTotals, auth.uid);
       return NextResponse.json({ ok: true });
     }
     const manualRefundedAmountCentavos = body.manualRefundedAmountCentavos;
+    if (manualPixId && typeof manualRefundedAmountCentavos === 'number') {
+      if (!Number.isSafeInteger(manualRefundedAmountCentavos) || manualRefundedAmountCentavos < 0) {
+        return NextResponse.json({ error: 'Valor de reembolso inválido.' }, { status: 400 });
+      }
+      await setManualPixFinancialValue({ manualPixId, field: 'manualRefundedAmountCentavos', amountCentavos: manualRefundedAmountCentavos }, auth.uid);
+      return NextResponse.json({ ok: true });
+    }
     if (stripeChargeId.startsWith('ch_') && typeof manualRefundedAmountCentavos === 'number') {
       if (!Number.isSafeInteger(manualRefundedAmountCentavos) || manualRefundedAmountCentavos < 0) {
         return NextResponse.json({ error: 'Valor de reembolso inválido.' }, { status: 400 });
@@ -89,6 +97,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
     const amountCentavos = body.amountCentavos;
+    if (manualPixId && typeof amountCentavos === 'number' && Number.isSafeInteger(amountCentavos) && amountCentavos >= 0) {
+      await setManualPixFinancialValue({ manualPixId, field: 'professionalPayoutCentavos', amountCentavos }, auth.uid);
+      return NextResponse.json({ ok: true });
+    }
     if (!stripeChargeId.startsWith('ch_') || typeof amountCentavos !== 'number' || !Number.isSafeInteger(amountCentavos) || amountCentavos < 0) {
       return NextResponse.json({ error: 'Dados de repasse profissional inválidos.' }, { status: 400 });
     }

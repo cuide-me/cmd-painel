@@ -5,6 +5,10 @@ import type { FinanceTimeWindow } from '@/modules/finance/domain/types';
 
 const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
 
+function isValidMonth(value: string | null): value is string {
+  return Boolean(value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value));
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireAdminPermission(request, 'finance.read');
   if ('error' in auth) return auth.error;
@@ -19,6 +23,7 @@ export async function GET(request: NextRequest) {
   try {
     return NextResponse.json(await listPayoutTransfers({
       window,
+      month: isValidMonth(searchParams.get('month')) ? searchParams.get('month')! : undefined,
       cursor: searchParams.get('cursor') || undefined,
       pageSize: Number.isFinite(requestedPageSize) && requestedPageSize > 0 ? requestedPageSize : 50,
     }));

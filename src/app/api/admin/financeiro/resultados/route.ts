@@ -5,19 +5,26 @@ import type { FinanceTimeWindow } from '@/modules/finance/domain/types';
 
 const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
 
+function isValidMonth(value: string | null): value is string {
+  return Boolean(value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value));
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireAdminPermission(request, 'finance.read');
   if ('error' in auth) return auth.error;
 
-  const requestedWindow = Number(new URL(request.url).searchParams.get('window'));
+  const searchParams = new URL(request.url).searchParams;
+  const requestedWindow = Number(searchParams.get('window'));
   const window = VALID_WINDOWS.includes(requestedWindow as FinanceTimeWindow)
     ? requestedWindow as FinanceTimeWindow
     : 30;
 
   try {
-    const overview = await getFinancialOverview(window);
+    const month = isValidMonth(searchParams.get('month')) ? searchParams.get('month')! : undefined;
+    const overview = await getFinancialOverview(window, month);
     return NextResponse.json({
       window,
+      month,
       coverage: overview.coverage,
       lines: [
         { id: 'gmv', label: 'Volume transacionado (GMV)', amountCentavos: overview.gmvCentavos, status: 'available' },

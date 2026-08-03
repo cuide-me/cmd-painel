@@ -167,4 +167,29 @@ describe('listReceivables pagination', () => {
       expect.objectContaining({ id: 'manual_pix_pix-1', source: 'manual_pix', stripeFeeCentavos: 0 }),
     ]));
   });
+
+  it('keeps only the first of identical manual PIX payments and uses the payment date', async () => {
+    const payment = {
+      clientName: 'Ana Silva',
+      protocol: 'CDM-2026-00015',
+      amountCentavos: 15_000,
+      paidAt: '2026-07-02',
+    };
+    mockGetFirestore.mockReturnValue({
+      collection: jest.fn((name) => ({
+        where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
+        doc: jest.fn((id) => ({ id })),
+        get: jest.fn().mockResolvedValue({ docs: name === 'manualReceivables' ? [
+          { id: 'pix-first', data: () => payment },
+          { id: 'pix-duplicate', data: () => payment },
+        ] : [] }),
+      })),
+      getAll: jest.fn().mockResolvedValue([]),
+    });
+    mockChargesList.mockResolvedValue({ data: [], has_more: false });
+
+    const result = await listReceivables({ window: 30, month: '2026-07', status: 'all', pageSize: 1 });
+
+    expect(result.items).toEqual([expect.objectContaining({ id: 'manual_pix_pix-first', createdAt: '2026-07-02T12:00:00.000Z' })]);
+  });
 });

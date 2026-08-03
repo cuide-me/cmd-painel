@@ -23,6 +23,17 @@ function getWindowStart(window: FinanceTimeWindow): number {
   return Math.floor((Date.now() - window * 24 * 60 * 60 * 1000) / 1000);
 }
 
+function getDateRange(window: FinanceTimeWindow, month?: string): { gte: number; lt?: number } {
+  if (month) {
+    const [year, monthNumber] = month.split('-').map(Number);
+    return {
+      gte: Math.floor(Date.UTC(year, monthNumber - 1, 1) / 1000),
+      lt: Math.floor(Date.UTC(year, monthNumber, 1) / 1000),
+    };
+  }
+  return { gte: getWindowStart(window) };
+}
+
 export function getTransferLifecycle(input: { reversed: boolean; amount: number; amountReversed: number }): TransferLifecycle {
   if (input.reversed || input.amountReversed >= input.amount) return 'reversed';
   if (input.amountReversed > 0) return 'partially_reversed';
@@ -131,13 +142,19 @@ async function getStripeFeesBySourceTransactionIds(stripe: Stripe, sourceTransac
   return fees;
 }
 
-async function listManualPayouts(window: FinanceTimeWindow): Promise<PayoutTransferRow[]> {
-  const windowStart = new Date(Date.now() - window * 24 * 60 * 60 * 1000).toISOString();
+async function listManualPayouts(window: FinanceTimeWindow, month?: string): Promise<PayoutTransferRow[]> {
+  const range = getDateRange(window, month);
+  const rangeStart = range.gte * 1000;
+  const rangeEnd = range.lt ? range.lt * 1000 : undefined;
   const snapshot = await getFirestore().collection('manualPayouts').get();
   const rows: Array<PayoutTransferRow | null> = snapshot.docs
     .map((document: QueryDocumentSnapshot) => toManualPayoutRow(document.id, document.data() as FirestoreRecord));
   return rows
-    .filter((row): row is PayoutTransferRow => Boolean(row && row.paidAt !== null && row.paidAt >= windowStart))
+    .filter((row): row is PayoutTransferRow => {
+      if (!row?.paidAt) return false;
+      const paidAt = Date.parse(row.paidAt);
+      return Number.isFinite(paidAt) && paidAt >= rangeStart && (!rangeEnd || paidAt < rangeEnd);
+    })
     .sort((first, second) => (second.paidAt || second.createdAt).localeCompare(first.paidAt || first.createdAt));
 }
 
@@ -161,13 +178,14 @@ export async function createManualPayout(input: CreateManualPayoutInput, created
 
 export async function listPayoutTransfers(input: {
   window: FinanceTimeWindow;
+  month?: string;
   cursor?: string;
   pageSize?: number;
 }): Promise<PayoutTransfersResult> {
   const pageSize = Math.min(Math.max(input.pageSize || 50, 1), MAX_PAGE_SIZE);
   const stripe = getStripeClient();
   const response = await stripe.transfers.list({
-    created: { gte: getWindowStart(input.window) },
+    created: getDateRange(input.window, input.month),
     limit: pageSize,
     ...(input.cursor ? { starting_after: input.cursor } : {}),
   });
@@ -180,7 +198,7 @@ export async function listPayoutTransfers(input: {
   const [jobsByPaymentKey, usersByAccount, manualPayouts, stripeFeesBySourceTransaction] = await Promise.all([
     getJobsByPaymentKeys(sourceTransactionIds),
     getUsersByStripeAccountIds(destinationAccountIds),
-    input.cursor ? Promise.resolve([]) : listManualPayouts(input.window),
+    input.cursor ? Promise.resolve([]) : listManualPayouts(input.window, input.month),
     getStripeFeesBySourceTransactionIds(stripe, sourceTransactionIds),
   ]);
 
@@ -225,6 +243,7 @@ export async function listPayoutTransfers(input: {
   return {
     items,
     nextCursor: response.has_more && response.data.length > 0 ? response.data[response.data.length - 1].id : null,
+    filtersApplied: { window: input.window, month: input.month },
     coverage: {
       loadedRecords: response.data.length + manualPayouts.length,
       hasMore: response.has_more,

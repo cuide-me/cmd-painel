@@ -1,25 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { authFetch } from '@/lib/client/authFetch';
 import { formatCurrencyFromCentavos } from '@/modules/finance/domain/money';
 import { FinancePageHeader } from '@/modules/finance/components/FinancePageHeader';
+import type { FinanceTimeWindow } from '@/modules/finance/domain/types';
 
 interface ResultLine { id: string; label: string; amountCentavos: number | null; status: 'available' | 'unavailable'; reason?: string }
 interface ResultsResponse { lines: ResultLine[]; coverage: { note?: string; isComplete: boolean } }
 
+const WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
+
 export default function ResultsPage() {
   const [data, setData] = useState<ResultsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [window, setWindow] = useState<FinanceTimeWindow>(30);
+  const [month, setMonth] = useState('');
 
-  useEffect(() => {
-    void authFetch('/api/admin/financeiro/resultados?window=30')
+  const load = useCallback(() => {
+    const params = new URLSearchParams({ window: String(window) });
+    if (month) params.set('month', month);
+    return authFetch(`/api/admin/financeiro/resultados?${params}`)
       .then(async (response) => { const payload = await response.json(); if (!response.ok) throw new Error(payload.error); return payload as ResultsResponse; })
       .then(setData)
       .catch((requestError) => setError(requestError instanceof Error ? requestError.message : 'Erro inesperado'));
-  }, []);
+  }, [month, window]);
 
-  return <div className="space-y-6"><FinancePageHeader title="Resultados" description="DRE simplificada que apresenta somente componentes suportados pelas fontes atuais. Linhas indisponíveis não recebem valores estimados." />
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return <div className="space-y-6"><FinancePageHeader title="Resultados" description="DRE simplificada que apresenta somente componentes suportados pelas fontes atuais. Linhas indisponíveis não recebem valores estimados." actions={<div className="flex flex-wrap gap-2"><select value={window} onChange={(event) => setWindow(Number(event.target.value) as FinanceTimeWindow)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{WINDOWS.map((item) => <option key={item} value={item}>Últimos {item} dias</option>)}</select><input value={month} onChange={(event) => setMonth(event.target.value)} type="month" aria-label="Filtrar resultados por mês" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" /></div>} />
     {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
       {data?.coverage.note ? <p className="border-b border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{data.coverage.note}</p> : null}
