@@ -24,6 +24,9 @@ const STATUS_MAP: Record<string, NormalizedJobStatus> = {
   'pending': 'pending',
   'pendente': 'pending',
   'open': 'pending',
+  'aberto': 'pending',
+  'novo': 'pending',
+  'new': 'pending',
   'proposta_enviada': 'pending',
   'proposta_recusada': 'pending',
   
@@ -31,19 +34,34 @@ const STATUS_MAP: Record<string, NormalizedJobStatus> = {
   'matched': 'matched',
   'proposta_aceita': 'matched',
   'accepted': 'matched',
+  'aceito': 'matched',
   
   // Active (serviço em andamento)
   'active': 'active',
   'in_progress': 'active',
+  'em_andamento': 'active',
   
   // Completed (serviço concluído)
   'completed': 'completed',
   'concluido': 'completed',
+  'finalizado': 'completed',
+  'done': 'completed',
+  'fechado': 'completed',
   
   // Cancelled (cancelado)
   'cancelled': 'cancelled',
+  'canceled': 'cancelled',
   'cancelado': 'cancelled',
 };
+
+function normalizeStatusKey(status: string): string {
+  return status
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s-]+/g, '_');
+}
 
 /**
  * Normaliza status de um job
@@ -54,7 +72,7 @@ export function normalizeJobStatus(status: string): NormalizedJobStatus {
     return 'pending';
   }
 
-  const normalized = STATUS_MAP[status.toLowerCase()];
+  const normalized = STATUS_MAP[normalizeStatusKey(status)];
   
   if (!normalized) {
     console.warn(`[StatusNormalizer] Status desconhecido: "${status}". Usando "pending" como fallback.`);
@@ -64,21 +82,19 @@ export function normalizeJobStatus(status: string): NormalizedJobStatus {
   return normalized;
 }
 
+export function getEffectiveJobStatus(job: Record<string, unknown>): NormalizedJobStatus {
+  if (job.attendanceRegistered === true) return 'completed';
+
+  const status = typeof job.status === 'string' ? job.status : '';
+  return normalizeJobStatus(status);
+}
+
 /**
  * Verifica se job está concluído
  * Considera tanto o status quanto a flag attendanceRegistered
  */
 export function isJobCompleted(job: any): boolean {
-  // Flag explícita de atendimento registrado
-  if (job.attendanceRegistered === true) {
-    return true;
-  }
-  
-  // Verificar status
-  if (!job.status) return false;
-  
-  const normalized = normalizeJobStatus(job.status);
-  return normalized === 'completed';
+  return getEffectiveJobStatus(job) === 'completed';
 }
 
 /**

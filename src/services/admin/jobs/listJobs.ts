@@ -4,7 +4,7 @@
 
 import { FieldValue, type QueryDocumentSnapshot, type DocumentSnapshot } from 'firebase-admin/firestore';
 import { getFirestore, getFirebaseAdmin } from '@/lib/server/firebaseAdmin';
-import { normalizeJobStatus, type NormalizedJobStatus, hasJobProfessional } from '../statusNormalizer';
+import { getEffectiveJobStatus, type NormalizedJobStatus, hasJobProfessional } from '../statusNormalizer';
 import { hoursSince, toDate } from '@/lib/admin/dateHelpers';
 import { getJobClientId, getJobProfessionalId } from '@/modules/shared/domain/job-fields';
 import { cleanText, containsText, getDisplayName } from '@/modules/shared/domain/text';
@@ -13,6 +13,16 @@ import type { AdminJobRow, JobOperationalContext, ListJobsParams, ListJobsResult
 function toCreatedAtIso(value: unknown): string | null {
   const parsed = toDate(value);
   return parsed ? parsed.toISOString() : null;
+}
+
+function getJobProtocol(job: Record<string, unknown>): string {
+  const existingProtocol = job.protocol || job.protocolNumber || job.numeroProtocolo || job.codigoProtocolo;
+  if (typeof existingProtocol === 'string' && existingProtocol.trim()) return existingProtocol.trim();
+
+  const createdAt = toDate(job.createdAt || job.date || job.data);
+  const year = createdAt?.getFullYear() || new Date().getFullYear();
+  const suffix = String(job.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(-5).toUpperCase() || '00000';
+  return `CDM-${year}-${suffix}`;
 }
 
 function toOperationalContext(value: unknown): JobOperationalContext {
@@ -146,7 +156,7 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
     const profissionalNome = getDisplayName(profissional);
 
     const statusRaw = cleanText(job.status);
-    const status = normalizeJobStatus(statusRaw || 'pending');
+    const status = getEffectiveJobStatus(job);
 
     const createdAt = toCreatedAtIso(job.createdAt);
     const agingHours = Math.max(0, hoursSince(job.createdAt));
@@ -162,12 +172,13 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
       cleanText(location.region) ||
       cleanText(location.zona) ||
       (cidade && estado ? `${cidade}/${estado}` : cleanText(cidade));
-    const especialidade = cleanText(job.specialty) || cleanText(job.especialidade) || cleanText(job.tipo);
+    const especialidade = cleanText(job.specialty) || cleanText(job.especialidade);
     const tipo = cleanText(job.tipo);
     const titulo = cleanText(job.titulo) || cleanText(job.title);
 
     return {
       id: job.id,
+      protocol: getJobProtocol(job),
       statusRaw,
       status,
       clienteId,
@@ -244,6 +255,7 @@ export async function listJobs(params?: ListJobsParams): Promise<ListJobsResult>
 
   if (searchTerm) {
     jobs = jobs.filter((job) =>
+      containsText(job.protocol, searchTerm) ||
       containsText(job.id, searchTerm) ||
       containsText(job.clienteNome, searchTerm) ||
       containsText(job.profissionalNome, searchTerm) ||

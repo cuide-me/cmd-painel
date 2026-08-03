@@ -8,6 +8,13 @@ export type JobStatusFilter = NormalizedJobStatus | 'all';
 
 export type OperationalQueueStatus = 'unassigned' | 'in_progress' | 'resolved';
 export type OperationalJobStatusFilter = OperationalQueueStatus | 'all';
+export type JobPaymentStatus = 'protocol_created' | 'awaiting_payment' | 'processing' | 'paid' | 'failed' | 'refunded' | 'cancelled' | 'unavailable';
+
+export interface JobPaymentStatusInfo {
+  status: JobPaymentStatus;
+  label: string;
+  stripeStatus: string | null;
+}
 
 export interface JobOperationalContext {
   status: OperationalQueueStatus;
@@ -28,6 +35,7 @@ export interface UpdateJobOperationalInput {
 
 export interface AdminJobRow {
   id: string;
+  protocol: string;
   statusRaw?: string | null;
   status: NormalizedJobStatus;
 

@@ -152,7 +152,7 @@ export function JobsFiltersPanel({
           <input
             id="jobs-search"
             type="search"
-            placeholder="Busca por ID, cliente, profissional, bairro..."
+            placeholder="Busca por protocolo, cliente, profissional, bairro..."
             value={searchInput}
             onChange={event => onSearchInputChange(event.target.value)}
             onKeyDown={event => {
