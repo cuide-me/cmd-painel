@@ -195,7 +195,8 @@ export default function ReceivablesPage() {
 
   const createManualPixPayment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const amountCentavos = toCentavos(String(form.get('amount') || ''));
     if (amountCentavos === null || amountCentavos <= 0) {
       setError('Informe um valor de pagamento válido.');
@@ -220,7 +221,7 @@ export default function ReceivablesPage() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'Erro ao registrar pagamento PIX manual');
-      event.currentTarget.reset();
+      formElement.reset();
       setShowManualPixForm(false);
       void load(null);
     } catch (requestError) {
