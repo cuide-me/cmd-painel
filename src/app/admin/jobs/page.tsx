@@ -6,6 +6,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { authFetch } from '@/lib/client/authFetch';
 import AdminLayout, { Card, LoadingSkeleton, EmptyState } from '@/components/admin/AdminLayout';
 import type { AdminJobRow, JobStatusFilter, ListJobsResult } from '@/services/admin/jobs';
+import { getJobStatusLabel } from '@/services/admin/statusNormalizer';
 import { JobsSummary } from '@/modules/jobs/components/JobsSummary';
 import { JobsFiltersPanel, type JobsFiltersState } from '@/modules/jobs/components/JobsFiltersPanel';
 import { JobsResults } from '@/modules/jobs/components/JobsResults';
@@ -95,6 +96,13 @@ export default function AdminJobsPage() {
     await fetchJobs();
   }, [fetchJobs]);
 
+  const loadPaymentStatus = useCallback(async (jobId: string) => {
+    const response = await authFetch(`/api/admin/jobs/${jobId}/payment`);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'Erro ao consultar pagamento');
+    return payload;
+  }, []);
+
   useEffect(() => {
     if (!authLoading && isAdmin) {
       fetchJobs();
@@ -102,16 +110,16 @@ export default function AdminJobsPage() {
   }, [authLoading, isAdmin, fetchJobs]);
 
   const handleExport = () => {
-    const headers = ['ID', 'Cliente', 'Profissional', 'Especialidade', 'Bairro', 'Regiao', 'Aging(h)', 'Status', 'Critico'];
+    const headers = ['Protocolo', 'Cliente', 'Profissional', 'Especialidade', 'Bairro', 'Regiao', 'Aging(h)', 'Status', 'Critico'];
     const rows = searchedJobs.map(j => [
-      j.id,
+      j.protocol,
       j.clienteNome || 'Nao informado',
       j.profissionalNome || 'Nao informado',
-      j.especialidade || j.tipo || 'Nao informado',
+      j.especialidade || 'Nao informado',
       j.bairro || 'Nao informado',
       j.regiao || 'Nao informado',
       j.agingHours.toFixed(1),
-      j.status,
+      getJobStatusLabel(j.status),
       j.isCritical ? 'Sim' : 'Nao',
     ]);
     const csvContent = [
@@ -226,6 +234,7 @@ export default function AdminJobsPage() {
         onNextPage={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
         canManageOperational={can('jobs.manage')}
         onSaveOperational={saveOperational}
+        onLoadPaymentStatus={loadPaymentStatus}
       />
     </AdminLayout>
   );

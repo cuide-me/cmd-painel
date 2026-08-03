@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Badge, Button, Card, EmptyState, Section, Table } from '@/components/admin/AdminLayout';
 import { formatDate } from '@/lib/admin/formatters';
-import type { AdminJobRow, UpdateJobOperationalInput } from '@/services/admin/jobs';
+import type { AdminJobRow, JobPaymentStatusInfo, UpdateJobOperationalInput } from '@/services/admin/jobs';
 
 interface JobsResultsProps {
   jobs: AdminJobRow[];
@@ -12,13 +12,22 @@ interface JobsResultsProps {
   onNextPage: () => void;
   canManageOperational: boolean;
   onSaveOperational: (jobId: string, input: UpdateJobOperationalInput) => Promise<void>;
+  onLoadPaymentStatus: (jobId: string) => Promise<JobPaymentStatusInfo>;
+}
+
+function getPaymentBadgeVariant(status: JobPaymentStatusInfo['status']): 'success' | 'warning' | 'error' | 'info' | 'neutral' {
+  if (status === 'paid') return 'success';
+  if (status === 'failed' || status === 'cancelled' || status === 'unavailable') return 'error';
+  if (status === 'awaiting_payment') return 'warning';
+  if (status === 'processing') return 'info';
+  return 'neutral';
 }
 
 function getStatusBadge(job: AdminJobRow) {
   if (job.status === 'cancelled') return <Badge variant="error">Cancelado</Badge>;
   if (job.status === 'completed') return <Badge variant="success">Concluido</Badge>;
-  if (job.status === 'active') return <Badge variant="info">Ativo</Badge>;
-  if (job.status === 'matched') return <Badge variant="info">Match</Badge>;
+  if (job.status === 'active') return <Badge variant="info">Em andamento</Badge>;
+  if (job.status === 'matched') return <Badge variant="info">Match realizado</Badge>;
   return <Badge variant="warning">Pendente</Badge>;
 }
 
@@ -67,6 +76,7 @@ export function JobsResults({
   onNextPage,
   canManageOperational,
   onSaveOperational,
+  onLoadPaymentStatus,
 }: JobsResultsProps) {
   const [selectedJob, setSelectedJob] = useState<AdminJobRow | null>(null);
   const [nextAction, setNextAction] = useState('');
@@ -74,6 +84,8 @@ export function JobsResults({
   const [status, setStatus] = useState<UpdateJobOperationalInput['status']>('in_progress');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<JobPaymentStatusInfo | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const openOperationalForm = (job: AdminJobRow) => {
     setSelectedJob(job);
@@ -81,6 +93,12 @@ export function JobsResults({
     setDueAt(job.operational.dueAt ? job.operational.dueAt.slice(0, 10) : '');
     setStatus(job.operational.status === 'resolved' ? 'resolved' : 'in_progress');
     setSaveError(null);
+    setPaymentStatus(null);
+    setPaymentLoading(true);
+    void onLoadPaymentStatus(job.id)
+      .then(setPaymentStatus)
+      .catch(() => setPaymentStatus({ status: 'unavailable', label: 'Status de pagamento indisponivel', stripeStatus: null }))
+      .finally(() => setPaymentLoading(false));
   };
 
   const handleSave = async () => {
@@ -104,12 +122,12 @@ export function JobsResults({
   return (
     <Section title={`Jobs (${totalJobs})`}>
       <Table
-        headers={['ID', 'Cliente', 'Profissional', 'Especialidade', 'Bairro/Regiao', 'Criado', 'Aging', 'Status', 'Criticidade', 'Operacao']}
+        headers={['Protocolo', 'Cliente', 'Profissional', 'Especialidade', 'Bairro/Regiao', 'Criado', 'Aging', 'Status', 'Criticidade', 'Operacao']}
         rows={jobs.map(job => [
-          job.id,
+          job.protocol,
           job.clienteNome || 'Nao informado',
           job.profissionalNome || 'Nao informado',
-          job.especialidade || job.tipo || 'Nao informado',
+          job.especialidade || 'Nao informado',
           `${job.bairro || 'Nao informado'} / ${job.regiao || 'Nao informado'}`,
           job.createdAt ? formatDate(job.createdAt) : 'Nao informado',
           `${job.agingHours.toFixed(1)}h`,
@@ -172,12 +190,18 @@ export function JobsResults({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#176172]">Fila operacional</p>
                 <h3 id="operational-dialog-title" className="mt-1 text-lg font-semibold text-[#173842]">Acompanhamento do atendimento</h3>
-                <p className="mt-1 text-sm text-[#587078]">{selectedJob.clienteNome || 'Cliente nao informado'} · {selectedJob.id}</p>
+                <p className="mt-1 text-sm text-[#587078]">{selectedJob.clienteNome || 'Cliente nao informado'} · {selectedJob.protocol}</p>
               </div>
               <button type="button" onClick={() => setSelectedJob(null)} className="rounded-md px-2 py-1 text-sm font-semibold text-[#587078] hover:bg-slate-100" aria-label="Fechar acompanhamento">Fechar</button>
             </div>
 
             <div className="mt-5 space-y-4">
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-[#b7dde1] bg-[#effafa] p-3 text-sm text-[#173842]">
+                <span className="font-medium">Status financeiro</span>
+                {paymentLoading ? <span className="text-[#587078]">Consultando Stripe...</span> : paymentStatus ? (
+                  <Badge variant={getPaymentBadgeVariant(paymentStatus.status)}>{paymentStatus.label}</Badge>
+                ) : null}
+              </div>
               <p className="rounded-lg border border-[#b7dde1] bg-[#effafa] p-3 text-sm text-[#173842]">O responsavel sera registrado a partir da sua sessao.</p>
               <label className="block text-sm font-medium text-[#173842]">Proxima acao
                 <textarea value={nextAction} onChange={(event) => setNextAction(event.target.value)} maxLength={500} rows={3} className="mt-1.5 w-full resize-y rounded-lg border border-[#b7dde1] px-3 py-2 text-sm" placeholder="Ex.: ligar para a familia e confirmar disponibilidade" />
