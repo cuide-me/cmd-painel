@@ -5,11 +5,12 @@ const getFinancialOverview = jest.fn();
 const listReceivables = jest.fn();
 const saveProfessionalPayoutForReceivable = jest.fn();
 const setReceivableIgnoredFromTotals = jest.fn();
+const setReceivableManualRefund = jest.fn();
 const listPayoutTransfers = jest.fn();
 const createManualPayout = jest.fn();
 
 jest.mock('@/lib/server/auth', () => ({ requireAdminPermission }));
-jest.mock('@/modules/finance/services/receivables', () => ({ getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals }));
+jest.mock('@/modules/finance/services/receivables', () => ({ getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals, setReceivableManualRefund }));
 jest.mock('@/modules/finance/services/payout-transfers', () => ({ createManualPayout, listPayoutTransfers }));
 
 import { GET as overviewGet } from '@/app/api/admin/financeiro/overview/route';
@@ -61,6 +62,7 @@ describe('admin finance API routes', () => {
     listReceivables.mockResolvedValue({ items: [] });
     saveProfessionalPayoutForReceivable.mockResolvedValue(undefined);
     setReceivableIgnoredFromTotals.mockResolvedValue(undefined);
+    setReceivableManualRefund.mockResolvedValue(undefined);
     listPayoutTransfers.mockResolvedValue({ items: [] });
     createManualPayout.mockResolvedValue({ id: 'manual-1' });
   });
@@ -127,6 +129,16 @@ describe('admin finance API routes', () => {
 
     expect(response.status).toBe(200);
     expect(setReceivableIgnoredFromTotals).toHaveBeenCalledWith('ch_123', true, 'finance-user');
+  });
+
+  it('persists a manual refund against its Stripe charge', async () => {
+    const response = await receivablesPost(new NextRequest('http://localhost/api/admin/financeiro/recebimentos', {
+      method: 'POST',
+      body: JSON.stringify({ stripeChargeId: 'ch_123', manualRefundedAmountCentavos: 2_500 }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(setReceivableManualRefund).toHaveBeenCalledWith('ch_123', 2_500, 'finance-user');
   });
 
   it('falls back to safe financial defaults for invalid payout query parameters', async () => {

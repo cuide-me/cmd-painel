@@ -43,6 +43,8 @@ export default function ReceivablesPage() {
   const [savingIgnoredId, setSavingIgnoredId] = useState<string | null>(null);
   const [manualProtocolValues, setManualProtocolValues] = useState<Record<string, string>>({});
   const [savingManualProtocolId, setSavingManualProtocolId] = useState<string | null>(null);
+  const [manualRefundValues, setManualRefundValues] = useState<Record<string, string>>({});
+  const [savingManualRefundId, setSavingManualRefundId] = useState<string | null>(null);
   const currentCursor = cursorHistory[cursorHistory.length - 1];
 
   const load = useCallback(async (cursor: string | null = null) => {
@@ -162,6 +164,31 @@ export default function ReceivablesPage() {
     }
   };
 
+  const saveManualRefund = async (item: NonNullable<ReceivablesResult['items']>[number]) => {
+    const amountCentavos = toCentavos(manualRefundValues[item.id] ?? (item.manualRefundedAmountCentavos === null ? '' : String(item.manualRefundedAmountCentavos / 100)));
+    if (amountCentavos === null) {
+      setError('Informe um valor de reembolso válido.');
+      return;
+    }
+    setSavingManualRefundId(item.id);
+    setError(null);
+    try {
+      const response = await authFetch('/api/admin/financeiro/recebimentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stripeChargeId: item.id, manualRefundedAmountCentavos: amountCentavos }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Erro ao registrar reembolso manual');
+      setManualRefundValues((current) => ({ ...current, [item.id]: (amountCentavos / 100).toFixed(2).replace('.', ',') }));
+      void load(currentCursor);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Erro inesperado');
+    } finally {
+      setSavingManualRefundId(null);
+    }
+  };
+
   if (authLoading || loading && !data) return <div className="h-64 animate-pulse rounded-lg bg-slate-200" />;
   if (!can('finance.read')) return <p className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-800">Acesso restrito ao financeiro.</p>;
 
@@ -189,7 +216,7 @@ export default function ReceivablesPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{['Ignorar totais', 'Cliente', 'Atendimento', 'Protocolo', 'Data', 'Valor pago', 'Tarifa Stripe', 'Imposto Simples (6%)', 'Repasse profissional', 'Margem líquida Cuide-me', 'Forma', 'Status', 'Profissional', 'Stripe'].map((header) => <th key={header} className="px-4 py-3 font-semibold">{header}</th>)}</tr></thead>
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{['Ignorar totais', 'Cliente', 'Atendimento', 'Protocolo', 'Data', 'Valor pago', 'Tarifa Stripe', 'Imposto Simples (6%)', 'Repasse profissional', 'Reembolso', 'Margem líquida Cuide-me', 'Forma', 'Status', 'Profissional', 'Stripe'].map((header) => <th key={header} className="px-4 py-3 font-semibold">{header}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-100">
               {data?.items.map((item) => <tr key={item.id} className="text-slate-700">
                 <td className="px-4 py-3 text-center"><input type="checkbox" checked={item.ignoredFromTotals} onChange={(event) => void setIgnoredFromTotals(item, event.target.checked)} disabled={!can('finance.write') || savingIgnoredId === item.id} aria-label={`Ignorar ${item.id} nos totais`} title="Ignorar esta transação nos totais da visão geral" className="h-4 w-4 accent-emerald-700 disabled:opacity-50" /></td>
@@ -201,6 +228,7 @@ export default function ReceivablesPage() {
                 <td className="px-4 py-3">{formatCurrencyFromCentavos(item.stripeFeeCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{formatCurrencyFromCentavos(item.taxReserveCentavos, item.currency)} <span className="text-xs text-slate-500">estimado</span></td>
                 <td className="px-4 py-3"><div className="flex min-w-40 gap-1"><input value={payoutValues[item.id] ?? (item.professionalPayoutCentavos === null ? '' : (item.professionalPayoutCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setPayoutValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Repasse profissional para ${item.id}`} disabled={!can('finance.write') || savingPayoutId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar repasse profissional" onClick={() => void saveProfessionalPayout(item)} disabled={!can('finance.write') || savingPayoutId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div></td>
+                <td className="px-4 py-3"><div className="min-w-40 space-y-1"><div className="flex gap-1"><input value={manualRefundValues[item.id] ?? (item.manualRefundedAmountCentavos === null ? '' : (item.manualRefundedAmountCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setManualRefundValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Reembolso manual para ${item.id}`} disabled={!can('finance.write') || savingManualRefundId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar reembolso manual" onClick={() => void saveManualRefund(item)} disabled={!can('finance.write') || savingManualRefundId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div><p className="text-xs text-slate-500">{item.manualRefundedAmountCentavos === null ? `Stripe: ${formatCurrencyFromCentavos(item.refundedAmountCentavos, item.currency)}` : 'Manual'}</p></div></td>
                 <td className="px-4 py-3 font-medium">{formatCurrencyFromCentavos(item.netCuidemeMarginCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{item.paymentMethod || 'Não informado'}</td>
                 <td className="px-4 py-3">{statusLabel(item.status)}</td>

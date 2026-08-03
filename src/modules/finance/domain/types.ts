@@ -34,6 +34,7 @@ export interface ReceivableRow {
   manualProtocol: string | null;
   reconciliation: 'reconciled' | 'unlinked';
   refundedAmountCentavos: number;
+  manualRefundedAmountCentavos: number | null;
   stripeFeeCentavos: number | null;
   taxReserveCentavos: number;
   professionalPayoutCentavos: number | null;

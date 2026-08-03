@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminPermission } from '@/lib/server/auth';
-import { listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals, setReceivableManualProtocol } from '@/modules/finance/services/receivables';
+import { listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals, setReceivableManualProtocol, setReceivableManualRefund } from '@/modules/finance/services/receivables';
 import type { FinanceTimeWindow, ReceivableStatus } from '@/modules/finance/domain/types';
 
 const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
@@ -48,6 +48,14 @@ export async function POST(request: NextRequest) {
     const stripeChargeId = typeof body.stripeChargeId === 'string' ? body.stripeChargeId.trim() : '';
     if (stripeChargeId.startsWith('ch_') && typeof body.ignoredFromTotals === 'boolean') {
       await setReceivableIgnoredFromTotals(stripeChargeId, body.ignoredFromTotals, auth.uid);
+      return NextResponse.json({ ok: true });
+    }
+    const manualRefundedAmountCentavos = body.manualRefundedAmountCentavos;
+    if (stripeChargeId.startsWith('ch_') && typeof manualRefundedAmountCentavos === 'number') {
+      if (!Number.isSafeInteger(manualRefundedAmountCentavos) || manualRefundedAmountCentavos < 0) {
+        return NextResponse.json({ error: 'Valor de reembolso inválido.' }, { status: 400 });
+      }
+      await setReceivableManualRefund(stripeChargeId, manualRefundedAmountCentavos, auth.uid);
       return NextResponse.json({ ok: true });
     }
     const manualProtocol = typeof body.manualProtocol === 'string' ? body.manualProtocol.trim() : '';

@@ -92,6 +92,7 @@ async function getProfessionalPayoutsByChargeIds(chargeIds: string[]): Promise<M
 interface ReceivableSettings {
   ignoredFromTotals: boolean;
   manualProtocol: string | null;
+  manualRefundedAmountCentavos: number | null;
 }
 
 async function getReceivableSettingsByChargeIds(chargeIds: string[]): Promise<Map<string, ReceivableSettings>> {
@@ -106,8 +107,17 @@ async function getReceivableSettingsByChargeIds(chargeIds: string[]): Promise<Ma
     const manualProtocol = typeof setting?.manualProtocol === 'string' && setting.manualProtocol.trim()
       ? setting.manualProtocol.trim()
       : null;
-    if (setting?.ignoredFromTotals === true || manualProtocol) {
-      settings.set(document.id, { ignoredFromTotals: setting?.ignoredFromTotals === true, manualProtocol });
+    const manualRefundedAmountCentavos = typeof setting?.manualRefundedAmountCentavos === 'number'
+      && Number.isSafeInteger(setting.manualRefundedAmountCentavos)
+      && setting.manualRefundedAmountCentavos >= 0
+      ? setting.manualRefundedAmountCentavos
+      : null;
+    if (setting?.ignoredFromTotals === true || manualProtocol || manualRefundedAmountCentavos !== null) {
+      settings.set(document.id, {
+        ignoredFromTotals: setting?.ignoredFromTotals === true,
+        manualProtocol,
+        manualRefundedAmountCentavos,
+      });
     }
   });
   return settings;
@@ -124,6 +134,14 @@ export async function setReceivableIgnoredFromTotals(stripeChargeId: string, ign
 export async function setReceivableManualProtocol(stripeChargeId: string, protocol: string, updatedBy: string): Promise<void> {
   await getFirestore().collection('receivableSettings').doc(stripeChargeId).set({
     manualProtocol: protocol,
+    updatedAt: new Date().toISOString(),
+    updatedBy,
+  }, { merge: true });
+}
+
+export async function setReceivableManualRefund(stripeChargeId: string, amountCentavos: number, updatedBy: string): Promise<void> {
+  await getFirestore().collection('receivableSettings').doc(stripeChargeId).set({
+    manualRefundedAmountCentavos: amountCentavos,
     updatedAt: new Date().toISOString(),
     updatedBy,
   }, { merge: true });
@@ -424,6 +442,7 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
       manualProtocol: receivableSettingsByChargeId.get(charge.id)?.manualProtocol || null,
       reconciliation: job ? 'reconciled' : 'unlinked',
       refundedAmountCentavos: charge.amount_refunded || 0,
+      manualRefundedAmountCentavos: receivableSettingsByChargeId.get(charge.id)?.manualRefundedAmountCentavos ?? null,
       stripeFeeCentavos,
       professionalPayoutCentavos,
       ignoredFromTotals: receivableSettingsByChargeId.get(charge.id)?.ignoredFromTotals === true,

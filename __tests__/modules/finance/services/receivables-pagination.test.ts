@@ -103,4 +103,25 @@ describe('listReceivables pagination', () => {
       reconciliation: 'unlinked',
     });
   });
+
+  it('returns a manually saved refund alongside the Stripe refund amount', async () => {
+    const manualRefundSetting = {
+      id: 'ch_refunded',
+      data: () => ({ manualRefundedAmountCentavos: 2_500 }),
+    };
+    mockGetFirestore.mockReturnValue({
+      collection: jest.fn((name) => ({
+        where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
+        doc: jest.fn((id) => ({ collection: name, id })),
+      })),
+      getAll: jest.fn((...documents) => Promise.resolve(
+        documents[0]?.collection === 'receivableSettings' ? [manualRefundSetting] : []
+      )),
+    });
+    mockChargesList.mockResolvedValue({ data: [{ ...charge('ch_refunded', 'succeeded'), amount_refunded: 1_000 }], has_more: false });
+
+    const result = await listReceivables({ window: 30, status: 'all', pageSize: 1 });
+
+    expect(result.items[0]).toMatchObject({ refundedAmountCentavos: 1_000, manualRefundedAmountCentavos: 2_500 });
+  });
 });
