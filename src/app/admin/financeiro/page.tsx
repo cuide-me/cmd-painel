@@ -81,7 +81,6 @@ export default function FinanceOverviewPage() {
           <MetricCard label="Plantões vendidos" value={data.soldShifts?.toLocaleString('pt-BR') || 'Indisponível'} helper="Recebimentos conciliados a atendimentos." />
           <MetricCard label="Clientes ativos" value={data.activeClients?.toLocaleString('pt-BR') || 'Indisponível'} helper="Clientes em recebimentos conciliados." />
           <MetricCard label="Profissionais ativos" value={data.activeProfessionals?.toLocaleString('pt-BR') || 'Indisponível'} helper="Profissionais em recebimentos conciliados." />
-          <MetricCard label="Transações ignoradas" value={data.ignoredTransactions?.toLocaleString('pt-BR') || 'Indisponível'} helper={`${formatCurrencyFromCentavos(data.ignoredAmountCentavos)} fora dos totais.`} />
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

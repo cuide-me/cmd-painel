@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminPermission } from '@/lib/server/auth';
-import { createManualReceivable, listReceivables, saveProfessionalPayoutForReceivable, setManualPixFinancialValue, setReceivableIgnoredFromTotals, setReceivableManualProtocol, setReceivableManualRefund } from '@/modules/finance/services/receivables';
+import { createManualReceivable, listReceivables, saveProfessionalPayoutForReceivable, setManualPixExcludedFromFinance, setManualPixFinancialValue, setReceivableExcludedFromFinance, setReceivableManualProtocol, setReceivableManualRefund } from '@/modules/finance/services/receivables';
 import type { FinanceTimeWindow, ReceivableStatus } from '@/modules/finance/domain/types';
 
 const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
@@ -72,8 +72,12 @@ export async function POST(request: NextRequest) {
     }
     const stripeChargeId = typeof body.stripeChargeId === 'string' ? body.stripeChargeId.trim() : '';
     const manualPixId = typeof body.manualPixId === 'string' ? body.manualPixId.trim() : '';
-    if (stripeChargeId.startsWith('ch_') && typeof body.ignoredFromTotals === 'boolean') {
-      await setReceivableIgnoredFromTotals(stripeChargeId, body.ignoredFromTotals, auth.uid);
+    if (stripeChargeId.startsWith('ch_') && body.excludeFromFinance === true) {
+      await setReceivableExcludedFromFinance(stripeChargeId, auth.uid);
+      return NextResponse.json({ ok: true });
+    }
+    if (manualPixId && body.excludeFromFinance === true) {
+      await setManualPixExcludedFromFinance(manualPixId, auth.uid);
       return NextResponse.json({ ok: true });
     }
     const manualRefundedAmountCentavos = body.manualRefundedAmountCentavos;

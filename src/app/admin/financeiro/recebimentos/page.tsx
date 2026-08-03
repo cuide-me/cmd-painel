@@ -41,7 +41,7 @@ export default function ReceivablesPage() {
   const [loading, setLoading] = useState(true);
   const [payoutValues, setPayoutValues] = useState<Record<string, string>>({});
   const [savingPayoutId, setSavingPayoutId] = useState<string | null>(null);
-  const [savingIgnoredId, setSavingIgnoredId] = useState<string | null>(null);
+  const [excludingId, setExcludingId] = useState<string | null>(null);
   const [manualProtocolValues, setManualProtocolValues] = useState<Record<string, string>>({});
   const [savingManualProtocolId, setSavingManualProtocolId] = useState<string | null>(null);
   const [manualRefundValues, setManualRefundValues] = useState<Record<string, string>>({});
@@ -124,22 +124,26 @@ export default function ReceivablesPage() {
     }
   };
 
-  const setIgnoredFromTotals = async (item: NonNullable<ReceivablesResult['items']>[number], ignoredFromTotals: boolean) => {
-    setSavingIgnoredId(item.id);
+  const excludeFromFinance = async (item: NonNullable<ReceivablesResult['items']>[number]) => {
+    if (!globalThis.confirm('Excluir este lançamento do financeiro? Ele continuará preservado no Stripe para auditoria.')) return;
+    setExcludingId(item.id);
     setError(null);
     try {
       const response = await authFetch('/api/admin/financeiro/recebimentos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripeChargeId: item.id, ignoredFromTotals }),
+        body: JSON.stringify({
+          ...(item.source === 'manual_pix' ? { manualPixId: item.id.replace(/^manual_pix_/, '') } : { stripeChargeId: item.id }),
+          excludeFromFinance: true,
+        }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Erro ao atualizar transação');
+      if (!response.ok) throw new Error(payload.error || 'Erro ao excluir transação');
       void load(currentCursor);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Erro inesperado');
     } finally {
-      setSavingIgnoredId(null);
+      setExcludingId(null);
     }
   };
 
@@ -272,10 +276,10 @@ export default function ReceivablesPage() {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{['Ignorar totais', 'Cliente', 'Atendimento', 'Protocolo', 'Data', 'Valor pago', 'Tarifa Stripe', 'Imposto Simples (6%)', 'Repasse profissional', 'Reembolso', 'Margem líquida Cuide-me', 'Forma', 'Status', 'Profissional', 'Stripe'].map((header) => <th key={header} className="px-4 py-3 font-semibold">{header}</th>)}</tr></thead>
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{['Excluir', 'Cliente', 'Atendimento', 'Protocolo', 'Data', 'Valor pago', 'Tarifa Stripe', 'Imposto Simples (6%)', 'Repasse profissional', 'Reembolso', 'Margem líquida Cuide-me', 'Forma', 'Status', 'Profissional', 'Stripe'].map((header) => <th key={header} className="px-4 py-3 font-semibold">{header}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-100">
               {data?.items.map((item) => <tr key={item.id} className="text-slate-700">
-                <td className="px-4 py-3 text-center"><input type="checkbox" checked={item.ignoredFromTotals} onChange={(event) => void setIgnoredFromTotals(item, event.target.checked)} disabled={item.source !== 'stripe' || !can('finance.write') || savingIgnoredId === item.id} aria-label={`Ignorar ${item.id} nos totais`} title="Ignorar esta transação nos totais da visão geral" className="h-4 w-4 accent-emerald-700 disabled:opacity-50" /></td>
+                <td className="px-4 py-3 text-center"><button type="button" onClick={() => void excludeFromFinance(item)} disabled={!can('finance.write') || excludingId === item.id} title="Excluir lançamento do financeiro" className="rounded border border-red-300 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">Excluir</button></td>
                 <td className="px-4 py-3">{item.client?.name || 'Não conciliado'}</td>
                 <td className="px-4 py-3">{item.job ? <Link className="text-emerald-700 underline" href={`/admin/financeiro/recebimentos/${item.id}`}>{item.job.label}</Link> : 'Sem vínculo'}</td>
                 <td className="px-4 py-3 font-mono text-xs">{item.source === 'manual_pix' ? item.manualProtocol : item.job?.protocol || <div className="flex min-w-40 gap-1"><input value={manualProtocolValues[item.id] ?? item.manualProtocol ?? ''} onChange={(event) => setManualProtocolValues((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Número do protocolo" aria-label={`Protocolo manual para ${item.id}`} disabled={!can('finance.write') || savingManualProtocolId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 font-sans text-sm disabled:opacity-50" /><button type="button" title="Salvar protocolo" onClick={() => void saveManualProtocol(item)} disabled={!can('finance.write') || savingManualProtocolId === item.id} className="rounded border border-emerald-700 px-2 py-1 font-sans text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div>}</td>

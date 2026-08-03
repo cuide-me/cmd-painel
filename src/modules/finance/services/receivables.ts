@@ -102,7 +102,7 @@ async function getProfessionalPayoutsByChargeIds(chargeIds: string[]): Promise<M
 }
 
 interface ReceivableSettings {
-  ignoredFromTotals: boolean;
+  excludedFromFinance: boolean;
   manualProtocol: string | null;
   manualRefundedAmountCentavos: number | null;
 }
@@ -124,9 +124,9 @@ async function getReceivableSettingsByChargeIds(chargeIds: string[]): Promise<Ma
       && setting.manualRefundedAmountCentavos >= 0
       ? setting.manualRefundedAmountCentavos
       : null;
-    if (setting?.ignoredFromTotals === true || manualProtocol || manualRefundedAmountCentavos !== null) {
+    if (setting?.excludedFromFinance === true || setting?.ignoredFromTotals === true || manualProtocol || manualRefundedAmountCentavos !== null) {
       settings.set(document.id, {
-        ignoredFromTotals: setting?.ignoredFromTotals === true,
+        excludedFromFinance: setting?.excludedFromFinance === true || setting?.ignoredFromTotals === true,
         manualProtocol,
         manualRefundedAmountCentavos,
       });
@@ -135,9 +135,9 @@ async function getReceivableSettingsByChargeIds(chargeIds: string[]): Promise<Ma
   return settings;
 }
 
-export async function setReceivableIgnoredFromTotals(stripeChargeId: string, ignoredFromTotals: boolean, updatedBy: string): Promise<void> {
+export async function setReceivableExcludedFromFinance(stripeChargeId: string, updatedBy: string): Promise<void> {
   await getFirestore().collection('receivableSettings').doc(stripeChargeId).set({
-    ignoredFromTotals,
+    excludedFromFinance: true,
     updatedAt: new Date().toISOString(),
     updatedBy,
   }, { merge: true });
@@ -166,6 +166,14 @@ export async function setManualPixFinancialValue(input: {
 }, updatedBy: string): Promise<void> {
   await getFirestore().collection('manualReceivables').doc(input.manualPixId).set({
     [input.field]: input.amountCentavos,
+    updatedAt: new Date().toISOString(),
+    updatedBy,
+  }, { merge: true });
+}
+
+export async function setManualPixExcludedFromFinance(manualPixId: string, updatedBy: string): Promise<void> {
+  await getFirestore().collection('manualReceivables').doc(manualPixId).set({
+    excludedFromFinance: true,
     updatedAt: new Date().toISOString(),
     updatedBy,
   }, { merge: true });
@@ -458,7 +466,7 @@ function toManualReceivableRow(id: string, data: FirestoreRecord): ReceivableRow
     manualRefundedAmountCentavos,
     stripeFeeCentavos: 0,
     professionalPayoutCentavos,
-    ignoredFromTotals: false,
+    ignoredFromTotals: data.excludedFromFinance === true,
     ...financials,
   };
 }
@@ -556,7 +564,7 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
       manualRefundedAmountCentavos: receivableSettingsByChargeId.get(charge.id)?.manualRefundedAmountCentavos ?? null,
       stripeFeeCentavos,
       professionalPayoutCentavos,
-      ignoredFromTotals: receivableSettingsByChargeId.get(charge.id)?.ignoredFromTotals === true,
+      ignoredFromTotals: receivableSettingsByChargeId.get(charge.id)?.excludedFromFinance === true,
       ...financials,
     };
   });
@@ -578,7 +586,9 @@ export async function listReceivables(filters: ReceivablesFilters): Promise<Rece
   let cursor = filters.cursor;
   let hasMore = true;
   let scannedRecords = 0;
-  const manualReceivables = filters.cursor ? [] : applyFilters(await listManualReceivables(filters.window, filters.month), filters);
+  const manualReceivables = filters.cursor ? [] : applyFilters(await listManualReceivables(filters.window, filters.month).then(
+    (rows) => rows.filter((row) => !row.ignoredFromTotals)
+  ), filters);
 
   // Stripe cannot filter charges by the job participants stored in Firestore.
   // Fetch only the remaining capacity so advancing the cursor never skips a matching row.
@@ -591,7 +601,7 @@ export async function listReceivables(filters: ReceivablesFilters): Promise<Rece
       ...(cursor ? { starting_after: cursor } : {}),
     });
     scannedRecords += response.data.length;
-    items.push(...applyFilters(await mapCharges(response.data), filters));
+    items.push(...applyFilters((await mapCharges(response.data)).filter((row) => !row.ignoredFromTotals), filters));
     hasMore = response.has_more;
     cursor = response.data.length > 0 ? response.data[response.data.length - 1].id : undefined;
 

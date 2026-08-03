@@ -4,7 +4,8 @@ const requireAdminPermission = jest.fn();
 const getFinancialOverview = jest.fn();
 const listReceivables = jest.fn();
 const saveProfessionalPayoutForReceivable = jest.fn();
-const setReceivableIgnoredFromTotals = jest.fn();
+const setReceivableExcludedFromFinance = jest.fn();
+const setManualPixExcludedFromFinance = jest.fn();
 const setReceivableManualRefund = jest.fn();
 const setManualPixFinancialValue = jest.fn();
 const createManualReceivable = jest.fn();
@@ -12,7 +13,7 @@ const listPayoutTransfers = jest.fn();
 const createManualPayout = jest.fn();
 
 jest.mock('@/lib/server/auth', () => ({ requireAdminPermission }));
-jest.mock('@/modules/finance/services/receivables', () => ({ createManualReceivable, getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable, setManualPixFinancialValue, setReceivableIgnoredFromTotals, setReceivableManualRefund }));
+jest.mock('@/modules/finance/services/receivables', () => ({ createManualReceivable, getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable, setManualPixExcludedFromFinance, setManualPixFinancialValue, setReceivableExcludedFromFinance, setReceivableManualRefund }));
 jest.mock('@/modules/finance/services/payout-transfers', () => ({ createManualPayout, listPayoutTransfers }));
 
 import { GET as overviewGet } from '@/app/api/admin/financeiro/overview/route';
@@ -63,7 +64,8 @@ describe('admin finance API routes', () => {
     getFinancialOverview.mockResolvedValue(overview);
     listReceivables.mockResolvedValue({ items: [] });
     saveProfessionalPayoutForReceivable.mockResolvedValue(undefined);
-    setReceivableIgnoredFromTotals.mockResolvedValue(undefined);
+    setReceivableExcludedFromFinance.mockResolvedValue(undefined);
+    setManualPixExcludedFromFinance.mockResolvedValue(undefined);
     setReceivableManualRefund.mockResolvedValue(undefined);
     createManualReceivable.mockResolvedValue({ id: 'manual_pix_1' });
     listPayoutTransfers.mockResolvedValue({ items: [] });
@@ -135,14 +137,14 @@ describe('admin finance API routes', () => {
     }, 'finance-user');
   });
 
-  it('persists the option to ignore a receivable from overview totals', async () => {
+  it('soft-excludes a Stripe receivable from the financial module', async () => {
     const response = await receivablesPost(new NextRequest('http://localhost/api/admin/financeiro/recebimentos', {
       method: 'POST',
-      body: JSON.stringify({ stripeChargeId: 'ch_123', ignoredFromTotals: true }),
+      body: JSON.stringify({ stripeChargeId: 'ch_123', excludeFromFinance: true }),
     }));
 
     expect(response.status).toBe(200);
-    expect(setReceivableIgnoredFromTotals).toHaveBeenCalledWith('ch_123', true, 'finance-user');
+    expect(setReceivableExcludedFromFinance).toHaveBeenCalledWith('ch_123', 'finance-user');
   });
 
   it('persists a manual refund against its Stripe charge', async () => {

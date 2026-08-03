@@ -192,4 +192,23 @@ describe('listReceivables pagination', () => {
 
     expect(result.items).toEqual([expect.objectContaining({ id: 'manual_pix_pix-first', createdAt: '2026-07-02T12:00:00.000Z' })]);
   });
+
+  it('hides excluded Stripe receivables from the financial list', async () => {
+    const excludedSetting = { id: 'ch_excluded', data: () => ({ excludedFromFinance: true }) };
+    mockGetFirestore.mockReturnValue({
+      collection: jest.fn((name) => ({
+        where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
+        doc: jest.fn((id) => ({ collection: name, id })),
+        get: jest.fn().mockResolvedValue({ docs: [] }),
+      })),
+      getAll: jest.fn((...documents) => Promise.resolve(
+        documents[0]?.collection === 'receivableSettings' ? [excludedSetting] : []
+      )),
+    });
+    mockChargesList.mockResolvedValue({ data: [charge('ch_excluded', 'succeeded')], has_more: false });
+
+    const result = await listReceivables({ window: 30, status: 'all', pageSize: 1 });
+
+    expect(result.items).toEqual([]);
+  });
 });
