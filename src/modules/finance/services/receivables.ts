@@ -671,7 +671,11 @@ export async function getFinancialOverview(window: FinanceTimeWindow, month?: st
     cursor = response.data[response.data.length - 1].id;
   }
 
-  const rows = await mapCharges(charges);
+  const [stripeRows, manualRows] = await Promise.all([
+    mapCharges(charges),
+    listManualReceivables(window, month),
+  ]);
+  const rows = [...stripeRows, ...manualRows.filter((row) => !row.ignoredFromTotals)];
   const overviewTotals = calculateOverviewTotals(rows);
   const includedChargeIds = new Set(overviewTotals.includedRows.map((row) => row.id));
   const includedCharges = charges.filter((charge) => includedChargeIds.has(charge.id));
@@ -686,10 +690,10 @@ export async function getFinancialOverview(window: FinanceTimeWindow, month?: st
       : null,
     stripeFeeAmount: getStripeFeeCentavos(charge),
   })));
-  const operatingFinancials = calculateOperatingFinancials(includedCharges.map((charge) => ({
-    status: charge.status,
-    amount: charge.amount,
-    stripeFeeAmount: getStripeFeeCentavos(charge),
+  const operatingFinancials = calculateOperatingFinancials(overviewTotals.includedRows.map((row) => ({
+    status: row.status,
+    amount: row.amountCentavos,
+    stripeFeeAmount: row.stripeFeeCentavos,
   })));
   const rowsWithMargin = overviewTotals.includedRows.filter((row) => row.status === 'succeeded' || row.status === 'refunded');
   const hasCompleteCuidemeMargins = rowsWithMargin.every((row) => row.netCuidemeMarginCentavos !== null);

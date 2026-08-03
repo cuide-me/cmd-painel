@@ -5,7 +5,7 @@ const mockGetFirestore = jest.fn();
 jest.mock('@/lib/server/stripe', () => ({ getStripeClient: mockGetStripeClient }));
 jest.mock('@/lib/server/firebaseAdmin', () => ({ getFirestore: mockGetFirestore }));
 
-import { listReceivables } from '@/modules/finance/services/receivables';
+import { getFinancialOverview, listReceivables } from '@/modules/finance/services/receivables';
 
 function charge(id: string, status: 'failed' | 'succeeded') {
   return {
@@ -210,5 +210,35 @@ describe('listReceivables pagination', () => {
     const result = await listReceivables({ window: 30, status: 'all', pageSize: 1 });
 
     expect(result.items).toEqual([]);
+  });
+
+  it('includes manual PIX receipts and their refund in overview margin calculations', async () => {
+    mockGetFirestore.mockReturnValue({
+      collection: jest.fn((name) => ({
+        where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
+        doc: jest.fn((id) => ({ collection: name, id })),
+        get: jest.fn().mockResolvedValue({ docs: name === 'manualReceivables' ? [{
+          id: 'pix-1',
+          data: () => ({
+            clientName: 'Ana Silva',
+            protocol: 'CDM-2026-00015',
+            amountCentavos: 15_000,
+            paidAt: '2026-08-03',
+            professionalPayoutCentavos: 10_000,
+            manualRefundedAmountCentavos: 2_500,
+          }),
+        }] : [] }),
+      })),
+      getAll: jest.fn().mockResolvedValue([]),
+    });
+    mockChargesList.mockResolvedValue({ data: [], has_more: false });
+
+    const overview = await getFinancialOverview(365);
+
+    expect(overview).toMatchObject({
+      gmvCentavos: 15_000,
+      refundedCentavos: 2_500,
+      operatingFinancials: { netCuidemeMarginCentavos: 1_600 },
+    });
   });
 });
