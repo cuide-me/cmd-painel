@@ -3,7 +3,7 @@ import { requireAdminPermission } from '@/lib/server/auth';
 import { createManualReceivable, listReceivables, saveProfessionalPayoutForReceivable, setManualPixExcludedFromFinance, setManualPixFinancialValue, setReceivableExcludedFromFinance, setReceivableManualProtocol, setReceivableManualRefund } from '@/modules/finance/services/receivables';
 import type { FinanceTimeWindow, ReceivableStatus } from '@/modules/finance/domain/types';
 
-const VALID_WINDOWS: FinanceTimeWindow[] = [7, 15, 30];
+const VALID_WINDOWS: FinanceTimeWindow[] = [7, 15, 30, 'all'];
 const VALID_STATUSES: Array<ReceivableStatus | 'all'> = ['all', 'succeeded', 'pending', 'failed', 'refunded'];
 
 function isValidMonth(value: string | null): value is string {
@@ -15,13 +15,13 @@ export async function GET(request: NextRequest) {
   if ('error' in auth) return auth.error;
 
   const { searchParams } = new URL(request.url);
-  const requestedWindow = Number(searchParams.get('window'));
+  const requestedWindow = searchParams.get('window');
   const requestedStatus = searchParams.get('status') || 'all';
   const requestedPageSize = Number(searchParams.get('pageSize'));
   const requestedMonth = searchParams.get('month');
 
-  const window = VALID_WINDOWS.includes(requestedWindow as FinanceTimeWindow)
-    ? requestedWindow as FinanceTimeWindow
+  const window = requestedWindow === 'all' || VALID_WINDOWS.includes(Number(requestedWindow) as FinanceTimeWindow)
+    ? requestedWindow === 'all' ? 'all' : Number(requestedWindow) as FinanceTimeWindow
     : 30;
   const status = VALID_STATUSES.includes(requestedStatus as ReceivableStatus | 'all')
     ? requestedStatus as ReceivableStatus | 'all'

@@ -19,11 +19,11 @@ type FirestoreRecord = Record<string, unknown>;
 const MAX_PAGE_SIZE = 100;
 const SIMPLES_NACIONAL_TAX_RESERVE_RATE = 0.06;
 
-function getWindowStart(window: FinanceTimeWindow): number {
+function getWindowStart(window: Exclude<FinanceTimeWindow, 'all'>): number {
   return Math.floor((Date.now() - window * 24 * 60 * 60 * 1000) / 1000);
 }
 
-function getDateRange(window: FinanceTimeWindow, month?: string): { gte: number; lt?: number } {
+function getDateRange(window: FinanceTimeWindow, month?: string): { gte?: number; lt?: number } {
   if (month) {
     const [year, monthNumber] = month.split('-').map(Number);
     return {
@@ -31,7 +31,7 @@ function getDateRange(window: FinanceTimeWindow, month?: string): { gte: number;
       lt: Math.floor(Date.UTC(year, monthNumber, 1) / 1000),
     };
   }
-  return { gte: getWindowStart(window) };
+  return window === 'all' ? {} : { gte: getWindowStart(window) };
 }
 
 export function getTransferLifecycle(input: { reversed: boolean; amount: number; amountReversed: number }): TransferLifecycle {
@@ -144,7 +144,7 @@ async function getStripeFeesBySourceTransactionIds(stripe: Stripe, sourceTransac
 
 async function listManualPayouts(window: FinanceTimeWindow, month?: string): Promise<PayoutTransferRow[]> {
   const range = getDateRange(window, month);
-  const rangeStart = range.gte * 1000;
+  const rangeStart = range.gte === undefined ? undefined : range.gte * 1000;
   const rangeEnd = range.lt ? range.lt * 1000 : undefined;
   const snapshot = await getFirestore().collection('manualPayouts').get();
   const rows: Array<PayoutTransferRow | null> = snapshot.docs
@@ -153,7 +153,7 @@ async function listManualPayouts(window: FinanceTimeWindow, month?: string): Pro
     .filter((row): row is PayoutTransferRow => {
       if (!row?.paidAt) return false;
       const paidAt = Date.parse(row.paidAt);
-      return Number.isFinite(paidAt) && paidAt >= rangeStart && (!rangeEnd || paidAt < rangeEnd);
+      return Number.isFinite(paidAt) && (rangeStart === undefined || paidAt >= rangeStart) && (!rangeEnd || paidAt < rangeEnd);
     })
     .sort((first, second) => (second.paidAt || second.createdAt).localeCompare(first.paidAt || first.createdAt));
 }

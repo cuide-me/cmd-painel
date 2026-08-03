@@ -8,7 +8,15 @@ import type { FinanceTimeWindow, FinancialOverview } from '@/modules/finance/dom
 import { FinancePageHeader } from '@/modules/finance/components/FinancePageHeader';
 import { UnavailableFinancialPanel } from '@/modules/finance/components/UnavailableFinancialPanel';
 
-const WINDOWS: FinanceTimeWindow[] = [7, 15, 30];
+const WINDOWS: Array<Exclude<FinanceTimeWindow, 'all'>> = [7, 15, 30];
+const MONTH_OPTIONS = Array.from({ length: 24 }, (_, index) => {
+  const date = new Date();
+  date.setMonth(date.getMonth() - index, 1);
+  return {
+    value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+    label: date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+  };
+});
 
 function MetricCard({ label, value, helper }: { label: string; value: string; helper?: string }) {
   return (
@@ -59,10 +67,14 @@ export default function FinanceOverviewPage() {
         description="Leitura executiva baseada em recebimentos reais no Stripe e vínculos existentes com atendimentos. Valores sem fonte conciliada permanecem indisponíveis."
         actions={(
           <div className="flex gap-2">
-            <select value={window} onChange={(event) => setWindow(Number(event.target.value) as FinanceTimeWindow)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+            <select value={window} onChange={(event) => setWindow(event.target.value === 'all' ? 'all' : Number(event.target.value) as FinanceTimeWindow)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+              <option value="all">Todo o período</option>
               {WINDOWS.map((item) => <option key={item} value={item}>Últimos {item} dias</option>)}
             </select>
-            <input value={month} onChange={(event) => setMonth(event.target.value)} type="month" aria-label="Filtrar visão geral por mês" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+            <select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Filtrar visão geral por mês" className="min-w-44 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+              <option value="">Todos os meses</option>
+              {MONTH_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
             <button onClick={load} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800">Atualizar</button>
           </div>
         )}

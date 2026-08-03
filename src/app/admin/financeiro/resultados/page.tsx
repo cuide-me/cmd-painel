@@ -10,6 +10,14 @@ interface ResultLine { id: string; label: string; amountCentavos: number | null;
 interface ResultsResponse { lines: ResultLine[]; coverage: { note?: string; isComplete: boolean } }
 
 const WINDOWS: FinanceTimeWindow[] = [7, 15, 30];
+const MONTH_OPTIONS = Array.from({ length: 24 }, (_, index) => {
+  const date = new Date();
+  date.setMonth(date.getMonth() - index, 1);
+  return {
+    value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+    label: date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+  };
+});
 
 export default function ResultsPage() {
   const [data, setData] = useState<ResultsResponse | null>(null);
@@ -30,7 +38,7 @@ export default function ResultsPage() {
     void load();
   }, [load]);
 
-  return <div className="space-y-6"><FinancePageHeader title="Resultados" description="DRE simplificada que apresenta somente componentes suportados pelas fontes atuais. Linhas indisponíveis não recebem valores estimados." actions={<div className="flex flex-wrap gap-2"><select value={window} onChange={(event) => setWindow(Number(event.target.value) as FinanceTimeWindow)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{WINDOWS.map((item) => <option key={item} value={item}>Últimos {item} dias</option>)}</select><input value={month} onChange={(event) => setMonth(event.target.value)} type="month" aria-label="Filtrar resultados por mês" className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" /></div>} />
+  return <div className="space-y-6"><FinancePageHeader title="Resultados" description="DRE simplificada que apresenta somente componentes suportados pelas fontes atuais. Linhas indisponíveis não recebem valores estimados." actions={<div className="flex flex-wrap gap-2"><select value={window} onChange={(event) => setWindow(event.target.value === 'all' ? 'all' : Number(event.target.value) as FinanceTimeWindow)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">Todo o período</option>{WINDOWS.map((item) => <option key={item} value={item}>Últimos {item} dias</option>)}</select><select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Filtrar resultados por mês" className="min-w-44 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Todos os meses</option>{MONTH_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>} />
     {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
       {data?.coverage.note ? <p className="border-b border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{data.coverage.note}</p> : null}

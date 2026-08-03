@@ -1,4 +1,4 @@
-export type FinanceTimeWindow = 7 | 15 | 30;
+export type FinanceTimeWindow = 7 | 15 | 30 | 'all';
 
 export type ReceivableStatus = 'succeeded' | 'pending' | 'failed' | 'refunded';
 export type ReceivableSource = 'stripe' | 'manual_pix';

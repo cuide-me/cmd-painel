@@ -33,11 +33,11 @@ export function getJobProtocol(job: FirestoreRecord): string {
   return `CDM-${year}-${suffix}`;
 }
 
-function getWindowStart(window: FinanceTimeWindow): number {
+function getWindowStart(window: Exclude<FinanceTimeWindow, 'all'>): number {
   return Math.floor((Date.now() - window * 24 * 60 * 60 * 1000) / 1000);
 }
 
-function getDateRange(window: FinanceTimeWindow, month?: string): { gte: number; lt?: number } {
+function getDateRange(window: FinanceTimeWindow, month?: string): { gte?: number; lt?: number } {
   if (month) {
     const [year, monthNumber] = month.split('-').map(Number);
     return {
@@ -45,7 +45,7 @@ function getDateRange(window: FinanceTimeWindow, month?: string): { gte: number;
       lt: Math.floor(Date.UTC(year, monthNumber, 1) / 1000),
     };
   }
-  return { gte: getWindowStart(window) };
+  return window === 'all' ? {} : { gte: getWindowStart(window) };
 }
 
 function getReceivableStatus(charge: Stripe.Charge): ReceivableStatus {
@@ -480,14 +480,14 @@ function toManualReceivableRow(id: string, data: FirestoreRecord): ReceivableRow
 
 async function listManualReceivables(window: FinanceTimeWindow, month?: string): Promise<ReceivableRow[]> {
   const range = getDateRange(window, month);
-  const rangeStart = new Date(range.gte * 1000).toISOString();
+  const rangeStart = range.gte === undefined ? undefined : new Date(range.gte * 1000).toISOString();
   const rangeEnd = range.lt ? new Date(range.lt * 1000).toISOString() : undefined;
   const snapshot = await getFirestore().collection('manualReceivables').get();
   const seenPayments = new Set<string>();
   return snapshot.docs
     .map((document: QueryDocumentSnapshot) => toManualReceivableRow(document.id, document.data() as FirestoreRecord))
     .filter((row: ReceivableRow | null): row is ReceivableRow => Boolean(
-      row && row.createdAt >= rangeStart && (!rangeEnd || row.createdAt < rangeEnd)
+      row && (!rangeStart || row.createdAt >= rangeStart) && (!rangeEnd || row.createdAt < rangeEnd)
     ))
     .filter((row: ReceivableRow) => {
       const key = [row.client?.name, row.manualProtocol, row.amountCentavos, row.createdAt].join('|');

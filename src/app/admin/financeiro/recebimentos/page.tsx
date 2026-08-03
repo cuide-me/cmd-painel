@@ -8,7 +8,15 @@ import { formatCurrencyFromCentavos } from '@/modules/finance/domain/money';
 import type { FinanceTimeWindow, ReceivableStatus, ReceivablesResult } from '@/modules/finance/domain/types';
 import { FinancePageHeader } from '@/modules/finance/components/FinancePageHeader';
 
-const WINDOWS: FinanceTimeWindow[] = [7, 15, 30];
+const WINDOWS: Array<Exclude<FinanceTimeWindow, 'all'>> = [7, 15, 30];
+const MONTH_OPTIONS = Array.from({ length: 24 }, (_, index) => {
+  const date = new Date();
+  date.setMonth(date.getMonth() - index, 1);
+  return {
+    value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+    label: date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+  };
+});
 const STATUSES: Array<{ value: ReceivableStatus | 'all'; label: string }> = [
   { value: 'all', label: 'Todos os status' },
   { value: 'succeeded', label: 'Confirmado' },
@@ -256,10 +264,14 @@ export default function ReceivablesPage() {
       </form> : null}
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <select value={window} onChange={(event) => { setCursorHistory([null]); setWindow(Number(event.target.value) as FinanceTimeWindow); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+          <select value={window} onChange={(event) => { setCursorHistory([null]); setWindow(event.target.value === 'all' ? 'all' : Number(event.target.value) as FinanceTimeWindow); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <option value="all">Todo o período</option>
             {WINDOWS.map((item) => <option key={item} value={item}>Últimos {item} dias</option>)}
           </select>
-          <input value={month} onChange={(event) => { setCursorHistory([null]); setMonth(event.target.value); }} type="month" aria-label="Filtrar por mês" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <select value={month} onChange={(event) => { setCursorHistory([null]); setMonth(event.target.value); }} aria-label="Filtrar por mês" className="min-w-44 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+            <option value="">Todos os meses</option>
+            {MONTH_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
           <select value={status} onChange={(event) => { setCursorHistory([null]); setStatus(event.target.value as ReceivableStatus | 'all'); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             {STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
