@@ -89,16 +89,26 @@ async function getProfessionalPayoutsByChargeIds(chargeIds: string[]): Promise<M
   return payouts;
 }
 
-async function getReceivableSettingsByChargeIds(chargeIds: string[]): Promise<Map<string, boolean>> {
+interface ReceivableSettings {
+  ignoredFromTotals: boolean;
+  manualProtocol: string | null;
+}
+
+async function getReceivableSettingsByChargeIds(chargeIds: string[]): Promise<Map<string, ReceivableSettings>> {
   const uniqueIds = [...new Set(chargeIds)];
-  const settings = new Map<string, boolean>();
+  const settings = new Map<string, ReceivableSettings>();
   if (uniqueIds.length === 0) return settings;
 
   const db = getFirestore();
   const documents = await db.getAll(...uniqueIds.map((id) => db.collection('receivableSettings').doc(id)));
   documents.forEach((document: DocumentSnapshot) => {
     const setting = document.data() as FirestoreRecord | undefined;
-    if (setting?.ignoredFromTotals === true) settings.set(document.id, true);
+    const manualProtocol = typeof setting?.manualProtocol === 'string' && setting.manualProtocol.trim()
+      ? setting.manualProtocol.trim()
+      : null;
+    if (setting?.ignoredFromTotals === true || manualProtocol) {
+      settings.set(document.id, { ignoredFromTotals: setting?.ignoredFromTotals === true, manualProtocol });
+    }
   });
   return settings;
 }
@@ -106,6 +116,14 @@ async function getReceivableSettingsByChargeIds(chargeIds: string[]): Promise<Ma
 export async function setReceivableIgnoredFromTotals(stripeChargeId: string, ignoredFromTotals: boolean, updatedBy: string): Promise<void> {
   await getFirestore().collection('receivableSettings').doc(stripeChargeId).set({
     ignoredFromTotals,
+    updatedAt: new Date().toISOString(),
+    updatedBy,
+  }, { merge: true });
+}
+
+export async function setReceivableManualProtocol(stripeChargeId: string, protocol: string, updatedBy: string): Promise<void> {
+  await getFirestore().collection('receivableSettings').doc(stripeChargeId).set({
+    manualProtocol: protocol,
     updatedAt: new Date().toISOString(),
     updatedBy,
   }, { merge: true });
@@ -403,11 +421,12 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
       client: asPerson(clientId, users),
       professional: asPerson(professionalId, users),
       job: job ? { id: String(job.id), label: String(job.title || job.titulo || `Atendimento ${job.id}`), protocol: getJobProtocol(job) } : null,
+      manualProtocol: receivableSettingsByChargeId.get(charge.id)?.manualProtocol || null,
       reconciliation: job ? 'reconciled' : 'unlinked',
       refundedAmountCentavos: charge.amount_refunded || 0,
       stripeFeeCentavos,
       professionalPayoutCentavos,
-      ignoredFromTotals: receivableSettingsByChargeId.get(charge.id) === true,
+      ignoredFromTotals: receivableSettingsByChargeId.get(charge.id)?.ignoredFromTotals === true,
       ...financials,
     };
   });
@@ -482,6 +501,10 @@ export async function getReceivableById(id: string): Promise<ReceivableRow | nul
   }
 }
 
+export function calculateNetCuidemeMargin(rows: Array<Pick<ReceivableRow, 'netCuidemeMarginCentavos'>>): number {
+  return rows.reduce((sum, row) => sum + (row.netCuidemeMarginCentavos ?? 0), 0);
+}
+
 export async function getFinancialOverview(window: FinanceTimeWindow): Promise<FinancialOverview> {
   const stripe = getStripeClient();
   const charges: Stripe.Charge[] = [];
@@ -522,9 +545,7 @@ export async function getFinancialOverview(window: FinanceTimeWindow): Promise<F
     stripeFeeAmount: getStripeFeeCentavos(charge),
   })));
   const hasCompleteCuidemeMargins = overviewTotals.succeededRows.every((row) => row.netCuidemeMarginCentavos !== null);
-  const netCuidemeMarginCentavos = hasCompleteCuidemeMargins
-    ? overviewTotals.succeededRows.reduce((sum, row) => sum + (row.netCuidemeMarginCentavos || 0), 0)
-    : null;
+  const netCuidemeMarginCentavos = calculateNetCuidemeMargin(overviewTotals.succeededRows);
 
   return {
     window,

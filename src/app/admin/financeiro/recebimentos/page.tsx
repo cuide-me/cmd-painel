@@ -41,6 +41,8 @@ export default function ReceivablesPage() {
   const [payoutValues, setPayoutValues] = useState<Record<string, string>>({});
   const [savingPayoutId, setSavingPayoutId] = useState<string | null>(null);
   const [savingIgnoredId, setSavingIgnoredId] = useState<string | null>(null);
+  const [manualProtocolValues, setManualProtocolValues] = useState<Record<string, string>>({});
+  const [savingManualProtocolId, setSavingManualProtocolId] = useState<string | null>(null);
   const currentCursor = cursorHistory[cursorHistory.length - 1];
 
   const load = useCallback(async (cursor: string | null = null) => {
@@ -135,6 +137,31 @@ export default function ReceivablesPage() {
     }
   };
 
+  const saveManualProtocol = async (item: NonNullable<ReceivablesResult['items']>[number]) => {
+    const manualProtocol = (manualProtocolValues[item.id] ?? item.manualProtocol ?? '').trim();
+    if (!manualProtocol) {
+      setError('Informe um número de protocolo válido.');
+      return;
+    }
+    setSavingManualProtocolId(item.id);
+    setError(null);
+    try {
+      const response = await authFetch('/api/admin/financeiro/recebimentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stripeChargeId: item.id, manualProtocol }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Erro ao salvar protocolo');
+      setManualProtocolValues((current) => ({ ...current, [item.id]: manualProtocol }));
+      void load(currentCursor);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Erro inesperado');
+    } finally {
+      setSavingManualProtocolId(null);
+    }
+  };
+
   if (authLoading || loading && !data) return <div className="h-64 animate-pulse rounded-lg bg-slate-200" />;
   if (!can('finance.read')) return <p className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-800">Acesso restrito ao financeiro.</p>;
 
@@ -168,7 +195,7 @@ export default function ReceivablesPage() {
                 <td className="px-4 py-3 text-center"><input type="checkbox" checked={item.ignoredFromTotals} onChange={(event) => void setIgnoredFromTotals(item, event.target.checked)} disabled={!can('finance.write') || savingIgnoredId === item.id} aria-label={`Ignorar ${item.id} nos totais`} title="Ignorar esta transação nos totais da visão geral" className="h-4 w-4 accent-emerald-700 disabled:opacity-50" /></td>
                 <td className="px-4 py-3">{item.client?.name || 'Não conciliado'}</td>
                 <td className="px-4 py-3">{item.job ? <Link className="text-emerald-700 underline" href={`/admin/financeiro/recebimentos/${item.id}`}>{item.job.label}</Link> : 'Sem vínculo'}</td>
-                <td className="px-4 py-3 font-mono text-xs">{item.job?.protocol || 'Sem vínculo'}</td>
+                <td className="px-4 py-3 font-mono text-xs">{item.job?.protocol || <div className="flex min-w-40 gap-1"><input value={manualProtocolValues[item.id] ?? item.manualProtocol ?? ''} onChange={(event) => setManualProtocolValues((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Número do protocolo" aria-label={`Protocolo manual para ${item.id}`} disabled={!can('finance.write') || savingManualProtocolId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 font-sans text-sm disabled:opacity-50" /><button type="button" title="Salvar protocolo" onClick={() => void saveManualProtocol(item)} disabled={!can('finance.write') || savingManualProtocolId === item.id} className="rounded border border-emerald-700 px-2 py-1 font-sans text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div>}</td>
                 <td className="px-4 py-3">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</td>
                 <td className="px-4 py-3 font-medium">{formatCurrencyFromCentavos(item.amountCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{formatCurrencyFromCentavos(item.stripeFeeCentavos, item.currency)}</td>
