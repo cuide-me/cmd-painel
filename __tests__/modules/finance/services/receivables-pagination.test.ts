@@ -27,7 +27,9 @@ describe('listReceivables pagination', () => {
     mockGetFirestore.mockReturnValue({
       collection: jest.fn(() => ({
         where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
+        doc: jest.fn((id) => ({ id })),
       })),
+      getAll: jest.fn().mockResolvedValue([]),
     });
   });
 
@@ -60,11 +62,11 @@ describe('listReceivables pagination', () => {
       data: () => ({ title: 'Atendimento domiciliar', protocol: 'CDM-2026-00015' }),
     };
     mockGetFirestore.mockReturnValue({
-      collection: jest.fn(() => ({
+      collection: jest.fn((name) => ({
         where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
-        doc: jest.fn(() => ({ id: 'job-1' })),
+        doc: jest.fn((id) => ({ collection: name, id })),
       })),
-      getAll: jest.fn().mockResolvedValue([job]),
+      getAll: jest.fn((...documents) => Promise.resolve(documents[0]?.collection === 'jobs' ? [job] : [])),
     });
     mockChargesList.mockResolvedValue({
       data: [{ ...charge('ch_metadata', 'succeeded'), metadata: { jobId: 'job-1' } }],
@@ -75,5 +77,30 @@ describe('listReceivables pagination', () => {
 
     expect(result.items[0].job).toEqual({ id: 'job-1', label: 'Atendimento domiciliar', protocol: 'CDM-2026-00015' });
     expect(result.items[0].reconciliation).toBe('reconciled');
+  });
+
+  it('returns a manually saved protocol for an unlinked charge', async () => {
+    const manualProtocolSetting = {
+      id: 'ch_unlinked',
+      data: () => ({ manualProtocol: 'CDM-2026-00016' }),
+    };
+    mockGetFirestore.mockReturnValue({
+      collection: jest.fn((name) => ({
+        where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
+        doc: jest.fn((id) => ({ collection: name, id })),
+      })),
+      getAll: jest.fn((...documents) => Promise.resolve(
+        documents[0]?.collection === 'receivableSettings' ? [manualProtocolSetting] : []
+      )),
+    });
+    mockChargesList.mockResolvedValue({ data: [charge('ch_unlinked', 'succeeded')], has_more: false });
+
+    const result = await listReceivables({ window: 30, status: 'all', pageSize: 1 });
+
+    expect(result.items[0]).toMatchObject({
+      job: null,
+      manualProtocol: 'CDM-2026-00016',
+      reconciliation: 'unlinked',
+    });
   });
 });

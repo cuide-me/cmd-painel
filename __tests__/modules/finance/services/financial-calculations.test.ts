@@ -1,4 +1,4 @@
-import { calculateConnectFinancials, calculateOperatingFinancials, calculateOverviewTotals, calculateReceivableFinancials } from '@/modules/finance/services/receivables';
+import { calculateConnectFinancials, calculateNetCuidemeMargin, calculateOperatingFinancials, calculateOverviewTotals, calculateReceivableFinancials } from '@/modules/finance/services/receivables';
 import { getTransferLifecycle } from '@/modules/finance/services/payout-transfers';
 
 describe('Connect financial calculations', () => {
@@ -86,6 +86,14 @@ describe('Connect financial calculations', () => {
       taxReserveCentavos: 900,
       netCuidemeMarginCentavos: null,
     });
+  });
+
+  it('sums the available Cuide-me margins displayed in receivables', () => {
+    expect(calculateNetCuidemeMargin([
+      { netCuidemeMarginCentavos: 2_000 },
+      { netCuidemeMarginCentavos: null },
+      { netCuidemeMarginCentavos: 1_500 },
+    ])).toBe(3_500);
   });
 
   it('classifies transfer reversals without inferring payout status', () => {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminPermission } from '@/lib/server/auth';
-import { listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals } from '@/modules/finance/services/receivables';
+import { listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals, setReceivableManualProtocol } from '@/modules/finance/services/receivables';
 import type { FinanceTimeWindow, ReceivableStatus } from '@/modules/finance/domain/types';
 
 const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
@@ -48,6 +48,11 @@ export async function POST(request: NextRequest) {
     const stripeChargeId = typeof body.stripeChargeId === 'string' ? body.stripeChargeId.trim() : '';
     if (stripeChargeId.startsWith('ch_') && typeof body.ignoredFromTotals === 'boolean') {
       await setReceivableIgnoredFromTotals(stripeChargeId, body.ignoredFromTotals, auth.uid);
+      return NextResponse.json({ ok: true });
+    }
+    const manualProtocol = typeof body.manualProtocol === 'string' ? body.manualProtocol.trim() : '';
+    if (stripeChargeId.startsWith('ch_') && manualProtocol) {
+      await setReceivableManualProtocol(stripeChargeId, manualProtocol, auth.uid);
       return NextResponse.json({ ok: true });
     }
     const amountCentavos = body.amountCentavos;
