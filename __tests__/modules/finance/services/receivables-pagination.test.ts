@@ -233,7 +233,7 @@ describe('listReceivables pagination', () => {
     });
     mockChargesList.mockResolvedValue({ data: [], has_more: false });
 
-    const overview = await getFinancialOverview(365);
+    const overview = await getFinancialOverview(30);
 
     expect(overview).toMatchObject({
       gmvCentavos: 15_000,

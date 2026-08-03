@@ -94,11 +94,11 @@ describe('admin finance API routes', () => {
   });
 
   it('normalizes receivables filters and forwards the complete cursor contract', async () => {
-    const response = await receivablesGet(request('/api/admin/financeiro/recebimentos?window=90&month=2026-07&status=succeeded&pageSize=75&cursor=ch_cursor&clientId=client-1&professionalId=pro-1'));
+    const response = await receivablesGet(request('/api/admin/financeiro/recebimentos?window=15&month=2026-07&status=succeeded&pageSize=75&cursor=ch_cursor&clientId=client-1&professionalId=pro-1'));
 
     expect(response.status).toBe(200);
     expect(listReceivables).toHaveBeenCalledWith({
-      window: 90,
+      window: 15,
       month: '2026-07',
       status: 'succeeded',
       pageSize: 75,
@@ -109,13 +109,13 @@ describe('admin finance API routes', () => {
   });
 
   it('forwards a calendar month to overview, payouts, and results', async () => {
-    await overviewGet(request('/api/admin/financeiro/overview?window=90&month=2026-07'));
-    await payoutsGet(request('/api/admin/financeiro/repasses?window=90&month=2026-07'));
-    await resultsGet(request('/api/admin/financeiro/resultados?window=90&month=2026-07'));
+    await overviewGet(request('/api/admin/financeiro/overview?window=15&month=2026-07'));
+    await payoutsGet(request('/api/admin/financeiro/repasses?window=15&month=2026-07'));
+    await resultsGet(request('/api/admin/financeiro/resultados?window=15&month=2026-07'));
 
-    expect(getFinancialOverview).toHaveBeenNthCalledWith(1, 90, '2026-07');
-    expect(listPayoutTransfers).toHaveBeenCalledWith({ window: 90, month: '2026-07', cursor: undefined, pageSize: 50 });
-    expect(getFinancialOverview).toHaveBeenNthCalledWith(2, 90, '2026-07');
+    expect(getFinancialOverview).toHaveBeenNthCalledWith(1, 15, '2026-07');
+    expect(listPayoutTransfers).toHaveBeenCalledWith({ window: 15, month: '2026-07', cursor: undefined, pageSize: 50 });
+    expect(getFinancialOverview).toHaveBeenNthCalledWith(2, 15, '2026-07');
   });
 
   it('saves a manual professional payout against its Stripe charge', async () => {
@@ -239,12 +239,12 @@ describe('admin finance API routes', () => {
   });
 
   it('keeps consolidated result lines unavailable instead of fabricating them', async () => {
-    const response = await resultsGet(request('/api/admin/financeiro/resultados?window=365'));
+    const response = await resultsGet(request('/api/admin/financeiro/resultados?window=30'));
     const payload = await response.json();
     const lines = payload.lines as Array<{ id: string; status: string; amountCentavos: number | null }>;
 
     expect(response.status).toBe(200);
-    expect(getFinancialOverview).toHaveBeenCalledWith(365, undefined);
+    expect(getFinancialOverview).toHaveBeenCalledWith(30, undefined);
     expect(lines.find((line) => line.id === 'connect_commission_net_of_refunds')).toMatchObject({ status: 'available', amountCentavos: 2_000 });
     expect(lines.find((line) => line.id === 'stripe_fees')).toMatchObject({ status: 'available', amountCentavos: 320 });
     expect(lines.find((line) => line.id === 'gross_revenue')).toMatchObject({ status: 'available', amountCentavos: 10_000 });

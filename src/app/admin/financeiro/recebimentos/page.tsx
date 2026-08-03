@@ -8,7 +8,7 @@ import { formatCurrencyFromCentavos } from '@/modules/finance/domain/money';
 import type { FinanceTimeWindow, ReceivableStatus, ReceivablesResult } from '@/modules/finance/domain/types';
 import { FinancePageHeader } from '@/modules/finance/components/FinancePageHeader';
 
-const WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
+const WINDOWS: FinanceTimeWindow[] = [7, 15, 30];
 const STATUSES: Array<{ value: ReceivableStatus | 'all'; label: string }> = [
   { value: 'all', label: 'Todos os status' },
   { value: 'succeeded', label: 'Confirmado' },

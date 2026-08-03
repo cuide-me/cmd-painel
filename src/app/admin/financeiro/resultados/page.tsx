@@ -9,7 +9,7 @@ import type { FinanceTimeWindow } from '@/modules/finance/domain/types';
 interface ResultLine { id: string; label: string; amountCentavos: number | null; status: 'available' | 'unavailable'; reason?: string }
 interface ResultsResponse { lines: ResultLine[]; coverage: { note?: string; isComplete: boolean } }
 
-const WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
+const WINDOWS: FinanceTimeWindow[] = [7, 15, 30];
 
 export default function ResultsPage() {
   const [data, setData] = useState<ResultsResponse | null>(null);

@@ -3,7 +3,7 @@ import { requireAdminPermission } from '@/lib/server/auth';
 import { createManualReceivable, listReceivables, saveProfessionalPayoutForReceivable, setManualPixExcludedFromFinance, setManualPixFinancialValue, setReceivableExcludedFromFinance, setReceivableManualProtocol, setReceivableManualRefund } from '@/modules/finance/services/receivables';
 import type { FinanceTimeWindow, ReceivableStatus } from '@/modules/finance/domain/types';
 
-const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
+const VALID_WINDOWS: FinanceTimeWindow[] = [7, 15, 30];
 const VALID_STATUSES: Array<ReceivableStatus | 'all'> = ['all', 'succeeded', 'pending', 'failed', 'refunded'];
 
 function isValidMonth(value: string | null): value is string {

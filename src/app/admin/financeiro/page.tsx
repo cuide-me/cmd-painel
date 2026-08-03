@@ -8,7 +8,7 @@ import type { FinanceTimeWindow, FinancialOverview } from '@/modules/finance/dom
 import { FinancePageHeader } from '@/modules/finance/components/FinancePageHeader';
 import { UnavailableFinancialPanel } from '@/modules/finance/components/UnavailableFinancialPanel';
 
-const WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
+const WINDOWS: FinanceTimeWindow[] = [7, 15, 30];
 
 function MetricCard({ label, value, helper }: { label: string; value: string; helper?: string }) {
   return (

@@ -3,7 +3,7 @@ import { requireAdminPermission } from '@/lib/server/auth';
 import { getFinancialOverview } from '@/modules/finance/services/receivables';
 import type { FinanceTimeWindow } from '@/modules/finance/domain/types';
 
-const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
+const VALID_WINDOWS: FinanceTimeWindow[] = [7, 15, 30];
 
 function isValidMonth(value: string | null): value is string {
   return Boolean(value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value));

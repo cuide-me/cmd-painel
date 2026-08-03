@@ -7,7 +7,7 @@ import type { FinanceTimeWindow, PayoutTransfersResult, TransferLifecycle } from
 import { FinancePageHeader } from '@/modules/finance/components/FinancePageHeader';
 import { UnavailableFinancialPanel } from '@/modules/finance/components/UnavailableFinancialPanel';
 
-const WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
+const WINDOWS: FinanceTimeWindow[] = [7, 15, 30];
 
 function lifecycleLabel(value: TransferLifecycle): string {
   if (value === 'reversed') return 'Revertido';
