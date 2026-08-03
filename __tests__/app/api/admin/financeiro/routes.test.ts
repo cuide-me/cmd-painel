@@ -6,11 +6,12 @@ const listReceivables = jest.fn();
 const saveProfessionalPayoutForReceivable = jest.fn();
 const setReceivableIgnoredFromTotals = jest.fn();
 const setReceivableManualRefund = jest.fn();
+const createManualReceivable = jest.fn();
 const listPayoutTransfers = jest.fn();
 const createManualPayout = jest.fn();
 
 jest.mock('@/lib/server/auth', () => ({ requireAdminPermission }));
-jest.mock('@/modules/finance/services/receivables', () => ({ getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals, setReceivableManualRefund }));
+jest.mock('@/modules/finance/services/receivables', () => ({ createManualReceivable, getFinancialOverview, listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals, setReceivableManualRefund }));
 jest.mock('@/modules/finance/services/payout-transfers', () => ({ createManualPayout, listPayoutTransfers }));
 
 import { GET as overviewGet } from '@/app/api/admin/financeiro/overview/route';
@@ -63,6 +64,7 @@ describe('admin finance API routes', () => {
     saveProfessionalPayoutForReceivable.mockResolvedValue(undefined);
     setReceivableIgnoredFromTotals.mockResolvedValue(undefined);
     setReceivableManualRefund.mockResolvedValue(undefined);
+    createManualReceivable.mockResolvedValue({ id: 'manual_pix_1' });
     listPayoutTransfers.mockResolvedValue({ items: [] });
     createManualPayout.mockResolvedValue({ id: 'manual-1' });
   });
@@ -81,11 +83,12 @@ describe('admin finance API routes', () => {
   });
 
   it('normalizes receivables filters and forwards the complete cursor contract', async () => {
-    const response = await receivablesGet(request('/api/admin/financeiro/recebimentos?window=90&status=succeeded&pageSize=75&cursor=ch_cursor&clientId=client-1&professionalId=pro-1'));
+    const response = await receivablesGet(request('/api/admin/financeiro/recebimentos?window=90&month=2026-07&status=succeeded&pageSize=75&cursor=ch_cursor&clientId=client-1&professionalId=pro-1'));
 
     expect(response.status).toBe(200);
     expect(listReceivables).toHaveBeenCalledWith({
       window: 90,
+      month: '2026-07',
       status: 'succeeded',
       pageSize: 75,
       cursor: 'ch_cursor',
@@ -139,6 +142,33 @@ describe('admin finance API routes', () => {
 
     expect(response.status).toBe(200);
     expect(setReceivableManualRefund).toHaveBeenCalledWith('ch_123', 2_500, 'finance-user');
+  });
+
+  it('creates a manually recorded PIX payment', async () => {
+    const response = await receivablesPost(new NextRequest('http://localhost/api/admin/financeiro/recebimentos', {
+      method: 'POST',
+      body: JSON.stringify({
+        source: 'manual_pix',
+        clientName: 'Ana Silva',
+        professionalName: 'Brenda Martins',
+        protocol: 'CDM-2026-00015',
+        jobLabel: 'Atendimento domiciliar',
+        amountCentavos: 15_000,
+        paidAt: '2026-08-03',
+        notes: 'Recebido por PIX',
+      }),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(createManualReceivable).toHaveBeenCalledWith({
+      clientName: 'Ana Silva',
+      professionalName: 'Brenda Martins',
+      protocol: 'CDM-2026-00015',
+      jobLabel: 'Atendimento domiciliar',
+      amountCentavos: 15_000,
+      paidAt: '2026-08-03',
+      notes: 'Recebido por PIX',
+    }, 'finance-user');
   });
 
   it('falls back to safe financial defaults for invalid payout query parameters', async () => {

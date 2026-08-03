@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { authFetch } from '@/lib/client/authFetch';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { formatCurrencyFromCentavos } from '@/modules/finance/domain/money';
@@ -30,6 +30,7 @@ function toCentavos(value: string): number | null {
 export default function ReceivablesPage() {
   const { can, loading: authLoading } = useAdminAuth();
   const [window, setWindow] = useState<FinanceTimeWindow>(30);
+  const [month, setMonth] = useState('');
   const [status, setStatus] = useState<ReceivableStatus | 'all'>('all');
   const [clientId, setClientId] = useState('');
   const [professionalId, setProfessionalId] = useState('');
@@ -45,12 +46,15 @@ export default function ReceivablesPage() {
   const [savingManualProtocolId, setSavingManualProtocolId] = useState<string | null>(null);
   const [manualRefundValues, setManualRefundValues] = useState<Record<string, string>>({});
   const [savingManualRefundId, setSavingManualRefundId] = useState<string | null>(null);
+  const [showManualPixForm, setShowManualPixForm] = useState(false);
+  const [savingManualPix, setSavingManualPix] = useState(false);
   const currentCursor = cursorHistory[cursorHistory.length - 1];
 
   const load = useCallback(async (cursor: string | null = null) => {
     setLoading(true);
     setError(null);
     const params = new URLSearchParams({ window: String(window), status, pageSize: '50' });
+    if (month) params.set('month', month);
     if (cursor) params.set('cursor', cursor);
     if (appliedParticipantFilters.clientId) params.set('clientId', appliedParticipantFilters.clientId);
     if (appliedParticipantFilters.professionalId) params.set('professionalId', appliedParticipantFilters.professionalId);
@@ -64,11 +68,11 @@ export default function ReceivablesPage() {
     } finally {
       setLoading(false);
     }
-  }, [appliedParticipantFilters, status, window]);
+  }, [appliedParticipantFilters, month, status, window]);
 
   useEffect(() => {
     if (can('finance.read')) void load(null);
-  }, [window, status, can, load]);
+  }, [window, month, status, can, load]);
 
   const applyFilters = () => {
     setCursorHistory([null]);
@@ -189,17 +193,65 @@ export default function ReceivablesPage() {
     }
   };
 
+  const createManualPixPayment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const amountCentavos = toCentavos(String(form.get('amount') || ''));
+    if (amountCentavos === null || amountCentavos <= 0) {
+      setError('Informe um valor de pagamento válido.');
+      return;
+    }
+    setSavingManualPix(true);
+    setError(null);
+    try {
+      const response = await authFetch('/api/admin/financeiro/recebimentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'manual_pix',
+          clientName: form.get('clientName'),
+          professionalName: form.get('professionalName'),
+          protocol: form.get('protocol'),
+          jobLabel: form.get('jobLabel'),
+          amountCentavos,
+          paidAt: form.get('paidAt'),
+          notes: form.get('notes'),
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Erro ao registrar pagamento PIX manual');
+      event.currentTarget.reset();
+      setShowManualPixForm(false);
+      void load(null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Erro inesperado');
+    } finally {
+      setSavingManualPix(false);
+    }
+  };
+
   if (authLoading || loading && !data) return <div className="h-64 animate-pulse rounded-lg bg-slate-200" />;
   if (!can('finance.read')) return <p className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-800">Acesso restrito ao financeiro.</p>;
 
   return (
     <div className="space-y-6">
-      <FinancePageHeader title="Recebimentos" description="Charges Stripe organizados por período, com reconciliação explícita para atendimento, cliente e profissional." />
+      <FinancePageHeader title="Recebimentos" description="Charges Stripe e pagamentos PIX manuais organizados por período, com reconciliação explícita para atendimento, cliente e profissional." actions={can('finance.write') ? <button onClick={() => setShowManualPixForm((current) => !current)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800">Novo pagamento PIX</button> : undefined} />
+      {showManualPixForm ? <form onSubmit={createManualPixPayment} className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-3">
+        <input required name="clientName" placeholder="Nome do cliente" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <input required name="protocol" placeholder="Protocolo" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <input required name="amount" inputMode="decimal" placeholder="Valor recebido" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <input required name="paidAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <input name="professionalName" placeholder="Nome do profissional (opcional)" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <input name="jobLabel" placeholder="Atendimento (opcional)" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <input name="notes" placeholder="Observação (opcional)" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <button disabled={savingManualPix} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{savingManualPix ? 'Registrando...' : 'Salvar pagamento PIX'}</button>
+      </form> : null}
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           <select value={window} onChange={(event) => { setCursorHistory([null]); setWindow(Number(event.target.value) as FinanceTimeWindow); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             {WINDOWS.map((item) => <option key={item} value={item}>Últimos {item} dias</option>)}
           </select>
+          <input value={month} onChange={(event) => { setCursorHistory([null]); setMonth(event.target.value); }} type="month" aria-label="Filtrar por mês" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           <select value={status} onChange={(event) => { setCursorHistory([null]); setStatus(event.target.value as ReceivableStatus | 'all'); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             {STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
@@ -212,28 +264,28 @@ export default function ReceivablesPage() {
       {error ? <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p> : null}
       <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-4 text-sm text-slate-600">
-          {data?.coverage.note || 'Todos os registros desta página foram carregados do Stripe.'}
+          {data?.coverage.note || 'Todos os registros desta página foram carregados do Stripe, exceto pagamentos PIX registrados manualmente.'}
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{['Ignorar totais', 'Cliente', 'Atendimento', 'Protocolo', 'Data', 'Valor pago', 'Tarifa Stripe', 'Imposto Simples (6%)', 'Repasse profissional', 'Reembolso', 'Margem líquida Cuide-me', 'Forma', 'Status', 'Profissional', 'Stripe'].map((header) => <th key={header} className="px-4 py-3 font-semibold">{header}</th>)}</tr></thead>
             <tbody className="divide-y divide-slate-100">
               {data?.items.map((item) => <tr key={item.id} className="text-slate-700">
-                <td className="px-4 py-3 text-center"><input type="checkbox" checked={item.ignoredFromTotals} onChange={(event) => void setIgnoredFromTotals(item, event.target.checked)} disabled={!can('finance.write') || savingIgnoredId === item.id} aria-label={`Ignorar ${item.id} nos totais`} title="Ignorar esta transação nos totais da visão geral" className="h-4 w-4 accent-emerald-700 disabled:opacity-50" /></td>
+                <td className="px-4 py-3 text-center"><input type="checkbox" checked={item.ignoredFromTotals} onChange={(event) => void setIgnoredFromTotals(item, event.target.checked)} disabled={item.source !== 'stripe' || !can('finance.write') || savingIgnoredId === item.id} aria-label={`Ignorar ${item.id} nos totais`} title="Ignorar esta transação nos totais da visão geral" className="h-4 w-4 accent-emerald-700 disabled:opacity-50" /></td>
                 <td className="px-4 py-3">{item.client?.name || 'Não conciliado'}</td>
                 <td className="px-4 py-3">{item.job ? <Link className="text-emerald-700 underline" href={`/admin/financeiro/recebimentos/${item.id}`}>{item.job.label}</Link> : 'Sem vínculo'}</td>
-                <td className="px-4 py-3 font-mono text-xs">{item.job?.protocol || <div className="flex min-w-40 gap-1"><input value={manualProtocolValues[item.id] ?? item.manualProtocol ?? ''} onChange={(event) => setManualProtocolValues((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Número do protocolo" aria-label={`Protocolo manual para ${item.id}`} disabled={!can('finance.write') || savingManualProtocolId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 font-sans text-sm disabled:opacity-50" /><button type="button" title="Salvar protocolo" onClick={() => void saveManualProtocol(item)} disabled={!can('finance.write') || savingManualProtocolId === item.id} className="rounded border border-emerald-700 px-2 py-1 font-sans text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div>}</td>
+                <td className="px-4 py-3 font-mono text-xs">{item.source === 'manual_pix' ? item.manualProtocol : item.job?.protocol || <div className="flex min-w-40 gap-1"><input value={manualProtocolValues[item.id] ?? item.manualProtocol ?? ''} onChange={(event) => setManualProtocolValues((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Número do protocolo" aria-label={`Protocolo manual para ${item.id}`} disabled={!can('finance.write') || savingManualProtocolId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 font-sans text-sm disabled:opacity-50" /><button type="button" title="Salvar protocolo" onClick={() => void saveManualProtocol(item)} disabled={!can('finance.write') || savingManualProtocolId === item.id} className="rounded border border-emerald-700 px-2 py-1 font-sans text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div>}</td>
                 <td className="px-4 py-3">{new Date(item.createdAt).toLocaleDateString('pt-BR')}</td>
                 <td className="px-4 py-3 font-medium">{formatCurrencyFromCentavos(item.amountCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{formatCurrencyFromCentavos(item.stripeFeeCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{formatCurrencyFromCentavos(item.taxReserveCentavos, item.currency)} <span className="text-xs text-slate-500">estimado</span></td>
-                <td className="px-4 py-3"><div className="flex min-w-40 gap-1"><input value={payoutValues[item.id] ?? (item.professionalPayoutCentavos === null ? '' : (item.professionalPayoutCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setPayoutValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Repasse profissional para ${item.id}`} disabled={!can('finance.write') || savingPayoutId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar repasse profissional" onClick={() => void saveProfessionalPayout(item)} disabled={!can('finance.write') || savingPayoutId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div></td>
-                <td className="px-4 py-3"><div className="min-w-40 space-y-1"><div className="flex gap-1"><input value={manualRefundValues[item.id] ?? (item.manualRefundedAmountCentavos === null ? '' : (item.manualRefundedAmountCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setManualRefundValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Reembolso manual para ${item.id}`} disabled={!can('finance.write') || savingManualRefundId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar reembolso manual" onClick={() => void saveManualRefund(item)} disabled={!can('finance.write') || savingManualRefundId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div><p className="text-xs text-slate-500">{item.manualRefundedAmountCentavos === null ? `Stripe: ${formatCurrencyFromCentavos(item.refundedAmountCentavos, item.currency)}` : 'Manual'}</p></div></td>
+                <td className="px-4 py-3"><div className="flex min-w-40 gap-1"><input value={payoutValues[item.id] ?? (item.professionalPayoutCentavos === null ? '' : (item.professionalPayoutCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setPayoutValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Repasse profissional para ${item.id}`} disabled={item.source !== 'stripe' || !can('finance.write') || savingPayoutId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar repasse profissional" onClick={() => void saveProfessionalPayout(item)} disabled={item.source !== 'stripe' || !can('finance.write') || savingPayoutId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div></td>
+                <td className="px-4 py-3"><div className="min-w-40 space-y-1"><div className="flex gap-1"><input value={manualRefundValues[item.id] ?? (item.manualRefundedAmountCentavos === null ? '' : (item.manualRefundedAmountCentavos / 100).toFixed(2).replace('.', ','))} onChange={(event) => setManualRefundValues((current) => ({ ...current, [item.id]: event.target.value }))} inputMode="decimal" placeholder="R$ 0,00" aria-label={`Reembolso manual para ${item.id}`} disabled={item.source !== 'stripe' || !can('finance.write') || savingManualRefundId === item.id} className="min-w-0 rounded border border-slate-300 px-2 py-1 text-sm" /><button type="button" title="Salvar reembolso manual" onClick={() => void saveManualRefund(item)} disabled={item.source !== 'stripe' || !can('finance.write') || savingManualRefundId === item.id} className="rounded border border-emerald-700 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50">Salvar</button></div><p className="text-xs text-slate-500">{item.source === 'manual_pix' ? 'Não aplicável' : item.manualRefundedAmountCentavos === null ? `Stripe: ${formatCurrencyFromCentavos(item.refundedAmountCentavos, item.currency)}` : 'Manual'}</p></div></td>
                 <td className="px-4 py-3 font-medium">{formatCurrencyFromCentavos(item.netCuidemeMarginCentavos, item.currency)}</td>
                 <td className="px-4 py-3">{item.paymentMethod || 'Não informado'}</td>
                 <td className="px-4 py-3">{statusLabel(item.status)}</td>
                 <td className="px-4 py-3">{item.professional?.name || 'Não conciliado'}</td>
-                <td className="px-4 py-3 font-mono text-xs">{item.id}</td>
+                <td className="px-4 py-3 font-mono text-xs">{item.source === 'manual_pix' ? 'PIX manual' : item.id}</td>
               </tr>)}
             </tbody>
           </table>

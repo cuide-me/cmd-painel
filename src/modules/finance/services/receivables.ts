@@ -9,6 +9,7 @@ import type {
   FinancePerson,
   FinanceTimeWindow,
   FinancialOverview,
+  CreateManualReceivableInput,
   ReceivableRow,
   ReceivableStatus,
   ReceivablesFilters,
@@ -34,6 +35,17 @@ export function getJobProtocol(job: FirestoreRecord): string {
 
 function getWindowStart(window: FinanceTimeWindow): number {
   return Math.floor((Date.now() - window * 24 * 60 * 60 * 1000) / 1000);
+}
+
+function getReceivablesDateRange(window: FinanceTimeWindow, month?: string): { gte: number; lt?: number } {
+  if (month) {
+    const [year, monthNumber] = month.split('-').map(Number);
+    return {
+      gte: Math.floor(Date.UTC(year, monthNumber - 1, 1) / 1000),
+      lt: Math.floor(Date.UTC(year, monthNumber, 1) / 1000),
+    };
+  }
+  return { gte: getWindowStart(window) };
 }
 
 function getReceivableStatus(charge: Stripe.Charge): ReceivableStatus {
@@ -391,6 +403,75 @@ function asPerson(id: string | undefined, users: Map<string, FirestoreRecord>): 
   return { id, name: getDisplayName(users.get(id)) };
 }
 
+function toManualReceivableRow(id: string, data: FirestoreRecord): ReceivableRow | null {
+  const amountCentavos = data.amountCentavos;
+  const clientName = data.clientName;
+  const protocol = data.protocol;
+  const paidAt = data.paidAt;
+  if (typeof amountCentavos !== 'number' || typeof clientName !== 'string' || typeof protocol !== 'string' || typeof paidAt !== 'string') return null;
+
+  const financials = calculateReceivableFinancials({
+    amountCentavos,
+    stripeFeeCentavos: 0,
+    professionalPayoutCentavos: null,
+  });
+
+  return {
+    id: `manual_pix_${id}`,
+    source: 'manual_pix',
+    stripePaymentIntentId: null,
+    createdAt: typeof data.createdAt === 'string' ? data.createdAt : `${paidAt}T12:00:00.000Z`,
+    amountCentavos,
+    currency: typeof data.currency === 'string' ? data.currency : 'brl',
+    status: 'succeeded',
+    paymentMethod: 'pix',
+    client: { id: `manual-client-${id}`, name: clientName },
+    professional: typeof data.professionalName === 'string' && data.professionalName.trim()
+      ? { id: `manual-professional-${id}`, name: data.professionalName.trim() }
+      : null,
+    job: null,
+    manualProtocol: protocol,
+    reconciliation: 'unlinked',
+    refundedAmountCentavos: 0,
+    manualRefundedAmountCentavos: null,
+    stripeFeeCentavos: 0,
+    professionalPayoutCentavos: null,
+    ignoredFromTotals: false,
+    ...financials,
+  };
+}
+
+async function listManualReceivables(window: FinanceTimeWindow, month?: string): Promise<ReceivableRow[]> {
+  const range = getReceivablesDateRange(window, month);
+  const rangeStart = new Date(range.gte * 1000).toISOString();
+  const rangeEnd = range.lt ? new Date(range.lt * 1000).toISOString() : undefined;
+  const snapshot = await getFirestore().collection('manualReceivables').get();
+  return snapshot.docs
+    .map((document: QueryDocumentSnapshot) => toManualReceivableRow(document.id, document.data() as FirestoreRecord))
+    .filter((row: ReceivableRow | null): row is ReceivableRow => Boolean(
+      row && row.createdAt >= rangeStart && (!rangeEnd || row.createdAt < rangeEnd)
+    ))
+    .sort((first: ReceivableRow, second: ReceivableRow) => second.createdAt.localeCompare(first.createdAt));
+}
+
+export async function createManualReceivable(input: CreateManualReceivableInput, createdBy: string): Promise<ReceivableRow> {
+  const createdAt = new Date().toISOString();
+  const document = {
+    clientName: input.clientName.trim(),
+    ...(input.professionalName ? { professionalName: input.professionalName.trim() } : {}),
+    protocol: input.protocol.trim(),
+    ...(input.jobLabel ? { jobLabel: input.jobLabel.trim() } : {}),
+    amountCentavos: input.amountCentavos,
+    paidAt: input.paidAt,
+    ...(input.notes ? { notes: input.notes.trim() } : {}),
+    currency: 'brl',
+    createdAt,
+    createdBy,
+  };
+  const reference = await getFirestore().collection('manualReceivables').add(document);
+  return toManualReceivableRow(reference.id, document) as ReceivableRow;
+}
+
 async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
   const paymentKeys = charges.flatMap(getPaymentKeys);
   const [directJobsByPaymentKey, jobsByPaymentRecords, jobsByMetadataId, professionalPayoutsByChargeId, receivableSettingsByChargeId] = await Promise.all([
@@ -430,6 +511,7 @@ async function mapCharges(charges: Stripe.Charge[]): Promise<ReceivableRow[]> {
 
     return {
       id: charge.id,
+      source: 'stripe',
       stripePaymentIntentId: getPaymentIntentId(charge),
       createdAt: new Date(charge.created * 1000).toISOString(),
       amountCentavos: charge.amount,
@@ -467,12 +549,14 @@ export async function listReceivables(filters: ReceivablesFilters): Promise<Rece
   let cursor = filters.cursor;
   let hasMore = true;
   let scannedRecords = 0;
+  const manualReceivables = filters.cursor ? [] : applyFilters(await listManualReceivables(filters.window, filters.month), filters);
 
   // Stripe cannot filter charges by the job participants stored in Firestore.
   // Fetch only the remaining capacity so advancing the cursor never skips a matching row.
   while (items.length < pageSize && hasMore && scannedRecords < MAX_FILTER_SCAN_RECORDS) {
+    const dateRange = getReceivablesDateRange(filters.window, filters.month);
     const response = await stripe.charges.list({
-      created: { gte: getWindowStart(filters.window) },
+      created: dateRange,
       limit: Math.min(pageSize - items.length, MAX_FILTER_SCAN_RECORDS - scannedRecords),
       expand: ['data.balance_transaction'],
       ...(cursor ? { starting_after: cursor } : {}),
@@ -486,20 +570,21 @@ export async function listReceivables(filters: ReceivablesFilters): Promise<Rece
   }
 
   return {
-    items,
+    items: [...manualReceivables, ...items].sort((first, second) => second.createdAt.localeCompare(first.createdAt)),
     nextCursor: hasMore ? cursor || null : null,
     coverage: {
-      loadedRecords: scannedRecords,
+      loadedRecords: scannedRecords + manualReceivables.length,
       hasMore,
       isComplete: !hasMore,
       note: hasMore
-        ? `A página filtrada percorreu ${scannedRecords} charges do período; avance para continuar a busca.`
+        ? `A página filtrada percorreu ${scannedRecords} charges do período e inclui pagamentos PIX manuais; avance para continuar a busca.`
         : scannedRecords > pageSize
           ? `A busca percorreu ${scannedRecords} charges para aplicar os filtros no período.`
           : undefined,
     },
     filtersApplied: {
       window: filters.window,
+      month: filters.month,
       status: filters.status,
       clientId: filters.clientId,
       professionalId: filters.professionalId,

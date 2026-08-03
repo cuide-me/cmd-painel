@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminPermission } from '@/lib/server/auth';
-import { listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals, setReceivableManualProtocol, setReceivableManualRefund } from '@/modules/finance/services/receivables';
+import { createManualReceivable, listReceivables, saveProfessionalPayoutForReceivable, setReceivableIgnoredFromTotals, setReceivableManualProtocol, setReceivableManualRefund } from '@/modules/finance/services/receivables';
 import type { FinanceTimeWindow, ReceivableStatus } from '@/modules/finance/domain/types';
 
 const VALID_WINDOWS: FinanceTimeWindow[] = [7, 30, 90, 365];
 const VALID_STATUSES: Array<ReceivableStatus | 'all'> = ['all', 'succeeded', 'pending', 'failed', 'refunded'];
+
+function isValidMonth(value: string | null): value is string {
+  return Boolean(value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value));
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requireAdminPermission(request, 'finance.read');
@@ -14,6 +18,7 @@ export async function GET(request: NextRequest) {
   const requestedWindow = Number(searchParams.get('window'));
   const requestedStatus = searchParams.get('status') || 'all';
   const requestedPageSize = Number(searchParams.get('pageSize'));
+  const requestedMonth = searchParams.get('month');
 
   const window = VALID_WINDOWS.includes(requestedWindow as FinanceTimeWindow)
     ? requestedWindow as FinanceTimeWindow
@@ -25,6 +30,7 @@ export async function GET(request: NextRequest) {
   try {
     return NextResponse.json(await listReceivables({
       window,
+      month: isValidMonth(requestedMonth) ? requestedMonth : undefined,
       status,
       cursor: searchParams.get('cursor') || undefined,
       clientId: searchParams.get('clientId') || undefined,
@@ -45,6 +51,25 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json() as Record<string, unknown>;
+    if (body.source === 'manual_pix') {
+      const clientName = typeof body.clientName === 'string' ? body.clientName.trim() : '';
+      const protocol = typeof body.protocol === 'string' ? body.protocol.trim() : '';
+      const amountCentavos = body.amountCentavos;
+      const paidAt = typeof body.paidAt === 'string' ? body.paidAt : '';
+      if (!clientName || !protocol || typeof amountCentavos !== 'number' || !Number.isSafeInteger(amountCentavos) || amountCentavos <= 0 || Number.isNaN(Date.parse(paidAt))) {
+        return NextResponse.json({ error: 'Dados do pagamento PIX manual inválidos.' }, { status: 400 });
+      }
+      const receivable = await createManualReceivable({
+        clientName,
+        professionalName: typeof body.professionalName === 'string' ? body.professionalName : undefined,
+        protocol,
+        jobLabel: typeof body.jobLabel === 'string' ? body.jobLabel : undefined,
+        amountCentavos,
+        paidAt,
+        notes: typeof body.notes === 'string' ? body.notes : undefined,
+      }, auth.uid);
+      return NextResponse.json(receivable, { status: 201 });
+    }
     const stripeChargeId = typeof body.stripeChargeId === 'string' ? body.stripeChargeId.trim() : '';
     if (stripeChargeId.startsWith('ch_') && typeof body.ignoredFromTotals === 'boolean') {
       await setReceivableIgnoredFromTotals(stripeChargeId, body.ignoredFromTotals, auth.uid);

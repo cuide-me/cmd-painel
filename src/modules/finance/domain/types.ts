@@ -1,6 +1,7 @@
 export type FinanceTimeWindow = 7 | 30 | 90 | 365;
 
 export type ReceivableStatus = 'succeeded' | 'pending' | 'failed' | 'refunded';
+export type ReceivableSource = 'stripe' | 'manual_pix';
 
 export interface FinanceSourceCoverage {
   loadedRecords: number;
@@ -22,6 +23,7 @@ export interface FinanceJobReference {
 
 export interface ReceivableRow {
   id: string;
+  source: ReceivableSource;
   stripePaymentIntentId: string | null;
   createdAt: string;
   amountCentavos: number;
@@ -42,8 +44,19 @@ export interface ReceivableRow {
   ignoredFromTotals: boolean;
 }
 
+export interface CreateManualReceivableInput {
+  clientName: string;
+  professionalName?: string;
+  protocol: string;
+  jobLabel?: string;
+  amountCentavos: number;
+  paidAt: string;
+  notes?: string;
+}
+
 export interface ReceivablesFilters {
   window: FinanceTimeWindow;
+  month?: string;
   status: ReceivableStatus | 'all';
   clientId?: string;
   professionalId?: string;

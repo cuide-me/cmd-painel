@@ -28,6 +28,7 @@ describe('listReceivables pagination', () => {
       collection: jest.fn(() => ({
         where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
         doc: jest.fn((id) => ({ id })),
+        get: jest.fn().mockResolvedValue({ docs: [] }),
       })),
       getAll: jest.fn().mockResolvedValue([]),
     });
@@ -55,6 +56,16 @@ describe('listReceivables pagination', () => {
     });
   });
 
+  it('uses the exact selected month as the Stripe date range', async () => {
+    mockChargesList.mockResolvedValue({ data: [], has_more: false });
+
+    await listReceivables({ window: 30, month: '2026-07', status: 'all', pageSize: 1 });
+
+    expect(mockChargesList).toHaveBeenCalledWith(expect.objectContaining({
+      created: { gte: 1_782_864_000, lt: 1_785_542_400 },
+    }));
+  });
+
   it('reconciles a charge to its job through Stripe metadata when payment fields are absent', async () => {
     const job = {
       exists: true,
@@ -65,6 +76,7 @@ describe('listReceivables pagination', () => {
       collection: jest.fn((name) => ({
         where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
         doc: jest.fn((id) => ({ collection: name, id })),
+        get: jest.fn().mockResolvedValue({ docs: [] }),
       })),
       getAll: jest.fn((...documents) => Promise.resolve(documents[0]?.collection === 'jobs' ? [job] : [])),
     });
@@ -88,6 +100,7 @@ describe('listReceivables pagination', () => {
       collection: jest.fn((name) => ({
         where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
         doc: jest.fn((id) => ({ collection: name, id })),
+        get: jest.fn().mockResolvedValue({ docs: [] }),
       })),
       getAll: jest.fn((...documents) => Promise.resolve(
         documents[0]?.collection === 'receivableSettings' ? [manualProtocolSetting] : []
@@ -113,6 +126,7 @@ describe('listReceivables pagination', () => {
       collection: jest.fn((name) => ({
         where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
         doc: jest.fn((id) => ({ collection: name, id })),
+        get: jest.fn().mockResolvedValue({ docs: [] }),
       })),
       getAll: jest.fn((...documents) => Promise.resolve(
         documents[0]?.collection === 'receivableSettings' ? [manualRefundSetting] : []
@@ -123,5 +137,34 @@ describe('listReceivables pagination', () => {
     const result = await listReceivables({ window: 30, status: 'all', pageSize: 1 });
 
     expect(result.items[0]).toMatchObject({ refundedAmountCentavos: 1_000, manualRefundedAmountCentavos: 2_500 });
+  });
+
+  it('does not apply a Stripe fee to a manually recorded PIX payment', async () => {
+    mockGetFirestore.mockReturnValue({
+      collection: jest.fn((name) => ({
+        where: jest.fn(() => ({ get: jest.fn().mockResolvedValue({ docs: [] }) })),
+        doc: jest.fn((id) => ({ collection: name, id })),
+        get: jest.fn().mockResolvedValue({
+          docs: name === 'manualReceivables' ? [{
+            id: 'pix-1',
+            data: () => ({
+              clientName: 'Ana Silva',
+              protocol: 'CDM-2026-00015',
+              amountCentavos: 15_000,
+              paidAt: '2026-08-03',
+              createdAt: new Date().toISOString(),
+            }),
+          }] : [],
+        }),
+      })),
+      getAll: jest.fn().mockResolvedValue([]),
+    });
+    mockChargesList.mockResolvedValue({ data: [], has_more: false });
+
+    const result = await listReceivables({ window: 30, status: 'all', pageSize: 1 });
+
+    expect(result.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'manual_pix_pix-1', source: 'manual_pix', stripeFeeCentavos: 0 }),
+    ]));
   });
 });
